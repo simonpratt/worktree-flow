@@ -1,0 +1,59 @@
+import { Command } from 'commander';
+import checkbox from '@inquirer/checkbox';
+import chalk from 'chalk';
+import path from 'node:path';
+import { getRequiredConfig } from '../lib/config.js';
+import * as git from '../lib/git.js';
+import { discoverRepos, getRepoName } from '../lib/repos.js';
+import { createWorkspaceDir, copyAgentsMd } from '../lib/workspace.js';
+
+export function registerBranchCommand(program: Command): void {
+  program
+    .command('branch <branch-name>')
+    .description('Create branches and worktrees for selected repos')
+    .action(async (branchName: string) => {
+      const { sourcePath, destPath } = getRequiredConfig();
+      const repos = discoverRepos(sourcePath);
+
+      if (repos.length === 0) {
+        console.error(`No git repositories found in ${sourcePath}`);
+        process.exit(1);
+      }
+
+      const selected = await checkbox({
+        message: `Select repos for branch "${branchName}":`,
+        choices: repos
+          .map(repoPath => ({
+            name: getRepoName(repoPath),
+            value: repoPath,
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name)),
+        pageSize: 20,
+      });
+
+      if (selected.length === 0) {
+        console.log('No repos selected.');
+        return;
+      }
+
+      const workspacePath = createWorkspaceDir(destPath, branchName);
+      let successCount = 0;
+
+      for (const repoPath of selected) {
+        const repoName = getRepoName(repoPath);
+        const worktreeDest = path.join(workspacePath, repoName);
+        try {
+          git.addWorktreeNewBranch(repoPath, worktreeDest, branchName);
+          console.log(chalk.green(`  ${repoName}`));
+          successCount++;
+        } catch (err: any) {
+          console.error(chalk.red(`  ${repoName}: ${err.stderr || err.message}`));
+        }
+      }
+
+      copyAgentsMd(sourcePath, workspacePath);
+      console.log(
+        `\nCreated workspace at ${chalk.cyan(workspacePath)} with ${successCount}/${selected.length} repos.`
+      );
+    });
+}

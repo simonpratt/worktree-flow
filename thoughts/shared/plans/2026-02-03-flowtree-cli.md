@@ -60,9 +60,7 @@ Set up the TypeScript project with build tooling and dependencies so we can comp
     "dist"
   ],
   "scripts": {
-    "build": "tsup",
-    "dev": "tsup --watch",
-    "typecheck": "tsc --noEmit",
+    "build": "tsc",
     "prepublishOnly": "npm run build"
   },
   "keywords": ["git", "worktree", "monorepo", "polyrepo", "cli"],
@@ -77,8 +75,8 @@ Set up the TypeScript project with build tooling and dependencies so we can comp
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
+    "module": "NodeNext",
+    "moduleResolution": "nodenext",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -90,24 +88,7 @@ Set up the TypeScript project with build tooling and dependencies so we can comp
 }
 ```
 
-#### 3. tsup.config.ts
-**File**: `tsup.config.ts`
-
-```typescript
-import { defineConfig } from 'tsup';
-
-export default defineConfig({
-  entry: ['src/cli.ts'],
-  format: ['esm'],
-  target: 'node18',
-  clean: true,
-  banner: {
-    js: '#!/usr/bin/env node',
-  },
-});
-```
-
-#### 4. .gitignore
+#### 3. .gitignore
 **File**: `.gitignore`
 
 ```
@@ -115,25 +96,27 @@ node_modules/
 dist/
 ```
 
-#### 5. Minimal src/cli.ts (placeholder so build works)
+#### 4. Minimal src/cli.ts (placeholder so build works)
 **File**: `src/cli.ts`
 
 ```typescript
+#!/usr/bin/env node
 console.log('flowtree');
 ```
 
-#### 6. Install dependencies
+The shebang is placed directly in the source file. Node.js treats it as a comment. `tsc` preserves it in the output.
+
+#### 5. Install dependencies
 ```bash
 npm install commander @inquirer/checkbox chalk
-npm install -D typescript tsup @types/node
+npm install -D typescript @types/node
 ```
 
 ### Success Criteria:
 
 #### Automated Verification:
-- [ ] `npm run build` produces `dist/cli.js` with shebang
-- [ ] `npm run typecheck` passes
-- [ ] `node dist/cli.js` prints "flowtree"
+- [x] `npm run build` produces `dist/cli.js` with shebang on first line
+- [x] `node dist/cli.js` prints "flowtree"
 
 #### Manual Verification:
 - [ ] `npm link && flowtree` prints "flowtree"
@@ -344,8 +327,8 @@ export function getWorktreeDirs(workspacePath: string): string[] {
 ### Success Criteria:
 
 #### Automated Verification:
-- [ ] `npm run typecheck` passes with all 4 lib files
-- [ ] `npm run build` succeeds
+- [x] `npm run build` succeeds with all 4 lib files
+- [x] `node dist/cli.js` still runs
 
 #### Manual Verification:
 - [ ] N/A — library code is exercised through commands in Phase 3
@@ -655,8 +638,8 @@ export function registerPushCommand(program: Command): void {
 ### Success Criteria:
 
 #### Automated Verification:
-- [ ] `npm run typecheck` passes with all command files
-- [ ] `npm run build` succeeds
+- [x] `npm run build` succeeds with all command files
+- [x] No type errors
 
 #### Manual Verification:
 - [ ] N/A — commands wired in Phase 4, tested end-to-end there
@@ -676,6 +659,7 @@ Wire all commands into the commander program in `src/cli.ts`, build, link, and v
 **File**: `src/cli.ts` (replace placeholder)
 
 ```typescript
+#!/usr/bin/env node
 import { Command } from 'commander';
 import { registerConfigCommand } from './commands/config.js';
 import { registerBranchCommand } from './commands/branch.js';
@@ -702,10 +686,9 @@ program.parse();
 ### Success Criteria:
 
 #### Automated Verification:
-- [ ] `npm run build` produces `dist/cli.js` with shebang at top
-- [ ] `npm run typecheck` passes
-- [ ] `node dist/cli.js --help` shows all 5 commands
-- [ ] `node dist/cli.js config set source-path /tmp/test-source` writes config to `~/.config/flowtree/config.json`
+- [x] `npm run build` produces `dist/cli.js` with shebang on first line
+- [x] `node dist/cli.js --help` shows all 5 commands
+- [x] `node dist/cli.js config set source-path /tmp/test-source` writes config to `~/.config/flowtree/config.json`
 
 #### Manual Verification:
 - [ ] `npm link` makes `flowtree` available globally
@@ -725,6 +708,9 @@ program.parse();
 ---
 
 ## Key Design Decisions
+
+### tsc instead of a bundler
+We use `tsc` directly — no tsup, tsdown, or esbuild. The project is small (10 files), doesn't need bundling, and `tsc` outputs individual `.js` files that map 1:1 to source. The shebang (`#!/usr/bin/env node`) is placed directly in `src/cli.ts` and preserved by `tsc` in the output.
 
 ### Git operations use `execFileSync` with argument arrays
 ```typescript
