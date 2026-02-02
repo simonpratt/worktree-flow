@@ -1,4 +1,7 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync, execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
 
 function exec(repoPath: string, args: string[]): string {
   const result = execFileSync('git', ['-C', repoPath, ...args], {
@@ -8,12 +11,19 @@ function exec(repoPath: string, args: string[]): string {
   return result.trim();
 }
 
-export function fetch(repoPath: string): void {
-  exec(repoPath, ['fetch', '--all', '--prune']);
+async function execAsync(repoPath: string, args: string[]): Promise<string> {
+  const { stdout } = await execFileAsync('git', ['-C', repoPath, ...args], {
+    encoding: 'utf-8',
+  });
+  return stdout.trim();
 }
 
-export function remoteBranchExists(repoPath: string, branch: string): boolean {
-  const output = exec(repoPath, ['ls-remote', '--heads', 'origin', branch]);
+export async function fetch(repoPath: string): Promise<void> {
+  await execAsync(repoPath, ['fetch', '--all', '--prune']);
+}
+
+export async function remoteBranchExists(repoPath: string, branch: string): Promise<boolean> {
+  const output = await execAsync(repoPath, ['ls-remote', '--heads', 'origin', branch]);
   return output.length > 0;
 }
 

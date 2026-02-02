@@ -19,24 +19,42 @@ export function registerCheckoutCommand(program: Command): void {
         process.exit(1);
       }
 
-      // Fetch all repos and check for branch
+      // Fetch all repos and check for branch (8 concurrent at a time)
       const matchingRepos: string[] = [];
+      const CONCURRENCY = 8;
 
-      for (const repoPath of repos) {
+      const processRepo = async (repoPath: string): Promise<string | null> => {
         const repoName = getRepoName(repoPath);
-        process.stdout.write(`Fetching ${repoName}...`);
         try {
-          git.fetch(repoPath);
-          if (git.remoteBranchExists(repoPath, branchName)) {
-            matchingRepos.push(repoPath);
-            console.log(chalk.green(' found'));
+          await git.fetch(repoPath);
+          if (await git.remoteBranchExists(repoPath, branchName)) {
+            console.log(`${repoName}... ${chalk.green('found')}`);
+            return repoPath;
           } else {
-            console.log(chalk.dim(' no branch'));
+            console.log(`${repoName}... ${chalk.dim('no branch')}`);
+            return null;
           }
         } catch (err: any) {
-          console.log(chalk.red(` error: ${err.stderr || err.message}`));
+          console.log(`${repoName}... ${chalk.red(`error: ${err.stderr || err.message}`)}`);
+          return null;
         }
-      }
+      };
+
+      // Process repos with constant concurrency of 8
+      let index = 0;
+      const results: Promise<string | null>[] = [];
+
+      const worker = async (): Promise<void> => {
+        while (index < repos.length) {
+          const repoPath = repos[index++];
+          const result = await processRepo(repoPath);
+          if (result) matchingRepos.push(result);
+        }
+      };
+
+      // Start up to 8 workers
+      const workers = Array.from({ length: Math.min(CONCURRENCY, repos.length) }, () => worker());
+      await Promise.all(workers);
 
       if (matchingRepos.length === 0) {
         console.error(`\nBranch "${branchName}" not found in any repo.`);
