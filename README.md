@@ -1,17 +1,17 @@
-# flowtree
+# worktree-flow
 
 Manage git worktrees across a poly-repo environment.
 
-## What is flowtree?
+## What is worktree-flow?
 
-`flowtree` helps you work on multi-repo features by creating isolated workspace directories with git worktrees. Instead of switching branches across multiple repositories manually, flowtree creates a workspace folder containing worktrees for all relevant repos on the same branch.
+`flow` helps you work on multi-repo features by creating isolated workspace directories with git worktrees. Instead of switching branches across multiple repositories manually, flow creates a workspace folder containing worktrees for all relevant repos on the same branch.
 
 ```
 ~/repos/my-api-1       (main branch)
 ~/repos/my-api-2       (main branch)
 ~/repos/my-client      (main branch)
 
-↓ flowtree branch TICKET-123
+↓ flow branch TICKET-123
 
 ~/workspaces/TICKET-123/my-api-1    (TICKET-123 branch)
 ~/workspaces/TICKET-123/my-client   (TICKET-123 branch)
@@ -20,13 +20,13 @@ Manage git worktrees across a poly-repo environment.
 ## Installation
 
 ```bash
-npm install -g git-flowtree
+npm install -g worktree-flow
 ```
 
 Or install locally:
 
 ```bash
-npm install git-flowtree
+npm install worktree-flow
 npm link
 ```
 
@@ -35,11 +35,11 @@ npm link
 Set the paths where your repos live and where workspaces should be created:
 
 ```bash
-flowtree config set source-path ~/repos
-flowtree config set dest-path ~/workspaces
+flow config set source-path ~/repos
+flow config set dest-path ~/workspaces
 ```
 
-Configuration is stored in `~/.config/flowtree/config.json`.
+Configuration is stored in `~/.config/flow/config.json`.
 
 ## Usage
 
@@ -48,7 +48,7 @@ Configuration is stored in `~/.config/flowtree/config.json`.
 Interactively select which repos to branch:
 
 ```bash
-flowtree branch TICKET-123
+flow branch TICKET-123
 ```
 
 Use spacebar to select repos, enter to confirm. Creates new branches and worktrees.
@@ -58,7 +58,7 @@ Use spacebar to select repos, enter to confirm. Creates new branches and worktre
 Automatically detects which repos have the branch:
 
 ```bash
-flowtree checkout TICKET-123
+flow checkout TICKET-123
 ```
 
 Fetches all repos and creates worktrees for repos that have the branch.
@@ -69,7 +69,7 @@ From anywhere inside a workspace directory:
 
 ```bash
 cd ~/workspaces/TICKET-123
-flowtree pull
+flow pull
 ```
 
 Pulls latest changes for all repos in the workspace.
@@ -80,7 +80,7 @@ From anywhere inside a workspace directory:
 
 ```bash
 cd ~/workspaces/TICKET-123/my-api-1
-flowtree push
+flow push
 ```
 
 Pushes all repos in the workspace. Automatically sets upstream on first push.

@@ -9,7 +9,7 @@ import { registerPushCommand } from './commands/push.js';
 const program = new Command();
 
 program
-  .name('flowtree')
+  .name('flow')
   .description('Manage git worktrees across a poly-repo environment')
   .version('0.1.0');
 

@@ -1,10 +1,10 @@
 {
-  "name": "git-flowtree",
+  "name": "worktree-flow",
   "version": "0.1.0",
   "description": "Manage git worktrees across a poly-repo environment",
   "type": "module",
   "bin": {
-    "flowtree": "./dist/cli.js"
+    "flow": "./dist/cli.js"
   },
   "files": [
     "dist"

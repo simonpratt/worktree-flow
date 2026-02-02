@@ -14,7 +14,7 @@ export function isValidKey(key: string): key is keyof FlowtreeConfig {
 }
 
 export function getConfigPath(): string {
-  return path.join(os.homedir(), '.config', 'flowtree', 'config.json');
+  return path.join(os.homedir(), '.config', 'flow', 'config.json');
 }
 
 export function loadConfig(): FlowtreeConfig {
@@ -36,9 +36,9 @@ export function getRequiredConfig(): { sourcePath: string; destPath: string } {
   const config = loadConfig();
   if (!config['source-path'] || !config['dest-path']) {
     console.error(
-      'flowtree is not configured. Run:\n' +
-      '  flowtree config set source-path <path>\n' +
-      '  flowtree config set dest-path <path>'
+      'flow is not configured. Run:\n' +
+      '  flow config set source-path <path>\n' +
+      '  flow config set dest-path <path>'
     );
     process.exit(1);
   }

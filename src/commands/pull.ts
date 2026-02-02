@@ -15,7 +15,7 @@ export function registerPullCommand(program: Command): void {
 
       if (!workspacePath) {
         console.error(
-          `Not inside a flowtree workspace.\nNavigate to a directory under ${destPath}/.`
+          `Not inside a flow workspace.\nNavigate to a directory under ${destPath}/.`
         );
         process.exit(1);
       }

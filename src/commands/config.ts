@@ -6,7 +6,7 @@ import { isValidKey, loadConfig, saveConfig } from '../lib/config.js';
 export function registerConfigCommand(program: Command): void {
   const configCmd = program
     .command('config')
-    .description('Manage flowtree configuration');
+    .description('Manage flow configuration');
 
   configCmd
     .command('set <key> <value>')
