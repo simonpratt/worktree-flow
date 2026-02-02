@@ -6,15 +6,21 @@ Manage git worktrees across a poly-repo environment.
 
 `flow` helps you work on multi-repo features by creating isolated workspace directories with git worktrees. Instead of switching branches across multiple repositories manually, flow creates a workspace folder containing worktrees for all relevant repos on the same branch.
 
+**Before:**
 ```
-~/repos/my-api-1       (main branch)
-~/repos/my-api-2       (main branch)
-~/repos/my-client      (main branch)
+~/repos/
+├── AGENTS.md
+├── my-api-1/          (main branch)
+├── my-api-2/          (main branch)
+└── my-client/         (main branch)
+```
 
-↓ flow branch TICKET-123
-
-~/workspaces/TICKET-123/my-api-1    (TICKET-123 branch)
-~/workspaces/TICKET-123/my-client   (TICKET-123 branch)
+**After running `flow branch TICKET-123`:**
+```
+~/workspaces/TICKET-123/
+├── AGENTS.md          (copied from ~/repos)
+├── my-api-1/          (TICKET-123 branch - new worktree)
+└── my-client/         (TICKET-123 branch - new worktree)
 ```
 
 ## Installation
