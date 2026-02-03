@@ -10,6 +10,7 @@ const RawConfigSchema = z.object({
   'copy-files': z.string().optional(),
   'tmux': z.enum(['true', 'false']).optional(),
   'main-branch': z.string().optional(),
+  'post-checkout': z.string().optional(),
 });
 
 // Parsed config schema (with proper types)
@@ -19,6 +20,7 @@ const ParsedConfigSchema = z.object({
   copyFiles: z.string().default('.env'),
   tmux: z.boolean().default(false),
   mainBranch: z.string().default('master'),
+  postCheckout: z.string().optional(),
 });
 
 // Required config schema (for getRequiredConfig)
@@ -38,13 +40,14 @@ const ConfigValueSchemas = {
   'copy-files': z.string(),
   'tmux': z.enum(['true', 'false']),
   'main-branch': z.string(),
+  'post-checkout': z.string(),
 } as const;
 
 export type RawConfig = z.infer<typeof RawConfigSchema>;
 export type ParsedConfig = z.infer<typeof ParsedConfigSchema>;
 export type RequiredConfig = z.infer<typeof RequiredConfigSchema>;
 
-export const CONFIG_KEYS = ['source-path', 'dest-path', 'copy-files', 'tmux', 'main-branch'] as const;
+export const CONFIG_KEYS = ['source-path', 'dest-path', 'copy-files', 'tmux', 'main-branch', 'post-checkout'] as const;
 export type ConfigKey = (typeof CONFIG_KEYS)[number];
 
 /**
@@ -94,6 +97,7 @@ export function loadConfig(): ParsedConfig {
     copyFiles: raw['copy-files'],
     tmux: raw.tmux === 'true',
     mainBranch: raw['main-branch'],
+    postCheckout: raw['post-checkout'],
   });
 }
 

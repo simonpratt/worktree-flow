@@ -1,5 +1,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { exec } from 'node:child_process';
+import { promisify } from 'node:util';
+import confirm from '@inquirer/confirm';
+import { processInParallel } from './parallel.js';
+import type { ParsedConfig } from './config.js';
+
+const execAsync = promisify(exec);
 
 export function createWorkspaceDir(destPath: string, branch: string): string {
   const workspacePath = path.join(destPath, branch);
@@ -79,4 +86,42 @@ export function getWorktreeDirs(workspacePath: string): string[] {
   return entries
     .filter(entry => entry.isDirectory())
     .map(entry => path.join(workspacePath, entry.name));
+}
+
+async function runPostCheckoutCommand(
+  worktreeDirs: string[],
+  command: string
+): Promise<number> {
+  console.log(`\nRunning "${command}" in ${worktreeDirs.length} workspace(s)...`);
+
+  return processInParallel(
+    worktreeDirs,
+    (worktreeDir) => path.basename(worktreeDir),
+    async (worktreeDir, name) => {
+      await execAsync(command, { cwd: worktreeDir });
+      return 'completed';
+    }
+  );
+}
+
+export async function promptAndRunPostCheckout(
+  workspacePath: string,
+  config: ParsedConfig
+): Promise<void> {
+  if (!config.postCheckout) {
+    console.log('\nTip: Configure a post-checkout command to run automatically after branching/checkout.');
+    console.log('  Example: flow config set post-checkout "npm ci"');
+    return;
+  }
+
+  const shouldRun = await confirm({
+    message: `Run "${config.postCheckout}" in all workspaces?`,
+    default: true,
+  });
+
+  if (shouldRun) {
+    const worktreeDirs = getWorktreeDirs(workspacePath);
+    const completedCount = await runPostCheckoutCommand(worktreeDirs, config.postCheckout);
+    console.log(`\nCompleted in ${completedCount}/${worktreeDirs.length} workspace(s).`);
+  }
 }

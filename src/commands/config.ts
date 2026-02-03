@@ -18,7 +18,7 @@ export function registerConfigCommand(program: Command): void {
 
   configCmd
     .command('set <key> <value>')
-    .description('Set a config value (source-path, dest-path, copy-files, tmux, main-branch)')
+    .description('Set a config value (source-path, dest-path, copy-files, tmux, main-branch, post-checkout)')
     .action((key: string, value: string) => {
       if (!isValidKey(key)) {
         console.error(
@@ -61,6 +61,7 @@ export function registerConfigCommand(program: Command): void {
         'copy-files': rawConfig['copy-files'] ?? chalk.gray(`${config.copyFiles} (default)`),
         'tmux': rawConfig.tmux ?? chalk.gray(`${config.tmux} (default)`),
         'main-branch': rawConfig['main-branch'] ?? chalk.gray(`${config.mainBranch} (default)`),
+        'post-checkout': rawConfig['post-checkout'] ?? chalk.gray('(not set)'),
       };
 
       for (const key of CONFIG_KEYS) {

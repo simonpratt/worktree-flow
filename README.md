@@ -56,6 +56,9 @@ flow config set tmux true
 
 # Set config files to copy to worktrees (default: .env)
 flow config set copy-files .env,.env.local
+
+# Set command to run after checkout/branching (optional, prompts if set)
+flow config set post-checkout "npm ci"
 ```
 
 Configuration is stored in `~/.config/flow/config.json`.
@@ -72,6 +75,8 @@ flow branch TICKET-123
 
 Use spacebar to select repos, enter to confirm. Creates new branches and worktrees.
 
+If you've configured a post-checkout command, flow will prompt you to run it in all workspaces in parallel. This is useful for tasks like installing dependencies after branching.
+
 ### Checkout an existing branch
 
 Automatically detects which repos have the branch:
@@ -81,6 +86,8 @@ flow checkout TICKET-123
 ```
 
 Fetches all repos and creates worktrees for repos that have the branch.
+
+If you've configured a post-checkout command, flow will prompt you to run it in all workspaces in parallel. This is useful for tasks like installing dependencies after switching branches.
 
 ### Pull changes in a workspace
 

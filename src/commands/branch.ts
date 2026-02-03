@@ -6,7 +6,7 @@ import path from 'node:path';
 import { getRequiredConfig, loadConfig } from '../lib/config.js';
 import * as git from '../lib/git.js';
 import { discoverRepos, getRepoName } from '../lib/repos.js';
-import { createWorkspaceDir, copyAgentsMd, copyConfigFilesToWorktree } from '../lib/workspace.js';
+import { createWorkspaceDir, copyAgentsMd, copyConfigFilesToWorktree, promptAndRunPostCheckout } from '../lib/workspace.js';
 import { createTmuxSession } from '../lib/tmux.js';
 import { processInParallel } from '../lib/parallel.js';
 import { fetchRepos } from '../lib/fetch.js';
@@ -79,5 +79,8 @@ export function registerBranchCommand(program: Command): void {
       console.log(
         `\nCreated workspace at ${chalk.cyan(workspacePath)} with ${successCount}/${selected.length} repos.`
       );
+
+      // Ask if user wants to run post-checkout command
+      await promptAndRunPostCheckout(workspacePath, config);
     });
 }
