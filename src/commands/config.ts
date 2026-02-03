@@ -10,11 +10,11 @@ export function registerConfigCommand(program: Command): void {
 
   configCmd
     .command('set <key> <value>')
-    .description('Set a config value (source-path, dest-path, config-files)')
+    .description('Set a config value (source-path, dest-path, config-files, tmux)')
     .action((key: string, value: string) => {
       if (!isValidKey(key)) {
         console.error(
-          `Unknown config key: ${key}\nValid keys: source-path, dest-path, config-files`
+          `Unknown config key: ${key}\nValid keys: source-path, dest-path, config-files, tmux`
         );
         process.exit(1);
       }
@@ -27,6 +27,15 @@ export function registerConfigCommand(program: Command): void {
         config[key] = resolved;
         saveConfig(config);
         console.log(chalk.green(`Set ${key} = ${resolved}`));
+      } else if (key === 'tmux') {
+        // Validate boolean values for tmux
+        if (value !== 'true' && value !== 'false') {
+          console.error(`tmux must be 'true' or 'false'`);
+          process.exit(1);
+        }
+        config[key] = value;
+        saveConfig(config);
+        console.log(chalk.green(`Set ${key} = ${value}`));
       } else {
         // For non-path keys (like config-files), use the value as-is
         config[key] = value;
@@ -40,7 +49,7 @@ export function registerConfigCommand(program: Command): void {
     .description('List all config options and their current values')
     .action(() => {
       const config = loadConfig();
-      const validKeys: (keyof FlowtreeConfig)[] = ['source-path', 'dest-path', 'config-files'];
+      const validKeys: (keyof FlowtreeConfig)[] = ['source-path', 'dest-path', 'config-files', 'tmux'];
 
       console.log(chalk.bold('\nCurrent configuration:'));
       console.log();
@@ -50,9 +59,11 @@ export function registerConfigCommand(program: Command): void {
         if (value) {
           console.log(`  ${chalk.cyan(key)}: ${chalk.green(value)}`);
         } else {
-          // Show default for config-files
+          // Show defaults for optional config
           if (key === 'config-files') {
             console.log(`  ${chalk.cyan(key)}: ${chalk.gray('.env (default)')}`);
+          } else if (key === 'tmux') {
+            console.log(`  ${chalk.cyan(key)}: ${chalk.gray('false (default)')}`);
           } else {
             console.log(`  ${chalk.cyan(key)}: ${chalk.gray('(not set)')}`);
           }

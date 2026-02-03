@@ -6,9 +6,10 @@ export interface FlowtreeConfig {
   'source-path'?: string;
   'dest-path'?: string;
   'config-files'?: string;
+  'tmux'?: string;
 }
 
-const VALID_KEYS: (keyof FlowtreeConfig)[] = ['source-path', 'dest-path', 'config-files'];
+const VALID_KEYS: (keyof FlowtreeConfig)[] = ['source-path', 'dest-path', 'config-files', 'tmux'];
 
 export function isValidKey(key: string): key is keyof FlowtreeConfig {
   return VALID_KEYS.includes(key as keyof FlowtreeConfig);

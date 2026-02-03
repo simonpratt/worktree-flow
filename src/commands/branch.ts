@@ -7,6 +7,7 @@ import { getRequiredConfig, loadConfig } from '../lib/config.js';
 import * as git from '../lib/git.js';
 import { discoverRepos, getRepoName } from '../lib/repos.js';
 import { createWorkspaceDir, copyAgentsMd, copyConfigFilesToWorktree } from '../lib/workspace.js';
+import { createTmuxSession } from '../lib/tmux.js';
 import { processInParallel } from '../lib/parallel.js';
 
 export function registerBranchCommand(program: Command): void {
@@ -71,6 +72,17 @@ export function registerBranchCommand(program: Command): void {
       );
 
       copyAgentsMd(sourcePath, workspacePath);
+
+      // Create tmux session if enabled
+      if (config['tmux'] === 'true') {
+        try {
+          await createTmuxSession(workspacePath, branchName);
+          console.log(`Created tmux session: ${chalk.cyan(branchName)}`);
+        } catch (error: any) {
+          console.error(chalk.yellow(`Warning: Failed to create tmux session: ${error.message}`));
+        }
+      }
+
       console.log(
         `\nCreated workspace at ${chalk.cyan(workspacePath)} with ${successCount}/${selected.length} repos.`
       );
