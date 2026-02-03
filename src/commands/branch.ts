@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import checkbox from '@inquirer/checkbox';
+import input from '@inquirer/input';
 import chalk from 'chalk';
 import path from 'node:path';
 import { getRequiredConfig, loadConfig } from '../lib/config.js';
@@ -38,6 +39,24 @@ export function registerBranchCommand(program: Command): void {
         return;
       }
 
+      // Ask user which branch to branch from
+      const sourceBranch = await input({
+        message: 'Branch from which branch?',
+        default: 'master',
+      });
+
+      // Fetch all selected repos first
+      console.log('\nFetching repos...');
+      await processInParallel(
+        selected,
+        (repoPath) => getRepoName(repoPath),
+        async (repoPath) => {
+          await git.fetch(repoPath);
+          return 'fetched';
+        }
+      );
+
+      console.log('\nCreating worktrees...');
       const workspacePath = createWorkspaceDir(destPath, branchName);
 
       const successCount = await processInParallel(
@@ -45,7 +64,7 @@ export function registerBranchCommand(program: Command): void {
         (repoPath) => getRepoName(repoPath),
         async (repoPath, name) => {
           const worktreeDest = path.join(workspacePath, name);
-          await git.addWorktreeNewBranch(repoPath, worktreeDest, branchName);
+          await git.addWorktreeNewBranch(repoPath, worktreeDest, branchName, sourceBranch);
           copyConfigFilesToWorktree(repoPath, worktreeDest, config['config-files']);
           return 'created';
         }

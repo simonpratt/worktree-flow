@@ -22,9 +22,14 @@ export async function remoteBranchExists(repoPath: string, branch: string): Prom
 export async function addWorktreeNewBranch(
   repoPath: string,
   worktreePath: string,
-  branch: string
+  branch: string,
+  sourceBranch?: string
 ): Promise<void> {
-  await execAsync(repoPath, ['worktree', 'add', '-b', branch, worktreePath]);
+  const args = ['worktree', 'add', '-b', branch, worktreePath];
+  if (sourceBranch) {
+    args.push(sourceBranch);
+  }
+  await execAsync(repoPath, args);
 }
 
 export async function addWorktree(
