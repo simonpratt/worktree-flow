@@ -59,7 +59,7 @@ export function registerBranchCommand(program: Command): void {
         async (repoPath, name) => {
           const worktreeDest = path.join(workspacePath, name);
           await git.addWorktreeNewBranch(repoPath, worktreeDest, branchName, sourceBranch);
-          copyConfigFilesToWorktree(repoPath, worktreeDest, config.configFiles);
+          copyConfigFilesToWorktree(repoPath, worktreeDest, config.copyFiles);
           return 'created';
         }
       );

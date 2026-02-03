@@ -21,10 +21,10 @@ export function copyAgentsMd(sourcePath: string, workspacePath: string): void {
 export function copyConfigFilesToWorktree(
   sourceRepoPath: string,
   worktreePath: string,
-  configFiles?: string
+  copyFiles?: string
 ): void {
   // Default to .env if not specified
-  const files = (configFiles || '.env')
+  const files = (copyFiles || '.env')
     .split(',')
     .map(f => f.trim())
     .filter(f => f.length > 0);

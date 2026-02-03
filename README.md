@@ -55,7 +55,7 @@ flow config set main-branch main
 flow config set tmux true
 
 # Set config files to copy to worktrees (default: .env)
-flow config set config-files .env,.env.local
+flow config set copy-files .env,.env.local
 ```
 
 Configuration is stored in `~/.config/flow/config.json`.

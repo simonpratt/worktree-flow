@@ -7,7 +7,7 @@ import { z } from 'zod';
 const RawConfigSchema = z.object({
   'source-path': z.string().optional(),
   'dest-path': z.string().optional(),
-  'config-files': z.string().optional(),
+  'copy-files': z.string().optional(),
   'tmux': z.enum(['true', 'false']).optional(),
   'main-branch': z.string().optional(),
 });
@@ -16,7 +16,7 @@ const RawConfigSchema = z.object({
 const ParsedConfigSchema = z.object({
   sourcePath: z.string().optional(),
   destPath: z.string().optional(),
-  configFiles: z.string().default('.env'),
+  copyFiles: z.string().default('.env'),
   tmux: z.boolean().default(false),
   mainBranch: z.string().default('master'),
 });
@@ -35,7 +35,7 @@ const RequiredConfigSchema = z.object({
 const ConfigValueSchemas = {
   'source-path': z.string().transform((val) => path.resolve(val)),
   'dest-path': z.string().transform((val) => path.resolve(val)),
-  'config-files': z.string(),
+  'copy-files': z.string(),
   'tmux': z.enum(['true', 'false']),
   'main-branch': z.string(),
 } as const;
@@ -44,7 +44,7 @@ export type RawConfig = z.infer<typeof RawConfigSchema>;
 export type ParsedConfig = z.infer<typeof ParsedConfigSchema>;
 export type RequiredConfig = z.infer<typeof RequiredConfigSchema>;
 
-export const CONFIG_KEYS = ['source-path', 'dest-path', 'config-files', 'tmux', 'main-branch'] as const;
+export const CONFIG_KEYS = ['source-path', 'dest-path', 'copy-files', 'tmux', 'main-branch'] as const;
 export type ConfigKey = (typeof CONFIG_KEYS)[number];
 
 /**
@@ -91,7 +91,7 @@ export function loadConfig(): ParsedConfig {
   return ParsedConfigSchema.parse({
     sourcePath: raw['source-path'],
     destPath: raw['dest-path'],
-    configFiles: raw['config-files'],
+    copyFiles: raw['copy-files'],
     tmux: raw.tmux === 'true',
     mainBranch: raw['main-branch'],
   });

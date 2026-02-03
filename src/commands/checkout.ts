@@ -60,7 +60,7 @@ export function registerCheckoutCommand(program: Command): void {
         async (repoPath, name) => {
           const worktreeDest = path.join(workspacePath, name);
           await git.addWorktree(repoPath, worktreeDest, branchName);
-          copyConfigFilesToWorktree(repoPath, worktreeDest, config.configFiles);
+          copyConfigFilesToWorktree(repoPath, worktreeDest, config.copyFiles);
           return 'created';
         }
       );
