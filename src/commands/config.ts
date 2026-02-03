@@ -1,7 +1,15 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import path from 'node:path';
-import { isValidKey, loadConfig, saveConfig, type FlowtreeConfig } from '../lib/config.js';
+import { z } from 'zod';
+import {
+  isValidKey,
+  loadRawConfig,
+  saveRawConfig,
+  loadConfig,
+  validateAndTransformConfigValue,
+  CONFIG_KEYS,
+  type ConfigKey,
+} from '../lib/config.js';
 
 export function registerConfigCommand(program: Command): void {
   const configCmd = program
@@ -14,33 +22,26 @@ export function registerConfigCommand(program: Command): void {
     .action((key: string, value: string) => {
       if (!isValidKey(key)) {
         console.error(
-          `Unknown config key: ${key}\nValid keys: source-path, dest-path, config-files, tmux`
+          `Unknown config key: ${key}\nValid keys: ${CONFIG_KEYS.join(', ')}`
         );
         process.exit(1);
       }
 
-      const config = loadConfig();
+      try {
+        const config = loadRawConfig();
+        const transformedValue = validateAndTransformConfigValue(key, value);
 
-      // Only resolve paths for path-related config keys
-      if (key === 'source-path' || key === 'dest-path') {
-        const resolved = path.resolve(value);
-        config[key] = resolved;
-        saveConfig(config);
-        console.log(chalk.green(`Set ${key} = ${resolved}`));
-      } else if (key === 'tmux') {
-        // Validate boolean values for tmux
-        if (value !== 'true' && value !== 'false') {
-          console.error(`tmux must be 'true' or 'false'`);
-          process.exit(1);
+        config[key] = transformedValue as any;
+        saveRawConfig(config);
+
+        console.log(chalk.green(`Set ${key} = ${transformedValue}`));
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          console.error(`Invalid value for ${key}: ${error.issues[0].message}`);
+        } else {
+          console.error(`Error setting config: ${error}`);
         }
-        config[key] = value;
-        saveConfig(config);
-        console.log(chalk.green(`Set ${key} = ${value}`));
-      } else {
-        // For non-path keys (like config-files), use the value as-is
-        config[key] = value;
-        saveConfig(config);
-        console.log(chalk.green(`Set ${key} = ${value}`));
+        process.exit(1);
       }
     });
 
@@ -48,26 +49,23 @@ export function registerConfigCommand(program: Command): void {
     .command('list')
     .description('List all config options and their current values')
     .action(() => {
+      const rawConfig = loadRawConfig();
       const config = loadConfig();
-      const validKeys: (keyof FlowtreeConfig)[] = ['source-path', 'dest-path', 'config-files', 'tmux'];
 
       console.log(chalk.bold('\nCurrent configuration:'));
       console.log();
 
-      for (const key of validKeys) {
-        const value = config[key];
-        if (value) {
-          console.log(`  ${chalk.cyan(key)}: ${chalk.green(value)}`);
-        } else {
-          // Show defaults for optional config
-          if (key === 'config-files') {
-            console.log(`  ${chalk.cyan(key)}: ${chalk.gray('.env (default)')}`);
-          } else if (key === 'tmux') {
-            console.log(`  ${chalk.cyan(key)}: ${chalk.gray('false (default)')}`);
-          } else {
-            console.log(`  ${chalk.cyan(key)}: ${chalk.gray('(not set)')}`);
-          }
-        }
+      const displayConfig: Record<ConfigKey, string> = {
+        'source-path': rawConfig['source-path'] ?? chalk.gray('(not set)'),
+        'dest-path': rawConfig['dest-path'] ?? chalk.gray('(not set)'),
+        'config-files': rawConfig['config-files'] ?? chalk.gray(`${config.configFiles} (default)`),
+        'tmux': rawConfig.tmux ?? chalk.gray(`${config.tmux} (default)`),
+      };
+
+      for (const key of CONFIG_KEYS) {
+        const value = displayConfig[key];
+        const displayValue = rawConfig[key] ? chalk.green(value) : value;
+        console.log(`  ${chalk.cyan(key)}: ${displayValue}`);
       }
       console.log();
     });

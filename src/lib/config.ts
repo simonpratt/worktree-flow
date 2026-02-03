@@ -1,42 +1,107 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { z } from 'zod';
 
-export interface FlowtreeConfig {
-  'source-path'?: string;
-  'dest-path'?: string;
-  'config-files'?: string;
-  'tmux'?: string;
+// Raw config schema (as stored in JSON)
+const RawConfigSchema = z.object({
+  'source-path': z.string().optional(),
+  'dest-path': z.string().optional(),
+  'config-files': z.string().optional(),
+  'tmux': z.enum(['true', 'false']).optional(),
+});
+
+// Parsed config schema (with proper types)
+const ParsedConfigSchema = z.object({
+  sourcePath: z.string().optional(),
+  destPath: z.string().optional(),
+  configFiles: z.string().default('.env'),
+  tmux: z.boolean().default(false),
+});
+
+// Required config schema (for getRequiredConfig)
+const RequiredConfigSchema = z.object({
+  sourcePath: z.string(),
+  destPath: z.string(),
+});
+
+// Schema for setting individual config values - transforms input to storage format
+// Each schema validates the input and applies necessary transformations:
+// - Paths are resolved to absolute paths
+// - Boolean values are validated as string enums
+// - Other values are validated as strings
+const ConfigValueSchemas = {
+  'source-path': z.string().transform((val) => path.resolve(val)),
+  'dest-path': z.string().transform((val) => path.resolve(val)),
+  'config-files': z.string(),
+  'tmux': z.enum(['true', 'false']),
+} as const;
+
+export type RawConfig = z.infer<typeof RawConfigSchema>;
+export type ParsedConfig = z.infer<typeof ParsedConfigSchema>;
+export type RequiredConfig = z.infer<typeof RequiredConfigSchema>;
+
+export const CONFIG_KEYS = ['source-path', 'dest-path', 'config-files', 'tmux'] as const;
+export type ConfigKey = (typeof CONFIG_KEYS)[number];
+
+/**
+ * Validates and transforms a config value for storage.
+ * - Paths are automatically resolved to absolute paths
+ * - Boolean values must be 'true' or 'false' strings
+ * - Throws ZodError if validation fails
+ */
+export function validateAndTransformConfigValue(
+  key: ConfigKey,
+  value: string
+): string {
+  const schema = ConfigValueSchemas[key];
+  return schema.parse(value);
 }
 
-const VALID_KEYS: (keyof FlowtreeConfig)[] = ['source-path', 'dest-path', 'config-files', 'tmux'];
-
-export function isValidKey(key: string): key is keyof FlowtreeConfig {
-  return VALID_KEYS.includes(key as keyof FlowtreeConfig);
+export function isValidKey(key: string): key is ConfigKey {
+  return CONFIG_KEYS.includes(key as ConfigKey);
 }
 
 export function getConfigPath(): string {
   return path.join(os.homedir(), '.config', 'flow', 'config.json');
 }
 
-export function loadConfig(): FlowtreeConfig {
+export function loadRawConfig(): RawConfig {
   const configPath = getConfigPath();
   if (!fs.existsSync(configPath)) {
     return {};
   }
   const raw = fs.readFileSync(configPath, 'utf-8');
-  return JSON.parse(raw);
+  const parsed = JSON.parse(raw);
+  return RawConfigSchema.parse(parsed);
 }
 
-export function saveConfig(config: FlowtreeConfig): void {
+export function saveRawConfig(config: RawConfig): void {
   const configPath = getConfigPath();
   fs.mkdirSync(path.dirname(configPath), { recursive: true });
-  fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n');
+  const validated = RawConfigSchema.parse(config);
+  fs.writeFileSync(configPath, JSON.stringify(validated, null, 2) + '\n');
 }
 
-export function getRequiredConfig(): { sourcePath: string; destPath: string } {
+export function loadConfig(): ParsedConfig {
+  const raw = loadRawConfig();
+  return ParsedConfigSchema.parse({
+    sourcePath: raw['source-path'],
+    destPath: raw['dest-path'],
+    configFiles: raw['config-files'],
+    tmux: raw.tmux === 'true',
+  });
+}
+
+export function getRequiredConfig(): RequiredConfig {
   const config = loadConfig();
-  if (!config['source-path'] || !config['dest-path']) {
+
+  const result = RequiredConfigSchema.safeParse({
+    sourcePath: config.sourcePath,
+    destPath: config.destPath,
+  });
+
+  if (!result.success) {
     console.error(
       'flow is not configured. Run:\n' +
       '  flow config set source-path <path>\n' +
@@ -44,8 +109,6 @@ export function getRequiredConfig(): { sourcePath: string; destPath: string } {
     );
     process.exit(1);
   }
-  return {
-    sourcePath: config['source-path'],
-    destPath: config['dest-path'],
-  };
+
+  return result.data;
 }

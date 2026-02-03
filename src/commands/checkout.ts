@@ -74,7 +74,7 @@ export function registerCheckoutCommand(program: Command): void {
         async (repoPath, name) => {
           const worktreeDest = path.join(workspacePath, name);
           await git.addWorktree(repoPath, worktreeDest, branchName);
-          copyConfigFilesToWorktree(repoPath, worktreeDest, config['config-files']);
+          copyConfigFilesToWorktree(repoPath, worktreeDest, config.configFiles);
           return 'created';
         }
       );
@@ -82,7 +82,7 @@ export function registerCheckoutCommand(program: Command): void {
       copyAgentsMd(sourcePath, workspacePath);
 
       // Create tmux session if enabled
-      if (config['tmux'] === 'true') {
+      if (config.tmux) {
         try {
           await createTmuxSession(workspacePath, branchName);
           console.log(`Created tmux session: ${chalk.cyan(branchName)}`);
