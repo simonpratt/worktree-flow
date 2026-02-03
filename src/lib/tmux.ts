@@ -23,3 +23,14 @@ export async function createTmuxSession(
     }
   }
 }
+
+export async function killTmuxSession(sessionName: string): Promise<void> {
+  try {
+    await execFileAsync('tmux', ['kill-session', '-t', sessionName]);
+  } catch (error: any) {
+    // If session doesn't exist, ignore the error
+    if (!error.message?.includes('no such session')) {
+      throw error;
+    }
+  }
+}

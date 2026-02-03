@@ -9,6 +9,7 @@ import { discoverRepos, getRepoName } from '../lib/repos.js';
 import { createWorkspaceDir, copyAgentsMd, copyConfigFilesToWorktree } from '../lib/workspace.js';
 import { createTmuxSession } from '../lib/tmux.js';
 import { processInParallel } from '../lib/parallel.js';
+import { fetchRepos } from '../lib/fetch.js';
 
 export function registerBranchCommand(program: Command): void {
   program
@@ -47,15 +48,7 @@ export function registerBranchCommand(program: Command): void {
       });
 
       // Fetch all selected repos first
-      console.log('\nFetching repos...');
-      await processInParallel(
-        selected,
-        (repoPath) => getRepoName(repoPath),
-        async (repoPath) => {
-          await git.fetch(repoPath);
-          return 'fetched';
-        }
-      );
+      await fetchRepos(selected);
 
       console.log('\nCreating worktrees...');
       const workspacePath = createWorkspaceDir(destPath, branchName);

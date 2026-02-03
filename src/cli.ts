@@ -5,6 +5,8 @@ import { registerBranchCommand } from './commands/branch.js';
 import { registerCheckoutCommand } from './commands/checkout.js';
 import { registerPullCommand } from './commands/pull.js';
 import { registerPushCommand } from './commands/push.js';
+import { registerRemoveCommand } from './commands/remove.js';
+import { registerStatusCommand } from './commands/status.js';
 
 const program = new Command();
 
@@ -18,5 +20,7 @@ registerBranchCommand(program);
 registerCheckoutCommand(program);
 registerPullCommand(program);
 registerPushCommand(program);
+registerRemoveCommand(program);
+registerStatusCommand(program);
 
 program.parse();

@@ -7,6 +7,7 @@ import { discoverRepos, getRepoName } from '../lib/repos.js';
 import { createWorkspaceDir, copyAgentsMd, copyConfigFilesToWorktree } from '../lib/workspace.js';
 import { createTmuxSession } from '../lib/tmux.js';
 import { processInParallel } from '../lib/parallel.js';
+import { fetchRepos } from '../lib/fetch.js';
 
 export function registerCheckoutCommand(program: Command): void {
   program
@@ -22,40 +23,25 @@ export function registerCheckoutCommand(program: Command): void {
         process.exit(1);
       }
 
-      // Fetch all repos and check for branch (8 concurrent at a time)
-      const matchingRepos: string[] = [];
-      const CONCURRENCY = 8;
+      // Fetch all repos first
+      await fetchRepos(repos);
 
-      const processRepo = async (repoPath: string): Promise<string | null> => {
+      // Check which repos have the branch
+      console.log('\nChecking for branch...');
+      const matchingRepos: string[] = [];
+      for (const repoPath of repos) {
         const repoName = getRepoName(repoPath);
         try {
-          await git.fetch(repoPath);
           if (await git.remoteBranchExists(repoPath, branchName)) {
             console.log(`${repoName}... ${chalk.green('found')}`);
-            return repoPath;
+            matchingRepos.push(repoPath);
           } else {
             console.log(`${repoName}... ${chalk.dim('no branch')}`);
-            return null;
           }
         } catch (err: any) {
           console.log(`${repoName}... ${chalk.red(`error: ${err.stderr || err.message}`)}`);
-          return null;
         }
-      };
-
-      // Process repos with constant concurrency of 8
-      let index = 0;
-      const worker = async (): Promise<void> => {
-        while (index < repos.length) {
-          const repoPath = repos[index++];
-          const result = await processRepo(repoPath);
-          if (result) matchingRepos.push(result);
-        }
-      };
-
-      // Start up to 8 workers
-      const workers = Array.from({ length: Math.min(CONCURRENCY, repos.length) }, () => worker());
-      await Promise.all(workers);
+      }
 
       if (matchingRepos.length === 0) {
         console.error(`\nBranch "${branchName}" not found in any repo.`);
