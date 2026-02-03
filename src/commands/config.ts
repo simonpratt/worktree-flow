@@ -10,20 +10,29 @@ export function registerConfigCommand(program: Command): void {
 
   configCmd
     .command('set <key> <value>')
-    .description('Set a config value (source-path, dest-path)')
+    .description('Set a config value (source-path, dest-path, config-files)')
     .action((key: string, value: string) => {
       if (!isValidKey(key)) {
         console.error(
-          `Unknown config key: ${key}\nValid keys: source-path, dest-path`
+          `Unknown config key: ${key}\nValid keys: source-path, dest-path, config-files`
         );
         process.exit(1);
       }
 
-      const resolved = path.resolve(value);
       const config = loadConfig();
-      config[key] = resolved;
-      saveConfig(config);
-      console.log(chalk.green(`Set ${key} = ${resolved}`));
+
+      // Only resolve paths for path-related config keys
+      if (key === 'source-path' || key === 'dest-path') {
+        const resolved = path.resolve(value);
+        config[key] = resolved;
+        saveConfig(config);
+        console.log(chalk.green(`Set ${key} = ${resolved}`));
+      } else {
+        // For non-path keys (like config-files), use the value as-is
+        config[key] = value;
+        saveConfig(config);
+        console.log(chalk.green(`Set ${key} = ${value}`));
+      }
     });
 
   configCmd
@@ -31,7 +40,7 @@ export function registerConfigCommand(program: Command): void {
     .description('List all config options and their current values')
     .action(() => {
       const config = loadConfig();
-      const validKeys: (keyof FlowtreeConfig)[] = ['source-path', 'dest-path'];
+      const validKeys: (keyof FlowtreeConfig)[] = ['source-path', 'dest-path', 'config-files'];
 
       console.log(chalk.bold('\nCurrent configuration:'));
       console.log();
@@ -41,7 +50,12 @@ export function registerConfigCommand(program: Command): void {
         if (value) {
           console.log(`  ${chalk.cyan(key)}: ${chalk.green(value)}`);
         } else {
-          console.log(`  ${chalk.cyan(key)}: ${chalk.gray('(not set)')}`);
+          // Show default for config-files
+          if (key === 'config-files') {
+            console.log(`  ${chalk.cyan(key)}: ${chalk.gray('.env (default)')}`);
+          } else {
+            console.log(`  ${chalk.cyan(key)}: ${chalk.gray('(not set)')}`);
+          }
         }
       }
       console.log();

@@ -18,6 +18,36 @@ export function copyAgentsMd(sourcePath: string, workspacePath: string): void {
   }
 }
 
+export function copyConfigFilesToWorktree(
+  sourceRepoPath: string,
+  worktreePath: string,
+  configFiles?: string
+): void {
+  // Default to .env if not specified
+  const files = (configFiles || '.env')
+    .split(',')
+    .map(f => f.trim())
+    .filter(f => f.length > 0);
+
+  // Copy each config file from source repo to worktree
+  for (const file of files) {
+    const sourceFilePath = path.join(sourceRepoPath, file);
+    const destFilePath = path.join(worktreePath, file);
+
+    // Skip if file doesn't exist in source repo
+    if (!fs.existsSync(sourceFilePath)) {
+      continue;
+    }
+
+    // Copy file to worktree
+    try {
+      fs.copyFileSync(sourceFilePath, destFilePath);
+    } catch {
+      // Silently ignore copy errors
+    }
+  }
+}
+
 export function detectWorkspace(cwd: string, destPath: string): string | null {
   const normalizedCwd = path.resolve(cwd);
   const normalizedDest = path.resolve(destPath);

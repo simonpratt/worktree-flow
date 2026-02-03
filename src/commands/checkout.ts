@@ -1,10 +1,10 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import path from 'node:path';
-import { getRequiredConfig } from '../lib/config.js';
+import { getRequiredConfig, loadConfig } from '../lib/config.js';
 import * as git from '../lib/git.js';
 import { discoverRepos, getRepoName } from '../lib/repos.js';
-import { createWorkspaceDir, copyAgentsMd } from '../lib/workspace.js';
+import { createWorkspaceDir, copyAgentsMd, copyConfigFilesToWorktree } from '../lib/workspace.js';
 import { processInParallel } from '../lib/parallel.js';
 
 export function registerCheckoutCommand(program: Command): void {
@@ -13,6 +13,7 @@ export function registerCheckoutCommand(program: Command): void {
     .description('Checkout an existing branch across repos')
     .action(async (branchName: string) => {
       const { sourcePath, destPath } = getRequiredConfig();
+      const config = loadConfig();
       const repos = discoverRepos(sourcePath);
 
       if (repos.length === 0) {
@@ -72,6 +73,7 @@ export function registerCheckoutCommand(program: Command): void {
         async (repoPath, name) => {
           const worktreeDest = path.join(workspacePath, name);
           await git.addWorktree(repoPath, worktreeDest, branchName);
+          copyConfigFilesToWorktree(repoPath, worktreeDest, config['config-files']);
           return 'created';
         }
       );

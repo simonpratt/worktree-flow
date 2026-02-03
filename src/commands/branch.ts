@@ -2,10 +2,10 @@ import { Command } from 'commander';
 import checkbox from '@inquirer/checkbox';
 import chalk from 'chalk';
 import path from 'node:path';
-import { getRequiredConfig } from '../lib/config.js';
+import { getRequiredConfig, loadConfig } from '../lib/config.js';
 import * as git from '../lib/git.js';
 import { discoverRepos, getRepoName } from '../lib/repos.js';
-import { createWorkspaceDir, copyAgentsMd } from '../lib/workspace.js';
+import { createWorkspaceDir, copyAgentsMd, copyConfigFilesToWorktree } from '../lib/workspace.js';
 import { processInParallel } from '../lib/parallel.js';
 
 export function registerBranchCommand(program: Command): void {
@@ -14,6 +14,7 @@ export function registerBranchCommand(program: Command): void {
     .description('Create branches and worktrees for selected repos')
     .action(async (branchName: string) => {
       const { sourcePath, destPath } = getRequiredConfig();
+      const config = loadConfig();
       const repos = discoverRepos(sourcePath);
 
       if (repos.length === 0) {
@@ -45,6 +46,7 @@ export function registerBranchCommand(program: Command): void {
         async (repoPath, name) => {
           const worktreeDest = path.join(workspacePath, name);
           await git.addWorktreeNewBranch(repoPath, worktreeDest, branchName);
+          copyConfigFilesToWorktree(repoPath, worktreeDest, config['config-files']);
           return 'created';
         }
       );
