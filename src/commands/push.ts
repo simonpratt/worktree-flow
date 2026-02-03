@@ -4,12 +4,13 @@ import path from 'node:path';
 import { getRequiredConfig } from '../lib/config.js';
 import * as git from '../lib/git.js';
 import { detectWorkspace, getWorktreeDirs } from '../lib/workspace.js';
+import { processInParallel } from '../lib/parallel.js';
 
 export function registerPushCommand(program: Command): void {
   program
     .command('push')
     .description('Push all repos in the current workspace')
-    .action(() => {
+    .action(async () => {
       const { destPath } = getRequiredConfig();
       const workspacePath = detectWorkspace(process.cwd(), destPath);
 
@@ -28,33 +29,26 @@ export function registerPushCommand(program: Command): void {
       }
 
       console.log(`Pushing ${dirs.length} repo(s) in ${chalk.cyan(workspacePath)}...\n`);
-      let successCount = 0;
 
-      for (const dir of dirs) {
-        const repoName = path.basename(dir);
-        try {
-          git.push(dir);
-          console.log(chalk.green(`  ${repoName}: pushed`));
-          successCount++;
-        } catch (err: any) {
-          // Retry with --set-upstream if no upstream configured
-          const stderr = err.stderr || err.message || '';
-          if (stderr.includes('no upstream') || stderr.includes('has no upstream')) {
-            try {
-              const branch = git.getCurrentBranch(dir);
-              git.pushSetUpstream(dir, branch);
-              console.log(chalk.green(`  ${repoName}: pushed (set upstream)`));
-              successCount++;
-            } catch (retryErr: any) {
-              console.error(
-                chalk.red(`  ${repoName}: ${retryErr.stderr || retryErr.message}`)
-              );
+      const successCount = await processInParallel(
+        dirs,
+        (dir) => path.basename(dir),
+        async (dir) => {
+          try {
+            await git.push(dir);
+            return 'pushed';
+          } catch (err: any) {
+            // Retry with --set-upstream if no upstream configured
+            const stderr = err.stderr || err.message || '';
+            if (stderr.includes('no upstream') || stderr.includes('has no upstream')) {
+              const branch = await git.getCurrentBranch(dir);
+              await git.pushSetUpstream(dir, branch);
+              return 'pushed (set upstream)';
             }
-          } else {
-            console.error(chalk.red(`  ${repoName}: ${stderr}`));
+            throw err;
           }
         }
-      }
+      );
 
       console.log(`\n${successCount}/${dirs.length} repos pushed successfully.`);
     });

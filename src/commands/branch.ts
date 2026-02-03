@@ -6,6 +6,7 @@ import { getRequiredConfig } from '../lib/config.js';
 import * as git from '../lib/git.js';
 import { discoverRepos, getRepoName } from '../lib/repos.js';
 import { createWorkspaceDir, copyAgentsMd } from '../lib/workspace.js';
+import { processInParallel } from '../lib/parallel.js';
 
 export function registerBranchCommand(program: Command): void {
   program
@@ -37,19 +38,16 @@ export function registerBranchCommand(program: Command): void {
       }
 
       const workspacePath = createWorkspaceDir(destPath, branchName);
-      let successCount = 0;
 
-      for (const repoPath of selected) {
-        const repoName = getRepoName(repoPath);
-        const worktreeDest = path.join(workspacePath, repoName);
-        try {
-          git.addWorktreeNewBranch(repoPath, worktreeDest, branchName);
-          console.log(chalk.green(`  ${repoName}`));
-          successCount++;
-        } catch (err: any) {
-          console.error(chalk.red(`  ${repoName}: ${err.stderr || err.message}`));
+      const successCount = await processInParallel(
+        selected,
+        (repoPath) => getRepoName(repoPath),
+        async (repoPath, name) => {
+          const worktreeDest = path.join(workspacePath, name);
+          await git.addWorktreeNewBranch(repoPath, worktreeDest, branchName);
+          return 'created';
         }
-      }
+      );
 
       copyAgentsMd(sourcePath, workspacePath);
       console.log(

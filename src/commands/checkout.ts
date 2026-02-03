@@ -5,6 +5,7 @@ import { getRequiredConfig } from '../lib/config.js';
 import * as git from '../lib/git.js';
 import { discoverRepos, getRepoName } from '../lib/repos.js';
 import { createWorkspaceDir, copyAgentsMd } from '../lib/workspace.js';
+import { processInParallel } from '../lib/parallel.js';
 
 export function registerCheckoutCommand(program: Command): void {
   program
@@ -42,8 +43,6 @@ export function registerCheckoutCommand(program: Command): void {
 
       // Process repos with constant concurrency of 8
       let index = 0;
-      const results: Promise<string | null>[] = [];
-
       const worker = async (): Promise<void> => {
         while (index < repos.length) {
           const repoPath = repos[index++];
@@ -66,19 +65,16 @@ export function registerCheckoutCommand(program: Command): void {
       );
 
       const workspacePath = createWorkspaceDir(destPath, branchName);
-      let successCount = 0;
 
-      for (const repoPath of matchingRepos) {
-        const repoName = getRepoName(repoPath);
-        const worktreeDest = path.join(workspacePath, repoName);
-        try {
-          git.addWorktree(repoPath, worktreeDest, branchName);
-          console.log(chalk.green(`  ${repoName}`));
-          successCount++;
-        } catch (err: any) {
-          console.error(chalk.red(`  ${repoName}: ${err.stderr || err.message}`));
+      const successCount = await processInParallel(
+        matchingRepos,
+        (repoPath) => getRepoName(repoPath),
+        async (repoPath, name) => {
+          const worktreeDest = path.join(workspacePath, name);
+          await git.addWorktree(repoPath, worktreeDest, branchName);
+          return 'created';
         }
-      }
+      );
 
       copyAgentsMd(sourcePath, workspacePath);
       console.log(

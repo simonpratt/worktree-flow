@@ -4,12 +4,13 @@ import path from 'node:path';
 import { getRequiredConfig } from '../lib/config.js';
 import * as git from '../lib/git.js';
 import { detectWorkspace, getWorktreeDirs } from '../lib/workspace.js';
+import { processInParallel } from '../lib/parallel.js';
 
 export function registerPullCommand(program: Command): void {
   program
     .command('pull')
     .description('Pull all repos in the current workspace')
-    .action(() => {
+    .action(async () => {
       const { destPath } = getRequiredConfig();
       const workspacePath = detectWorkspace(process.cwd(), destPath);
 
@@ -28,18 +29,15 @@ export function registerPullCommand(program: Command): void {
       }
 
       console.log(`Pulling ${dirs.length} repo(s) in ${chalk.cyan(workspacePath)}...\n`);
-      let successCount = 0;
 
-      for (const dir of dirs) {
-        const repoName = path.basename(dir);
-        try {
-          git.pull(dir);
-          console.log(chalk.green(`  ${repoName}: pulled`));
-          successCount++;
-        } catch (err: any) {
-          console.error(chalk.red(`  ${repoName}: ${err.stderr || err.message}`));
+      const successCount = await processInParallel(
+        dirs,
+        (dir) => path.basename(dir),
+        async (dir) => {
+          await git.pull(dir);
+          return 'pulled';
         }
-      }
+      );
 
       console.log(`\n${successCount}/${dirs.length} repos pulled successfully.`);
     });
