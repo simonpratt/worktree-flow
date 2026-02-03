@@ -26,13 +26,13 @@ export function registerCheckoutCommand(program: Command): void {
       // Fetch all repos first
       await fetchRepos(repos);
 
-      // Check which repos have the branch
+      // Check which repos have the branch (using local remote-tracking branches after fetch)
       console.log('\nChecking for branch...');
       const matchingRepos: string[] = [];
       for (const repoPath of repos) {
         const repoName = getRepoName(repoPath);
         try {
-          if (await git.remoteBranchExists(repoPath, branchName)) {
+          if (await git.localRemoteBranchExists(repoPath, branchName)) {
             console.log(`${repoName}... ${chalk.green('found')}`);
             matchingRepos.push(repoPath);
           } else {

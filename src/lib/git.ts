@@ -19,6 +19,15 @@ export async function remoteBranchExists(repoPath: string, branch: string): Prom
   return output.length > 0;
 }
 
+export async function localRemoteBranchExists(repoPath: string, branch: string): Promise<boolean> {
+  try {
+    await execAsync(repoPath, ['rev-parse', '--verify', `origin/${branch}`]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function addWorktreeNewBranch(
   repoPath: string,
   worktreePath: string,
