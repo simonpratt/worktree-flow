@@ -3,6 +3,7 @@ import { Command } from 'commander';
 import { registerConfigCommand } from './commands/config.js';
 import { registerBranchCommand } from './commands/branch.js';
 import { registerCheckoutCommand } from './commands/checkout.js';
+import { registerListCommand } from './commands/list.js';
 import { registerPullCommand } from './commands/pull.js';
 import { registerPushCommand } from './commands/push.js';
 import { registerRemoveCommand } from './commands/remove.js';
@@ -18,6 +19,7 @@ program
 registerConfigCommand(program);
 registerBranchCommand(program);
 registerCheckoutCommand(program);
+registerListCommand(program);
 registerPullCommand(program);
 registerPushCommand(program);
 registerRemoveCommand(program);
