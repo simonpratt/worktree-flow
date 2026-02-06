@@ -10,5 +10,6 @@
     "rootDir": "src",
     "declaration": false
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["**/*.test.ts", "src/lib/test-utils.ts"]
 }

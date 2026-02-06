@@ -43,7 +43,7 @@ describe('FetchService', () => {
       // Should write progress at least once
       sinon.assert.called(console.write);
       // Should have progress messages
-      const progressWrites = console.write.getCalls().filter(call =>
+      const progressWrites = console.write.getCalls().filter((call: sinon.SinonSpyCall) =>
         call.args[0].includes('Fetching repos')
       );
       expect(progressWrites.length).toBeGreaterThan(0);
@@ -90,7 +90,7 @@ describe('FetchService', () => {
       await service.fetchRepos(['/repo1']);
 
       // Should have written '\r' to clear the line
-      const clearCalls = console.write.getCalls().filter(call => call.args[0] === '\r');
+      const clearCalls = console.write.getCalls().filter((call: sinon.SinonSpyCall) => call.args[0] === '\r');
       expect(clearCalls.length).toBeGreaterThan(0);
     });
 
@@ -126,13 +126,13 @@ describe('FetchService', () => {
 
       await service.fetchRepos(['/repo1', '/repo2']);
 
-      const progressCalls = console.write.getCalls().filter(call =>
+      const progressCalls = console.write.getCalls().filter((call: sinon.SinonSpyCall) =>
         call.args[0].includes('%')
       );
 
       expect(progressCalls.length).toBeGreaterThan(0);
       // Should show progress increasing
-      const hasHundredPercent = progressCalls.some(call =>
+      const hasHundredPercent = progressCalls.some((call: sinon.SinonSpyCall) =>
         call.args[0].includes('100%')
       );
       expect(hasHundredPercent).toBe(true);

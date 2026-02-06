@@ -1,4 +1,4 @@
-import sinon from 'sinon';
+import * as sinon from 'sinon';
 import type { IFileSystem, IShell, IConsole, IProcess } from '../adapters/types.js';
 
 /**
@@ -10,7 +10,7 @@ export function createMockFileSystem(): sinon.SinonStubbedInstance<IFileSystem> 
     readFileSync: sinon.stub(),
     writeFileSync: sinon.stub(),
     mkdirSync: sinon.stub(),
-    readdirSync: sinon.stub(),
+    readdirSync: sinon.stub() as any,
     copyFileSync: sinon.stub(),
     rmSync: sinon.stub(),
   };
