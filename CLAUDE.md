@@ -21,28 +21,37 @@ flow --help
 
 ## Architecture
 
+The codebase follows **Hexagonal Architecture** (Ports & Adapters) for testability:
+
 **Entry Point**: `src/cli.ts` - Registers all Commander.js commands
 
 **Commands** (`src/commands/`):
-- Each file exports a `register*Command(program)` function
-- Commands handle user interaction (inquirer prompts) and orchestrate lib functions
-- Never put business logic in commands - delegate to lib/
+- Thin orchestration layer handling CLI concerns (user prompts, error handling)
+- Use `createServices()` to get service instances with production adapters
+- Catch errors and handle process.exit at command level
+- Never put business logic in commands - delegate to services
 
-**Core Libraries** (`src/lib/`):
-- `config.ts` - Manages `~/.config/flow/config.json` with Zod schemas. Uses kebab-case keys in storage ("source-path"), camelCase in code (sourcePath)
-- `workspace.ts` - Workspace directory operations, post-checkout command execution
-- `repos.ts` - Repository discovery and filtering from source-path
-- `git.ts` - Git worktree operations (add, remove, branch detection)
-- `fetch.ts` - Parallel git fetch across repos
-- `parallel.ts` - Parallel command execution with visual progress
-- `tmux.ts` - Optional tmux session management
-- `status.ts` - Git status checking (uncommitted changes, ahead of main)
+**Services** (`src/lib/`):
+- `ConfigService` - Manages `~/.config/flow/config.json` with Zod schemas
+- `WorkspaceService` - Workspace directory operations, post-checkout command execution
+- `RepoService` - Repository discovery and filtering from source-path
+- `GitService` - Git worktree operations (add, remove, branch detection)
+- `FetchService` - Parallel git fetch across repos
+- `ParallelService` - Parallel command execution with visual progress
+- `TmuxService` - Optional tmux session management
+- `StatusService` - Git status checking (uncommitted changes, ahead of main)
+- `services.ts` - Factory function that wires services with adapters
+- `errors.ts` - Custom error classes (ConfigNotSetError, WorkspaceNotFoundError, etc.)
+
+**Adapters** (`src/adapters/`):
+- `types.ts` - Interfaces for I/O operations (IFileSystem, IShell, IConsole, IProcess)
+- `node.ts` - Production implementations using Node.js APIs (NodeFileSystem, NodeShell, etc.)
 
 **Config Flow**:
 1. Raw config stored as JSON with kebab-case keys
-2. `loadRawConfig()` reads and validates with `RawConfigSchema`
-3. `loadConfig()` transforms to camelCase with `ParsedConfigSchema` and applies defaults
-4. `getRequiredConfig()` ensures source-path and dest-path are set
+2. `ConfigService.loadRaw()` reads and validates with `RawConfigSchema`
+3. `ConfigService.load()` transforms to camelCase with `ParsedConfigSchema` and applies defaults
+4. `ConfigService.getRequired()` ensures source-path and dest-path are set (throws ConfigNotSetError if not)
 
 **Workspace Structure**:
 ```

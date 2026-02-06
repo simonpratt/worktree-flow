@@ -1,7 +1,8 @@
-import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { z } from 'zod';
+import type { IFileSystem } from '../adapters/types.js';
+import { ConfigNotSetError } from './errors.js';
 
 // Raw config schema (as stored in JSON)
 const RawConfigSchema = z.object({
@@ -23,17 +24,13 @@ const ParsedConfigSchema = z.object({
   postCheckout: z.string().optional(),
 });
 
-// Required config schema (for getRequiredConfig)
+// Required config schema (for getRequired)
 const RequiredConfigSchema = z.object({
   sourcePath: z.string(),
   destPath: z.string(),
 });
 
-// Schema for setting individual config values - transforms input to storage format
-// Each schema validates the input and applies necessary transformations:
-// - Paths are resolved to absolute paths
-// - Boolean values are validated as string enums
-// - Other values are validated as strings
+// Schema for setting individual config values
 const ConfigValueSchemas = {
   'source-path': z.string().transform((val) => path.resolve(val)),
   'dest-path': z.string().transform((val) => path.resolve(val)),
@@ -51,10 +48,7 @@ export const CONFIG_KEYS = ['source-path', 'dest-path', 'copy-files', 'tmux', 'm
 export type ConfigKey = (typeof CONFIG_KEYS)[number];
 
 /**
- * Validates and transforms a config value for storage.
- * - Paths are automatically resolved to absolute paths
- * - Boolean values must be 'true' or 'false' strings
- * - Throws ZodError if validation fails
+ * Pure utility functions (no I/O)
  */
 export function validateAndTransformConfigValue(
   key: ConfigKey,
@@ -72,51 +66,57 @@ export function getConfigPath(): string {
   return path.join(os.homedir(), '.config', 'flow', 'config.json');
 }
 
-export function loadRawConfig(): RawConfig {
-  const configPath = getConfigPath();
-  if (!fs.existsSync(configPath)) {
-    return {};
-  }
-  const raw = fs.readFileSync(configPath, 'utf-8');
-  const parsed = JSON.parse(raw);
-  return RawConfigSchema.parse(parsed);
-}
+/**
+ * ConfigService handles all configuration operations.
+ */
+export class ConfigService {
+  constructor(private fs: IFileSystem) {}
 
-export function saveRawConfig(config: RawConfig): void {
-  const configPath = getConfigPath();
-  fs.mkdirSync(path.dirname(configPath), { recursive: true });
-  const validated = RawConfigSchema.parse(config);
-  fs.writeFileSync(configPath, JSON.stringify(validated, null, 2) + '\n');
-}
-
-export function loadConfig(): ParsedConfig {
-  const raw = loadRawConfig();
-  return ParsedConfigSchema.parse({
-    sourcePath: raw['source-path'],
-    destPath: raw['dest-path'],
-    copyFiles: raw['copy-files'],
-    tmux: raw.tmux === 'true',
-    mainBranch: raw['main-branch'],
-    postCheckout: raw['post-checkout'],
-  });
-}
-
-export function getRequiredConfig(): RequiredConfig {
-  const config = loadConfig();
-
-  const result = RequiredConfigSchema.safeParse({
-    sourcePath: config.sourcePath,
-    destPath: config.destPath,
-  });
-
-  if (!result.success) {
-    console.error(
-      'flow is not configured. Run:\n' +
-      '  flow config set source-path <path>\n' +
-      '  flow config set dest-path <path>'
-    );
-    process.exit(1);
+  loadRaw(): RawConfig {
+    const configPath = getConfigPath();
+    if (!this.fs.existsSync(configPath)) {
+      return {};
+    }
+    const raw = this.fs.readFileSync(configPath, 'utf-8');
+    const parsed = JSON.parse(raw);
+    return RawConfigSchema.parse(parsed);
   }
 
-  return result.data;
+  saveRaw(config: RawConfig): void {
+    const configPath = getConfigPath();
+    this.fs.mkdirSync(path.dirname(configPath), { recursive: true });
+    const validated = RawConfigSchema.parse(config);
+    this.fs.writeFileSync(configPath, JSON.stringify(validated, null, 2) + '\n');
+  }
+
+  load(): ParsedConfig {
+    const raw = this.loadRaw();
+    return ParsedConfigSchema.parse({
+      sourcePath: raw['source-path'],
+      destPath: raw['dest-path'],
+      copyFiles: raw['copy-files'],
+      tmux: raw.tmux === 'true',
+      mainBranch: raw['main-branch'],
+      postCheckout: raw['post-checkout'],
+    });
+  }
+
+  getRequired(): RequiredConfig {
+    const config = this.load();
+
+    const result = RequiredConfigSchema.safeParse({
+      sourcePath: config.sourcePath,
+      destPath: config.destPath,
+    });
+
+    if (!result.success) {
+      throw new ConfigNotSetError(
+        'flow is not configured. Run:\n' +
+        '  flow config set source-path <path>\n' +
+        '  flow config set dest-path <path>'
+      );
+    }
+
+    return result.data;
+  }
 }

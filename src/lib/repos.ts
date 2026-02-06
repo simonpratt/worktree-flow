@@ -1,15 +1,22 @@
-import fs from 'node:fs';
 import path from 'node:path';
+import type { IFileSystem } from '../adapters/types.js';
 
-export function discoverRepos(sourcePath: string): string[] {
-  const entries = fs.readdirSync(sourcePath, { withFileTypes: true });
-  return entries
-    .filter(entry => entry.isDirectory())
-    .map(entry => path.join(sourcePath, entry.name))
-    .filter(dirPath => fs.existsSync(path.join(dirPath, '.git')))
-    .sort();
-}
+/**
+ * RepoService handles repository discovery and operations.
+ */
+export class RepoService {
+  constructor(private fs: IFileSystem) {}
 
-export function getRepoName(repoPath: string): string {
-  return path.basename(repoPath);
+  discoverRepos(sourcePath: string): string[] {
+    const entries = this.fs.readdirSync(sourcePath, { withFileTypes: true });
+    return entries
+      .filter((entry: any) => entry.isDirectory())
+      .map((entry: any) => path.join(sourcePath, entry.name))
+      .filter((dirPath: string) => this.fs.existsSync(path.join(dirPath, '.git')))
+      .sort();
+  }
+
+  static getRepoName(repoPath: string): string {
+    return path.basename(repoPath);
+  }
 }

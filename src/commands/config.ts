@@ -3,13 +3,11 @@ import chalk from 'chalk';
 import { z } from 'zod';
 import {
   isValidKey,
-  loadRawConfig,
-  saveRawConfig,
-  loadConfig,
   validateAndTransformConfigValue,
   CONFIG_KEYS,
   type ConfigKey,
 } from '../lib/config.js';
+import { createServices } from '../lib/services.js';
 
 export function registerConfigCommand(program: Command): void {
   const configCmd = program
@@ -20,28 +18,30 @@ export function registerConfigCommand(program: Command): void {
     .command('set <key> <value>')
     .description('Set a config value (source-path, dest-path, copy-files, tmux, main-branch, post-checkout)')
     .action((key: string, value: string) => {
+      const services = createServices();
+
       if (!isValidKey(key)) {
-        console.error(
+        services.console.error(
           `Unknown config key: ${key}\nValid keys: ${CONFIG_KEYS.join(', ')}`
         );
-        process.exit(1);
+        services.process.exit(1);
       }
 
       try {
-        const config = loadRawConfig();
-        const transformedValue = validateAndTransformConfigValue(key, value);
+        const config = services.config.loadRaw();
+        const transformedValue = validateAndTransformConfigValue(key as ConfigKey, value);
 
-        config[key] = transformedValue as any;
-        saveRawConfig(config);
+        (config as any)[key] = transformedValue;
+        services.config.saveRaw(config);
 
-        console.log(chalk.green(`Set ${key} = ${transformedValue}`));
+        services.console.log(chalk.green(`Set ${key} = ${transformedValue}`));
       } catch (error) {
         if (error instanceof z.ZodError) {
-          console.error(`Invalid value for ${key}: ${error.issues[0].message}`);
+          services.console.error(`Invalid value for ${key}: ${error.issues[0].message}`);
         } else {
-          console.error(`Error setting config: ${error}`);
+          services.console.error(`Error setting config: ${error}`);
         }
-        process.exit(1);
+        services.process.exit(1);
       }
     });
 
@@ -49,11 +49,12 @@ export function registerConfigCommand(program: Command): void {
     .command('list')
     .description('List all config options and their current values')
     .action(() => {
-      const rawConfig = loadRawConfig();
-      const config = loadConfig();
+      const services = createServices();
+      const rawConfig = services.config.loadRaw();
+      const config = services.config.load();
 
-      console.log(chalk.bold('\nCurrent configuration:'));
-      console.log();
+      services.console.log(chalk.bold('\nCurrent configuration:'));
+      services.console.log('');
 
       const displayConfig: Record<ConfigKey, string> = {
         'source-path': rawConfig['source-path'] ?? chalk.gray('(not set)'),
@@ -67,8 +68,8 @@ export function registerConfigCommand(program: Command): void {
       for (const key of CONFIG_KEYS) {
         const value = displayConfig[key];
         const displayValue = rawConfig[key] ? chalk.green(value) : value;
-        console.log(`  ${chalk.cyan(key)}: ${displayValue}`);
+        services.console.log(`  ${chalk.cyan(key)}: ${displayValue}`);
       }
-      console.log();
+      services.console.log('');
     });
 }
