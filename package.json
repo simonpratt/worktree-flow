@@ -11,6 +11,9 @@
   ],
   "scripts": {
     "build": "tsc",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
@@ -31,6 +34,11 @@
   },
   "devDependencies": {
     "@types/node": "^25.2.0",
-    "typescript": "^5.9.3"
+    "@types/sinon": "^21.0.0",
+    "@vitest/coverage-v8": "^4.0.18",
+    "@vitest/ui": "^4.0.18",
+    "sinon": "^21.0.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
   }
 }

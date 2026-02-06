@@ -1,0 +1,334 @@
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import sinon from 'sinon';
+import { GitService } from './git.js';
+import { createMockShell } from './test-utils.js';
+
+describe('GitService', () => {
+  let shell: sinon.SinonStubbedInstance<any>;
+  let service: GitService;
+
+  beforeEach(() => {
+    shell = createMockShell();
+    service = new GitService(shell as any);
+  });
+
+  afterEach(() => {
+    sinon.restore();
+  });
+
+  describe('fetch', () => {
+    it('should execute git fetch with correct arguments', async () => {
+      shell.execFile.resolves({ stdout: '', stderr: '' });
+
+      await service.fetch('/repo');
+
+      sinon.assert.calledOnceWithExactly(
+        shell.execFile,
+        'git',
+        ['-C', '/repo', 'fetch', '--all', '--prune'],
+        { encoding: 'utf-8' }
+      );
+    });
+
+    it('should propagate errors from git fetch', async () => {
+      shell.execFile.rejects(new Error('Network error'));
+
+      await expect(service.fetch('/repo')).rejects.toThrow('Network error');
+    });
+  });
+
+  describe('remoteBranchExists', () => {
+    it('should execute ls-remote and return true when branch exists', async () => {
+      shell.execFile.resolves({ stdout: 'abc123\trefs/heads/feature\n', stderr: '' });
+
+      const result = await service.remoteBranchExists('/repo', 'feature');
+
+      sinon.assert.calledOnceWithExactly(
+        shell.execFile,
+        'git',
+        ['-C', '/repo', 'ls-remote', '--heads', 'origin', 'feature'],
+        { encoding: 'utf-8' }
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should return false when ls-remote returns empty output', async () => {
+      shell.execFile.resolves({ stdout: '', stderr: '' });
+
+      const result = await service.remoteBranchExists('/repo', 'feature');
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('localRemoteBranchExists', () => {
+    it('should execute rev-parse and return true when branch exists', async () => {
+      shell.execFile.resolves({ stdout: 'abc123', stderr: '' });
+
+      const result = await service.localRemoteBranchExists('/repo', 'feature');
+
+      sinon.assert.calledOnceWithExactly(
+        shell.execFile,
+        'git',
+        ['-C', '/repo', 'rev-parse', '--verify', 'origin/feature'],
+        { encoding: 'utf-8' }
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should return false when rev-parse fails', async () => {
+      shell.execFile.rejects(new Error('fatal: needed a single revision'));
+
+      const result = await service.localRemoteBranchExists('/repo', 'feature');
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('addWorktreeNewBranch', () => {
+    it('should execute worktree add with -b flag', async () => {
+      shell.execFile.resolves({ stdout: '', stderr: '' });
+
+      await service.addWorktreeNewBranch('/repo', '/worktree', 'feature');
+
+      sinon.assert.calledOnceWithExactly(
+        shell.execFile,
+        'git',
+        ['-C', '/repo', 'worktree', 'add', '-b', 'feature', '/worktree'],
+        { encoding: 'utf-8' }
+      );
+    });
+
+    it('should include source branch when provided', async () => {
+      shell.execFile.resolves({ stdout: '', stderr: '' });
+
+      await service.addWorktreeNewBranch('/repo', '/worktree', 'feature', 'main');
+
+      sinon.assert.calledOnceWithExactly(
+        shell.execFile,
+        'git',
+        ['-C', '/repo', 'worktree', 'add', '-b', 'feature', '/worktree', 'main'],
+        { encoding: 'utf-8' }
+      );
+    });
+  });
+
+  describe('addWorktree', () => {
+    it('should execute worktree add for existing branch', async () => {
+      shell.execFile.resolves({ stdout: '', stderr: '' });
+
+      await service.addWorktree('/repo', '/worktree', 'feature');
+
+      sinon.assert.calledOnceWithExactly(
+        shell.execFile,
+        'git',
+        ['-C', '/repo', 'worktree', 'add', '/worktree', 'feature'],
+        { encoding: 'utf-8' }
+      );
+    });
+  });
+
+  describe('pull', () => {
+    it('should execute git pull in worktree directory', async () => {
+      shell.execFile.resolves({ stdout: '', stderr: '' });
+
+      await service.pull('/worktree');
+
+      sinon.assert.calledOnceWithExactly(
+        shell.execFile,
+        'git',
+        ['-C', '/worktree', 'pull'],
+        { encoding: 'utf-8' }
+      );
+    });
+  });
+
+  describe('push', () => {
+    it('should execute git push', async () => {
+      shell.execFile.resolves({ stdout: '', stderr: '' });
+
+      await service.push('/worktree');
+
+      sinon.assert.calledOnceWithExactly(
+        shell.execFile,
+        'git',
+        ['-C', '/worktree', 'push'],
+        { encoding: 'utf-8' }
+      );
+    });
+  });
+
+  describe('pushSetUpstream', () => {
+    it('should execute git push with set-upstream flag', async () => {
+      shell.execFile.resolves({ stdout: '', stderr: '' });
+
+      await service.pushSetUpstream('/worktree', 'feature');
+
+      sinon.assert.calledOnceWithExactly(
+        shell.execFile,
+        'git',
+        ['-C', '/worktree', 'push', '--set-upstream', 'origin', 'feature'],
+        { encoding: 'utf-8' }
+      );
+    });
+  });
+
+  describe('getCurrentBranch', () => {
+    it('should execute rev-parse to get current branch', async () => {
+      shell.execFile.resolves({ stdout: 'feature\n', stderr: '' });
+
+      const branch = await service.getCurrentBranch('/worktree');
+
+      sinon.assert.calledOnceWithExactly(
+        shell.execFile,
+        'git',
+        ['-C', '/worktree', 'rev-parse', '--abbrev-ref', 'HEAD'],
+        { encoding: 'utf-8' }
+      );
+      expect(branch).toBe('feature\n');
+    });
+  });
+
+  describe('hasUncommittedChanges', () => {
+    it('should execute git status --porcelain', async () => {
+      shell.execFile.resolves({ stdout: 'M file.txt\n', stderr: '' });
+
+      const result = await service.hasUncommittedChanges('/repo');
+
+      sinon.assert.calledOnceWithExactly(
+        shell.execFile,
+        'git',
+        ['-C', '/repo', 'status', '--porcelain'],
+        { encoding: 'utf-8' }
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should return false when status is clean', async () => {
+      shell.execFile.resolves({ stdout: '', stderr: '' });
+
+      const result = await service.hasUncommittedChanges('/repo');
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('originBranchExists', () => {
+    it('should check both current branch and origin ref', async () => {
+      shell.execFile.onFirstCall().resolves({ stdout: 'feature', stderr: '' });
+      shell.execFile.onSecondCall().resolves({ stdout: 'abc123', stderr: '' });
+
+      const result = await service.originBranchExists('/repo');
+
+      expect(shell.execFile.callCount).toBe(2);
+      sinon.assert.calledWith(
+        shell.execFile.firstCall,
+        'git',
+        ['-C', '/repo', 'rev-parse', '--abbrev-ref', 'HEAD']
+      );
+      sinon.assert.calledWith(
+        shell.execFile.secondCall,
+        'git',
+        ['-C', '/repo', 'rev-parse', '--verify', 'origin/feature']
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should return false when origin branch does not exist', async () => {
+      shell.execFile.onFirstCall().resolves({ stdout: 'feature', stderr: '' });
+      shell.execFile.onSecondCall().rejects(new Error('fatal'));
+
+      const result = await service.originBranchExists('/repo');
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('isAheadOfOrigin', () => {
+    it('should execute rev-list to count commits ahead', async () => {
+      shell.execFile.onFirstCall().resolves({ stdout: 'feature', stderr: '' });
+      shell.execFile.onSecondCall().resolves({ stdout: '3', stderr: '' });
+
+      const result = await service.isAheadOfOrigin('/repo');
+
+      sinon.assert.calledWith(
+        shell.execFile.secondCall,
+        'git',
+        ['-C', '/repo', 'rev-list', '--count', 'origin/feature..HEAD']
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should return false when count is zero', async () => {
+      shell.execFile.onFirstCall().resolves({ stdout: 'feature', stderr: '' });
+      shell.execFile.onSecondCall().resolves({ stdout: '0', stderr: '' });
+
+      const result = await service.isAheadOfOrigin('/repo');
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('isBehindOrigin', () => {
+    it('should execute rev-list to count commits behind', async () => {
+      shell.execFile.onFirstCall().resolves({ stdout: 'feature', stderr: '' });
+      shell.execFile.onSecondCall().resolves({ stdout: '2', stderr: '' });
+
+      const result = await service.isBehindOrigin('/repo');
+
+      sinon.assert.calledWith(
+        shell.execFile.secondCall,
+        'git',
+        ['-C', '/repo', 'rev-list', '--count', 'HEAD..origin/feature']
+      );
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('isAheadOfMain', () => {
+    it('should execute git diff against main branch', async () => {
+      shell.execFile.resolves({ stdout: 'diff --git a/file.txt', stderr: '' });
+
+      const result = await service.isAheadOfMain('/repo', 'master');
+
+      sinon.assert.calledOnceWithExactly(
+        shell.execFile,
+        'git',
+        ['-C', '/repo', 'diff', 'origin/master...HEAD'],
+        { encoding: 'utf-8' }
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should return false when no diff exists', async () => {
+      shell.execFile.resolves({ stdout: '', stderr: '' });
+
+      const result = await service.isAheadOfMain('/repo', 'main');
+
+      expect(result).toBe(false);
+    });
+
+    it('should return true on error (safe default)', async () => {
+      shell.execFile.rejects(new Error('fatal'));
+
+      const result = await service.isAheadOfMain('/repo', 'master');
+
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('removeWorktree', () => {
+    it('should execute worktree remove', async () => {
+      shell.execFile.resolves({ stdout: '', stderr: '' });
+
+      await service.removeWorktree('/repo', '/worktree');
+
+      sinon.assert.calledOnceWithExactly(
+        shell.execFile,
+        'git',
+        ['-C', '/repo', 'worktree', 'remove', '/worktree'],
+        { encoding: 'utf-8' }
+      );
+    });
+  });
+});
