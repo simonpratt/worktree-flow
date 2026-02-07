@@ -1,20 +1,13 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import path from 'node:path';
 import { createServices } from '../lib/services.js';
 import type { Services } from '../lib/services.js';
 import { StatusService } from '../lib/status.js';
-import { WorkspaceNotFoundError } from '../lib/errors.js';
+import { resolveWorkspace } from '../lib/workspace.js';
 
-export async function runStatus(branchName: string, services: Services): Promise<void> {
-  const { destPath } = services.config.getRequired();
+export async function runStatus(branchName: string | undefined, services: Services): Promise<void> {
   const config = services.config.load();
-  const workspacePath = path.join(destPath, branchName);
-
-  const workspace = services.workspace.findWorkspace(destPath, branchName);
-  if (!workspace) {
-    throw new WorkspaceNotFoundError(workspacePath);
-  }
+  const { workspacePath } = resolveWorkspace(branchName, services);
 
   services.console.log(`Workspace: ${chalk.cyan(workspacePath)}`);
 
@@ -53,9 +46,9 @@ export async function runStatus(branchName: string, services: Services): Promise
 
 export function registerStatusCommand(program: Command): void {
   program
-    .command('status <branch-name>')
-    .description('Show status of all worktrees in a workspace')
-    .action(async (branchName: string) => {
+    .command('status [branch-name]')
+    .description('Show status of all worktrees in a workspace (auto-detects from current directory if branch not provided)')
+    .action(async (branchName?: string) => {
       const services = createServices();
 
       try {

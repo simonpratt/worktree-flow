@@ -6,6 +6,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `worktree-flow` (CLI command: `flow`) is a TypeScript CLI tool for managing git worktrees across multiple repositories (poly-repo). It creates isolated workspace directories containing worktrees from multiple repos on the same branch, enabling multi-repo feature development.
 
+## Making Changes
+
+We're following a TDD Flow. When making changes
+1. Investigate the test files and modify/add coverage for the new behaviour.
+2. Make the changes
+4. Ensure type-check passes via `npm run type-check`
+3. Ensure the tests pass via the `npm run test:coverage` command.
+
+Test are split into two categories
+- Files in `lib/` are tested via unit tests in the `lib/__test__` folder. Use the memfs helpers where possible if testing the file system.
+- Files in `commands/` are tested via integration tests in the `commands/__integration` folder. Minimise stubbing.
+
+For all testing focus on behaviour, not shallow validation of output.
+
 ## Build & Development
 
 ```bash

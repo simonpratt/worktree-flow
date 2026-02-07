@@ -1,15 +1,21 @@
 import path from 'node:path';
 import type { IFileSystem, IShell } from '../adapters/types.js';
-import { WorkspaceAlreadyExistsError, WorkspaceNotFoundError } from './errors.js';
+import { WorkspaceAlreadyExistsError, WorkspaceNotFoundError, NotInWorkspaceError } from './errors.js';
 import type { GitService } from './git.js';
 import type { ParallelService } from './parallel.js';
 import type { TmuxService } from './tmux.js';
 import type { RepoService } from './repos.js';
+import type { Services } from './services.js';
 
 export type WorkspaceCreationResult = {
   workspacePath: string;
   successCount: number;
   totalCount: number;
+};
+
+export type WorkspaceResolution = {
+  workspacePath: string;
+  displayName: string;
 };
 
 /**
@@ -297,6 +303,47 @@ export class WorkspaceService {
       successCount,
       totalCount: worktreeDirs.length,
       errors,
+    };
+  }
+}
+
+/**
+ * Resolves a workspace path from either an explicit branch name or by auto-detecting
+ * from the current working directory.
+ *
+ * @param branchName - Optional branch name. If provided, looks for workspace with this name.
+ *                     If undefined, auto-detects from current directory.
+ * @param services - Services instance for accessing config, workspace, and process operations
+ * @returns WorkspaceResolution containing the workspace path and display name
+ * @throws NotInWorkspaceError if auto-detecting and cwd is outside dest-path
+ * @throws WorkspaceNotFoundError if explicit branch provided but workspace doesn't exist
+ */
+export function resolveWorkspace(
+  branchName: string | undefined,
+  services: Services
+): WorkspaceResolution {
+  const { destPath } = services.config.getRequired();
+
+  if (branchName) {
+    // Explicit branch provided
+    const workspacePath = path.join(destPath, branchName);
+    const workspace = services.workspace.findWorkspace(destPath, branchName);
+    if (!workspace) {
+      throw new WorkspaceNotFoundError(workspacePath);
+    }
+    return {
+      workspacePath,
+      displayName: branchName,
+    };
+  } else {
+    // Auto-detect from current directory
+    const detectedPath = services.workspace.detectWorkspace(services.process.cwd(), destPath);
+    if (!detectedPath) {
+      throw new NotInWorkspaceError(destPath);
+    }
+    return {
+      workspacePath: detectedPath,
+      displayName: path.basename(detectedPath),
     };
   }
 }

@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import sinon from 'sinon';
 import { runPush } from '../push.js';
-import { NotInWorkspaceError } from '../../lib/errors.js';
+import { NotInWorkspaceError, WorkspaceNotFoundError } from '../../lib/errors.js';
 import {
   createTempDir,
   initGitRepo,
@@ -34,7 +34,13 @@ describe('push integration', () => {
     integration = createIntegrationServices(sourcePath, destPath);
     (integration.stubs.process.cwd as sinon.SinonStub).returns('/tmp/nowhere');
 
-    await expect(runPush(integration.services)).rejects.toThrow(NotInWorkspaceError);
+    await expect(runPush(undefined, integration.services)).rejects.toThrow(NotInWorkspaceError);
+  });
+
+  it('should throw WorkspaceNotFoundError when explicit branch does not exist', async () => {
+    integration = createIntegrationServices(sourcePath, destPath);
+
+    await expect(runPush('nonexistent', integration.services)).rejects.toThrow(WorkspaceNotFoundError);
   });
 
   it('should detect workspace and attempt push on repos', async () => {
@@ -54,7 +60,7 @@ describe('push integration', () => {
     (integration.stubs.process.cwd as sinon.SinonStub).returns(result.workspacePath);
 
     // Push will fail (no real remote) but the orchestration should complete
-    await runPush(integration.services);
+    await runPush(undefined, integration.services);
 
     const logCalls = (integration.stubs.console.log as sinon.SinonStub).args.map(
       (a: any[]) => a[0]
@@ -82,7 +88,34 @@ describe('push integration', () => {
     const repoCwd = path.join(result.workspacePath, 'repo1');
     (integration.stubs.process.cwd as sinon.SinonStub).returns(repoCwd);
 
-    await runPush(integration.services);
+    await runPush(undefined, integration.services);
+
+    const logCalls = (integration.stubs.console.log as sinon.SinonStub).args.map(
+      (a: any[]) => a[0]
+    );
+    const resultLine = logCalls.find((line: string) =>
+      line.includes('repos pushed successfully')
+    );
+    expect(resultLine).toBeDefined();
+  });
+
+  it('should use explicit branch when provided', async () => {
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+
+    await integration.services.workspace.createBranchWorktrees(
+      [repo1],
+      destPath,
+      'feature',
+      'master',
+      '.env'
+    );
+
+    // Set cwd to somewhere else - should not matter when explicit branch is provided
+    (integration.stubs.process.cwd as sinon.SinonStub).returns('/tmp/somewhere');
+
+    await runPush('feature', integration.services);
 
     const logCalls = (integration.stubs.console.log as sinon.SinonStub).args.map(
       (a: any[]) => a[0]

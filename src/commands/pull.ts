@@ -3,15 +3,10 @@ import chalk from 'chalk';
 import path from 'node:path';
 import { createServices } from '../lib/services.js';
 import type { Services } from '../lib/services.js';
-import { NotInWorkspaceError } from '../lib/errors.js';
+import { resolveWorkspace } from '../lib/workspace.js';
 
-export async function runPull(services: Services): Promise<void> {
-  const { destPath } = services.config.getRequired();
-  const workspacePath = services.workspace.detectWorkspace(services.process.cwd(), destPath);
-
-  if (!workspacePath) {
-    throw new NotInWorkspaceError(destPath);
-  }
+export async function runPull(branchName: string | undefined, services: Services): Promise<void> {
+  const { workspacePath } = resolveWorkspace(branchName, services);
 
   const dirs = services.workspace.getWorktreeDirs(workspacePath);
 
@@ -36,13 +31,13 @@ export async function runPull(services: Services): Promise<void> {
 
 export function registerPullCommand(program: Command): void {
   program
-    .command('pull')
-    .description('Pull all repos in the current workspace')
-    .action(async () => {
+    .command('pull [branch-name]')
+    .description('Pull all repos in a workspace (auto-detects from current directory if branch not provided)')
+    .action(async (branchName?: string) => {
       const services = createServices();
 
       try {
-        await runPull(services);
+        await runPull(branchName, services);
       } catch (error: any) {
         services.console.error(error.message);
         services.process.exit(1);
