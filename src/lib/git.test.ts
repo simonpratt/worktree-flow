@@ -185,7 +185,7 @@ describe('GitService', () => {
         ['-C', '/worktree', 'rev-parse', '--abbrev-ref', 'HEAD'],
         { encoding: 'utf-8' }
       );
-      expect(branch).toBe('feature\n');
+      expect(branch).toBe('feature');
     });
   });
 
@@ -267,6 +267,14 @@ describe('GitService', () => {
 
       expect(result).toBe(false);
     });
+
+    it('should return false on error', async () => {
+      shell.execFile.rejects(new Error('fatal'));
+
+      const result = await service.isAheadOfOrigin('/repo');
+
+      expect(result).toBe(false);
+    });
   });
 
   describe('isBehindOrigin', () => {
@@ -282,6 +290,23 @@ describe('GitService', () => {
         ['-C', '/repo', 'rev-list', '--count', 'HEAD..origin/feature']
       );
       expect(result).toBe(true);
+    });
+
+    it('should return false when count is zero', async () => {
+      shell.execFile.onFirstCall().resolves({ stdout: 'feature', stderr: '' });
+      shell.execFile.onSecondCall().resolves({ stdout: '0', stderr: '' });
+
+      const result = await service.isBehindOrigin('/repo');
+
+      expect(result).toBe(false);
+    });
+
+    it('should return false on error', async () => {
+      shell.execFile.rejects(new Error('fatal'));
+
+      const result = await service.isBehindOrigin('/repo');
+
+      expect(result).toBe(false);
     });
   });
 

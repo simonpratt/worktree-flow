@@ -303,6 +303,27 @@ describe('WorkspaceService', () => {
         { name: 'feature-1', path: '/dest/feature-1', repoCount: 1 },
       ]);
     });
+
+    it('should handle errors when reading workspace contents', () => {
+      const { fs } = createMemFs({
+        '/dest/feature-1/repo1/.keep': '',
+        '/dest/feature-2/repo1/.keep': '',
+      });
+      const service = new WorkspaceService(fs, shell as any);
+      const original = service.getWorktreeDirs.bind(service);
+      sinon.stub(service, 'getWorktreeDirs').callsFake((wsPath: string) => {
+        if (wsPath.includes('feature-2')) {
+          throw new Error('read error');
+        }
+        return original(wsPath);
+      });
+
+      const workspaces = service.listWorkspaces('/dest');
+
+      expect(workspaces).toEqual([
+        { name: 'feature-1', path: '/dest/feature-1', repoCount: 1 },
+      ]);
+    });
   });
 
   describe('removeWorkspaceDir', () => {
@@ -430,6 +451,31 @@ describe('WorkspaceService', () => {
         );
       });
 
+      it('should copy config files to worktree after creation', async () => {
+        const { fs } = createMemFs();
+        const service = createOrchestratedService(fs);
+        const copySpy = sinon.spy(service, 'copyConfigFilesToWorktree');
+
+        let processFunc: any;
+        parallelStub.processInParallel.callsFake(async (items: any[], nameFunc: any, func: any) => {
+          processFunc = func;
+          return 1;
+        });
+
+        await service.createBranchWorktrees(
+          ['/source/repo1'],
+          '/dest',
+          'feature',
+          'master',
+          '.env'
+        );
+
+        await processFunc('/source/repo1');
+
+        sinon.assert.calledOnce(copySpy);
+        sinon.assert.calledWith(copySpy, '/source/repo1', '/dest/feature/repo1', '.env');
+      });
+
       it('should throw error when dependencies not configured', async () => {
         const { fs } = createMemFs();
         const unconfiguredService = new WorkspaceService(fs, shell as any);
@@ -494,6 +540,43 @@ describe('WorkspaceService', () => {
           'feature'
         );
       });
+
+      it('should copy config files to worktree after checkout', async () => {
+        const { fs } = createMemFs();
+        const service = createOrchestratedService(fs);
+        const copySpy = sinon.spy(service, 'copyConfigFilesToWorktree');
+
+        let processFunc: any;
+        parallelStub.processInParallel.callsFake(async (items: any[], nameFunc: any, func: any) => {
+          processFunc = func;
+          return 1;
+        });
+
+        await service.createCheckoutWorktrees(
+          ['/source/repo1'],
+          '/dest',
+          'feature',
+          '.env'
+        );
+
+        await processFunc('/source/repo1');
+
+        sinon.assert.calledOnce(copySpy);
+        sinon.assert.calledWith(copySpy, '/source/repo1', '/dest/feature/repo1', '.env');
+      });
+
+      it('should throw error when dependencies not configured', async () => {
+        const { fs } = createMemFs();
+        const unconfiguredService = new WorkspaceService(fs, shell as any);
+
+        await expect(
+          unconfiguredService.createCheckoutWorktrees(
+            ['/source/repo1'],
+            '/dest',
+            'feature'
+          )
+        ).rejects.toThrow('WorkspaceService not configured with required dependencies');
+      });
     });
 
     describe('createTmuxSession', () => {
@@ -548,6 +631,15 @@ describe('WorkspaceService', () => {
         const result = await service.killTmuxSession('feature');
 
         expect(result).toEqual({ success: false, error: 'session not found' });
+      });
+
+      it('should throw error when tmux service not configured', async () => {
+        const { fs } = createMemFs();
+        const unconfiguredService = new WorkspaceService(fs, shell as any);
+
+        await expect(
+          unconfiguredService.killTmuxSession('feature')
+        ).rejects.toThrow('WorkspaceService not configured with tmux service');
       });
     });
 
@@ -627,6 +719,18 @@ describe('WorkspaceService', () => {
         expect(result.totalCount).toBe(2);
         expect(result.errors).toHaveLength(1);
         expect(result.errors[0]).toEqual({ repo: 'repo2', error: 'failed' });
+      });
+
+      it('should throw error when dependencies not configured', async () => {
+        const { fs } = createMemFs();
+        const unconfiguredService = new WorkspaceService(fs, shell as any);
+
+        await expect(
+          unconfiguredService.removeWorktrees(
+            ['/workspace/repo1'],
+            '/source'
+          )
+        ).rejects.toThrow('WorkspaceService not configured with required dependencies');
       });
     });
   });

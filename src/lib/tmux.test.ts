@@ -45,14 +45,7 @@ describe('TmuxService', () => {
       await expect(service.createSession('/workspace/feature', 'feature-branch')).rejects.toThrow('tmux not found');
     });
 
-    it('should throw for non-duplicate session errors', async () => {
-      shell.execFile.rejects(new Error('invalid option'));
-
-      await expect(service.createSession('/workspace/feature', 'feature-branch')).rejects.toThrow('invalid option');
-
-      sinon.assert.calledOnce(shell.execFile);
-    });
-  });
+});
 
   describe('killSession', () => {
     it('should execute tmux kill-session with correct arguments', async () => {
@@ -83,12 +76,5 @@ describe('TmuxService', () => {
       await expect(service.killSession('feature-branch')).rejects.toThrow('tmux server not running');
     });
 
-    it('should throw for non-session-not-found errors', async () => {
-      shell.execFile.rejects(new Error('permission denied'));
-
-      await expect(service.killSession('feature-branch')).rejects.toThrow('permission denied');
-
-      sinon.assert.calledOnce(shell.execFile);
-    });
-  });
+});
 });

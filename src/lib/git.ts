@@ -65,7 +65,8 @@ export class GitService {
   }
 
   async getCurrentBranch(worktreePath: string): Promise<string> {
-    return await this.exec(worktreePath, ['rev-parse', '--abbrev-ref', 'HEAD']);
+    const output = await this.exec(worktreePath, ['rev-parse', '--abbrev-ref', 'HEAD']);
+    return output.trim();
   }
 
   async hasUncommittedChanges(repoPath: string): Promise<boolean> {

@@ -110,7 +110,7 @@ describe('ConfigService', () => {
       });
     });
 
-    it('should convert tmux string to boolean', () => {
+    it('should convert tmux true string to boolean true', () => {
       const { fs } = createMemFs({
         [configPath]: JSON.stringify({ 'tmux': 'true' }),
       });
@@ -119,6 +119,17 @@ describe('ConfigService', () => {
       const config = service.load();
 
       expect(config.tmux).toBe(true);
+    });
+
+    it('should convert tmux false string to boolean false', () => {
+      const { fs } = createMemFs({
+        [configPath]: JSON.stringify({ 'tmux': 'false' }),
+      });
+      const service = new ConfigService(fs);
+
+      const config = service.load();
+
+      expect(config.tmux).toBe(false);
     });
 
     it('should use custom values when provided', () => {
