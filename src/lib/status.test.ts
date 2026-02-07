@@ -148,4 +148,129 @@ describe('StatusService', () => {
       expect(StatusService.hasIssues({ type: 'behind', comparedTo: 'origin' })).toBe(false);
     });
   });
+
+  describe('checkAllWorktrees', () => {
+    it('should check status for all worktrees in parallel', async () => {
+      gitStub.hasUncommittedChanges.resolves(false);
+      gitStub.originBranchExists.resolves(true);
+      gitStub.isAheadOfOrigin.onFirstCall().resolves(false);
+      gitStub.isAheadOfOrigin.onSecondCall().resolves(true);
+      gitStub.isBehindOrigin.resolves(false);
+
+      const results = await service.checkAllWorktrees(
+        ['/workspace/repo1', '/workspace/repo2'],
+        'master'
+      );
+
+      expect(results).toHaveLength(2);
+      expect(results[0]).toEqual({
+        repoName: 'repo1',
+        status: { type: 'clean', comparedTo: 'origin' },
+      });
+      expect(results[1]).toEqual({
+        repoName: 'repo2',
+        status: { type: 'ahead', comparedTo: 'origin' },
+      });
+    });
+
+    it('should extract repo names from paths', async () => {
+      gitStub.hasUncommittedChanges.resolves(false);
+      gitStub.originBranchExists.resolves(false);
+      gitStub.isAheadOfMain.resolves(false);
+
+      const results = await service.checkAllWorktrees(
+        ['/long/path/to/workspace/my-repo'],
+        'main'
+      );
+
+      expect(results[0].repoName).toBe('my-repo');
+    });
+
+    it('should handle errors in individual worktrees', async () => {
+      gitStub.hasUncommittedChanges.onFirstCall().resolves(false);
+      gitStub.hasUncommittedChanges.onSecondCall().rejects(new Error('git error'));
+      gitStub.originBranchExists.resolves(true);
+      gitStub.isAheadOfOrigin.resolves(false);
+      gitStub.isBehindOrigin.resolves(false);
+
+      const results = await service.checkAllWorktrees(
+        ['/workspace/repo1', '/workspace/repo2'],
+        'master'
+      );
+
+      expect(results).toHaveLength(2);
+      expect(results[0].status.type).toBe('clean');
+      expect(results[1].status.type).toBe('error');
+      expect(results[1].status.error).toBe('git error');
+    });
+
+    it('should return empty array for empty worktree list', async () => {
+      const results = await service.checkAllWorktrees([], 'master');
+
+      expect(results).toEqual([]);
+      sinon.assert.notCalled(gitStub.hasUncommittedChanges);
+    });
+  });
+
+  describe('findReposWithIssues', () => {
+    it('should return repos that have issues', async () => {
+      gitStub.hasUncommittedChanges.onFirstCall().resolves(true);
+      gitStub.hasUncommittedChanges.onSecondCall().resolves(false);
+      gitStub.hasUncommittedChanges.onThirdCall().resolves(false);
+      gitStub.originBranchExists.resolves(true);
+      gitStub.isAheadOfOrigin.onFirstCall().resolves(true);
+      gitStub.isAheadOfOrigin.onSecondCall().resolves(false);
+      gitStub.isBehindOrigin.resolves(false);
+
+      const reposWithIssues = await service.findReposWithIssues(
+        ['/workspace/repo1', '/workspace/repo2', '/workspace/repo3'],
+        'master'
+      );
+
+      expect(reposWithIssues).toEqual(['repo1', 'repo2']);
+    });
+
+    it('should return empty array when all repos are clean', async () => {
+      gitStub.hasUncommittedChanges.resolves(false);
+      gitStub.originBranchExists.resolves(true);
+      gitStub.isAheadOfOrigin.resolves(false);
+      gitStub.isBehindOrigin.resolves(false);
+
+      const reposWithIssues = await service.findReposWithIssues(
+        ['/workspace/repo1', '/workspace/repo2'],
+        'master'
+      );
+
+      expect(reposWithIssues).toEqual([]);
+    });
+
+    it('should include repos with errors as having issues', async () => {
+      gitStub.hasUncommittedChanges.onFirstCall().resolves(false);
+      gitStub.hasUncommittedChanges.onSecondCall().rejects(new Error('fatal'));
+      gitStub.originBranchExists.onFirstCall().resolves(true);
+      gitStub.isAheadOfOrigin.onFirstCall().resolves(false);
+      gitStub.isBehindOrigin.onFirstCall().resolves(false);
+
+      const reposWithIssues = await service.findReposWithIssues(
+        ['/workspace/repo1', '/workspace/repo2'],
+        'master'
+      );
+
+      expect(reposWithIssues).toEqual(['repo2']);
+    });
+
+    it('should not include repos that are only behind', async () => {
+      gitStub.hasUncommittedChanges.resolves(false);
+      gitStub.originBranchExists.resolves(true);
+      gitStub.isAheadOfOrigin.resolves(false);
+      gitStub.isBehindOrigin.resolves(true);
+
+      const reposWithIssues = await service.findReposWithIssues(
+        ['/workspace/repo1'],
+        'master'
+      );
+
+      expect(reposWithIssues).toEqual([]);
+    });
+  });
 });

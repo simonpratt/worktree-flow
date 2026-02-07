@@ -2,7 +2,6 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import path from 'node:path';
 import { createServices } from '../lib/services.js';
-import { RepoService } from '../lib/repos.js';
 import { StatusService } from '../lib/status.js';
 import { WorkspaceNotFoundError } from '../lib/errors.js';
 
@@ -18,17 +17,13 @@ export function registerStatusCommand(program: Command): void {
         const config = services.config.load();
         const workspacePath = path.join(destPath, branchName);
 
-        // Check if workspace exists
-        const workspaces = services.workspace.listWorkspaces(destPath);
-        const workspace = workspaces.find(ws => ws.name === branchName);
-
+        const workspace = services.workspace.findWorkspace(destPath, branchName);
         if (!workspace) {
           throw new WorkspaceNotFoundError(workspacePath);
         }
 
         services.console.log(`Workspace: ${chalk.cyan(workspacePath)}`);
 
-        // Get all worktree directories
         const worktreeDirs = services.workspace.getWorktreeDirs(workspacePath);
 
         if (worktreeDirs.length === 0) {
@@ -36,18 +31,17 @@ export function registerStatusCommand(program: Command): void {
           return;
         }
 
-        // Fetch all repos to get latest remote state
         services.console.log('');
         await services.fetch.fetchRepos(worktreeDirs);
 
         services.console.log(`\nStatus (comparing against ${chalk.cyan(config.mainBranch)}):\n`);
 
+        const results = await services.status.checkAllWorktrees(worktreeDirs, config.mainBranch);
+
         let cleanCount = 0;
         let issuesCount = 0;
 
-        for (const worktreePath of worktreeDirs) {
-          const repoName = RepoService.getRepoName(worktreePath);
-          const status = await services.status.getWorktreeStatus(worktreePath, config.mainBranch);
+        for (const { repoName, status } of results) {
           const message = StatusService.getStatusMessage(status, config.mainBranch);
 
           if (StatusService.hasIssues(status)) {

@@ -1,9 +1,7 @@
 import { Command } from 'commander';
 import confirm from '@inquirer/confirm';
 import chalk from 'chalk';
-import path from 'node:path';
 import { createServices } from '../lib/services.js';
-import { RepoService } from '../lib/repos.js';
 import { NoReposFoundError } from '../lib/errors.js';
 
 export function registerCheckoutCommand(program: Command): void {
@@ -22,65 +20,52 @@ export function registerCheckoutCommand(program: Command): void {
           throw new NoReposFoundError(sourcePath);
         }
 
-        // Fetch all repos first
         await services.fetch.fetchRepos(repos);
 
-        // Check which repos have the branch (using local remote-tracking branches after fetch)
         services.console.log('\nChecking for branch...');
-        const matchingRepos: string[] = [];
-        for (const repoPath of repos) {
-          const repoName = RepoService.getRepoName(repoPath);
-          try {
-            if (await services.git.localRemoteBranchExists(repoPath, branchName)) {
-              services.console.log(`${repoName}... ${chalk.green('found')}`);
-              matchingRepos.push(repoPath);
-            } else {
-              services.console.log(`${repoName}... ${chalk.dim('no branch')}`);
-            }
-          } catch (err: any) {
-            services.console.log(`${repoName}... ${chalk.red(`error: ${err.stderr || err.message}`)}`);
+        const { matching, results } = await services.repos.findReposWithBranch(repos, branchName);
+
+        for (const result of results) {
+          if (result.error) {
+            services.console.log(`${result.repoName}... ${chalk.red(`error: ${result.error}`)}`);
+          } else if (result.hasBranch) {
+            services.console.log(`${result.repoName}... ${chalk.green('found')}`);
+          } else {
+            services.console.log(`${result.repoName}... ${chalk.dim('no branch')}`);
           }
         }
 
-        if (matchingRepos.length === 0) {
+        if (matching.length === 0) {
           services.console.error(`\nBranch "${branchName}" not found in any repo.`);
           services.process.exit(1);
         }
 
         services.console.log(
-          `\nFound "${branchName}" in ${matchingRepos.length} repo(s). Creating worktrees...`
+          `\nFound "${branchName}" in ${matching.length} repo(s). Creating worktrees...`
         );
 
-        const workspacePath = services.workspace.createWorkspaceDir(destPath, branchName);
-
-        const successCount = await services.parallel.processInParallel(
-          matchingRepos,
-          (repoPath) => RepoService.getRepoName(repoPath),
-          async (repoPath, name) => {
-            const worktreeDest = path.join(workspacePath, name);
-            await services.git.addWorktree(repoPath, worktreeDest, branchName);
-            services.workspace.copyConfigFilesToWorktree(repoPath, worktreeDest, config.copyFiles);
-            return 'created';
-          }
+        const result = await services.workspace.createCheckoutWorktrees(
+          matching,
+          destPath,
+          branchName,
+          config.copyFiles
         );
 
-        services.workspace.copyAgentsMd(sourcePath, workspacePath);
+        services.workspace.copyAgentsMd(sourcePath, result.workspacePath);
 
-        // Create tmux session if enabled
         if (config.tmux) {
-          try {
-            await services.tmux.createSession(workspacePath, branchName);
+          const tmuxResult = await services.workspace.createTmuxSession(result.workspacePath, branchName);
+          if (tmuxResult.success) {
             services.console.log(`Created tmux session: ${chalk.cyan(branchName)}`);
-          } catch (error: any) {
-            services.console.error(chalk.yellow(`Warning: Failed to create tmux session: ${error.message}`));
+          } else {
+            services.console.error(chalk.yellow(`Warning: Failed to create tmux session: ${tmuxResult.error}`));
           }
         }
 
         services.console.log(
-          `\nCreated workspace at ${chalk.cyan(workspacePath)} with ${successCount}/${matchingRepos.length} repos.`
+          `\nCreated workspace at ${chalk.cyan(result.workspacePath)} with ${result.successCount}/${result.totalCount} repos.`
         );
 
-        // Ask if user wants to run post-checkout command
         if (config.postCheckout) {
           const shouldRun = await confirm({
             message: `Run "${config.postCheckout}" in all workspaces?`,
@@ -88,7 +73,7 @@ export function registerCheckoutCommand(program: Command): void {
           });
 
           if (shouldRun) {
-            const worktreeDirs = services.workspace.getWorktreeDirs(workspacePath);
+            const worktreeDirs = services.workspace.getWorktreeDirs(result.workspacePath);
             services.console.log(`\nRunning "${config.postCheckout}" in ${worktreeDirs.length} workspace(s)...`);
             const completedCount = await services.workspace.runPostCheckoutCommand(worktreeDirs, config.postCheckout);
             services.console.log(`\nCompleted in ${completedCount}/${worktreeDirs.length} workspace(s).`);

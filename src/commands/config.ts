@@ -50,24 +50,15 @@ export function registerConfigCommand(program: Command): void {
     .description('List all config options and their current values')
     .action(() => {
       const services = createServices();
-      const rawConfig = services.config.loadRaw();
-      const config = services.config.load();
 
       services.console.log(chalk.bold('\nCurrent configuration:'));
       services.console.log('');
 
-      const displayConfig: Record<ConfigKey, string> = {
-        'source-path': rawConfig['source-path'] ?? chalk.gray('(not set)'),
-        'dest-path': rawConfig['dest-path'] ?? chalk.gray('(not set)'),
-        'copy-files': rawConfig['copy-files'] ?? chalk.gray(`${config.copyFiles} (default)`),
-        'tmux': rawConfig.tmux ?? chalk.gray(`${config.tmux} (default)`),
-        'main-branch': rawConfig['main-branch'] ?? chalk.gray(`${config.mainBranch} (default)`),
-        'post-checkout': rawConfig['post-checkout'] ?? chalk.gray('(not set)'),
-      };
+      const displayConfig = services.config.getDisplayConfig();
 
       for (const key of CONFIG_KEYS) {
-        const value = displayConfig[key];
-        const displayValue = rawConfig[key] ? chalk.green(value) : value;
+        const { value, isDefault } = displayConfig[key];
+        const displayValue = isDefault ? chalk.gray(value) : chalk.green(value);
         services.console.log(`  ${chalk.cyan(key)}: ${displayValue}`);
       }
       services.console.log('');

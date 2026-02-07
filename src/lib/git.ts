@@ -117,4 +117,22 @@ export class GitService {
   async removeWorktree(repoPath: string, worktreePath: string): Promise<void> {
     await this.exec(repoPath, ['worktree', 'remove', worktreePath]);
   }
+
+  /**
+   * Push with automatic set-upstream retry if no upstream is configured
+   */
+  async pushWithRetry(worktreePath: string): Promise<string> {
+    try {
+      await this.push(worktreePath);
+      return 'pushed';
+    } catch (err: any) {
+      const stderr = err.stderr || err.message || '';
+      if (stderr.includes('no upstream') || stderr.includes('has no upstream')) {
+        const branch = (await this.getCurrentBranch(worktreePath)).trim();
+        await this.pushSetUpstream(worktreePath, branch);
+        return 'pushed (set upstream)';
+      }
+      throw err;
+    }
+  }
 }

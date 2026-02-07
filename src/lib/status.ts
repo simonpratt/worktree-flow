@@ -86,4 +86,35 @@ export class StatusService {
       status.type === 'error'
     );
   }
+
+  /**
+   * Check status of all worktrees in parallel
+   */
+  async checkAllWorktrees(
+    worktreeDirs: string[],
+    mainBranch: string
+  ): Promise<Array<{ repoName: string; status: WorktreeStatus }>> {
+    const results = await Promise.all(
+      worktreeDirs.map(async (worktreePath) => {
+        const repoName = worktreePath.split('/').pop() || worktreePath;
+        const status = await this.getWorktreeStatus(worktreePath, mainBranch);
+        return { repoName, status };
+      })
+    );
+
+    return results;
+  }
+
+  /**
+   * Find repos with issues (for removal validation)
+   */
+  async findReposWithIssues(
+    worktreeDirs: string[],
+    mainBranch: string
+  ): Promise<string[]> {
+    const results = await this.checkAllWorktrees(worktreeDirs, mainBranch);
+    return results
+      .filter(({ status }) => StatusService.hasIssues(status))
+      .map(({ repoName }) => repoName);
+  }
 }

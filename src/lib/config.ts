@@ -119,4 +119,39 @@ export class ConfigService {
 
     return result.data;
   }
+
+  /**
+   * Get config display values (formatted for CLI output)
+   */
+  getDisplayConfig(): Record<ConfigKey, { value: string; isDefault: boolean }> {
+    const raw = this.loadRaw();
+    const config = this.load();
+
+    return {
+      'source-path': {
+        value: raw['source-path'] ?? '(not set)',
+        isDefault: !raw['source-path'],
+      },
+      'dest-path': {
+        value: raw['dest-path'] ?? '(not set)',
+        isDefault: !raw['dest-path'],
+      },
+      'copy-files': {
+        value: raw['copy-files'] ?? `${config.copyFiles} (default)`,
+        isDefault: !raw['copy-files'],
+      },
+      'tmux': {
+        value: raw.tmux ?? `${config.tmux} (default)`,
+        isDefault: !raw.tmux,
+      },
+      'main-branch': {
+        value: raw['main-branch'] ?? `${config.mainBranch} (default)`,
+        isDefault: !raw['main-branch'],
+      },
+      'post-checkout': {
+        value: raw['post-checkout'] ?? '(not set)',
+        isDefault: !raw['post-checkout'],
+      },
+    };
+  }
 }

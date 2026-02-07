@@ -3,9 +3,7 @@ import checkbox from '@inquirer/checkbox';
 import input from '@inquirer/input';
 import confirm from '@inquirer/confirm';
 import chalk from 'chalk';
-import path from 'node:path';
 import { createServices } from '../lib/services.js';
-import { RepoService } from '../lib/repos.js';
 import { NoReposFoundError } from '../lib/errors.js';
 
 export function registerBranchCommand(program: Command): void {
@@ -26,12 +24,7 @@ export function registerBranchCommand(program: Command): void {
 
         const selected = await checkbox({
           message: `Select repos for branch "${branchName}":`,
-          choices: repos
-            .map(repoPath => ({
-              name: RepoService.getRepoName(repoPath),
-              value: repoPath,
-            }))
-            .sort((a, b) => a.name.localeCompare(b.name)),
+          choices: services.repos.formatRepoChoices(repos),
           pageSize: 20,
         });
 
@@ -40,46 +33,37 @@ export function registerBranchCommand(program: Command): void {
           return;
         }
 
-        // Ask user which branch to branch from
         const sourceBranch = await input({
           message: 'Branch from which branch?',
           default: 'master',
         });
 
-        // Fetch all selected repos first
         await services.fetch.fetchRepos(selected);
 
         services.console.log('\nCreating worktrees...');
-        const workspacePath = services.workspace.createWorkspaceDir(destPath, branchName);
-
-        const successCount = await services.parallel.processInParallel(
+        const result = await services.workspace.createBranchWorktrees(
           selected,
-          (repoPath) => RepoService.getRepoName(repoPath),
-          async (repoPath, name) => {
-            const worktreeDest = path.join(workspacePath, name);
-            await services.git.addWorktreeNewBranch(repoPath, worktreeDest, branchName, sourceBranch);
-            services.workspace.copyConfigFilesToWorktree(repoPath, worktreeDest, config.copyFiles);
-            return 'created';
-          }
+          destPath,
+          branchName,
+          sourceBranch,
+          config.copyFiles
         );
 
-        services.workspace.copyAgentsMd(sourcePath, workspacePath);
+        services.workspace.copyAgentsMd(sourcePath, result.workspacePath);
 
-        // Create tmux session if enabled
         if (config.tmux) {
-          try {
-            await services.tmux.createSession(workspacePath, branchName);
+          const tmuxResult = await services.workspace.createTmuxSession(result.workspacePath, branchName);
+          if (tmuxResult.success) {
             services.console.log(`Created tmux session: ${chalk.cyan(branchName)}`);
-          } catch (error: any) {
-            services.console.error(chalk.yellow(`Warning: Failed to create tmux session: ${error.message}`));
+          } else {
+            services.console.error(chalk.yellow(`Warning: Failed to create tmux session: ${tmuxResult.error}`));
           }
         }
 
         services.console.log(
-          `\nCreated workspace at ${chalk.cyan(workspacePath)} with ${successCount}/${selected.length} repos.`
+          `\nCreated workspace at ${chalk.cyan(result.workspacePath)} with ${result.successCount}/${result.totalCount} repos.`
         );
 
-        // Ask if user wants to run post-checkout command
         if (config.postCheckout) {
           const shouldRun = await confirm({
             message: `Run "${config.postCheckout}" in all workspaces?`,
@@ -87,7 +71,7 @@ export function registerBranchCommand(program: Command): void {
           });
 
           if (shouldRun) {
-            const worktreeDirs = services.workspace.getWorktreeDirs(workspacePath);
+            const worktreeDirs = services.workspace.getWorktreeDirs(result.workspacePath);
             services.console.log(`\nRunning "${config.postCheckout}" in ${worktreeDirs.length} workspace(s)...`);
             const completedCount = await services.workspace.runPostCheckoutCommand(worktreeDirs, config.postCheckout);
             services.console.log(`\nCompleted in ${completedCount}/${worktreeDirs.length} workspace(s).`);

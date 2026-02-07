@@ -3,6 +3,10 @@ import sinon from 'sinon';
 import { WorkspaceService } from './workspace.js';
 import { WorkspaceAlreadyExistsError } from './errors.js';
 import { createMockFileSystem, createMockShell } from './test-utils.js';
+import { GitService } from './git.js';
+import { ParallelService } from './parallel.js';
+import { TmuxService } from './tmux.js';
+import { RepoService } from './repos.js';
 
 describe('WorkspaceService', () => {
   let fs: sinon.SinonStubbedInstance<any>;
@@ -291,6 +295,318 @@ describe('WorkspaceService', () => {
       sinon.assert.calledOnceWithExactly(fs.rmSync, '/workspace', {
         recursive: true,
         force: true,
+      });
+    });
+  });
+
+  describe('findWorkspace', () => {
+    it('should find workspace by name', () => {
+      fs.existsSync.returns(true);
+      fs.readdirSync.onFirstCall().returns([
+        { name: 'feature-1', isDirectory: () => true },
+        { name: 'feature-2', isDirectory: () => true },
+      ]);
+      fs.readdirSync.onSecondCall().returns([
+        { name: 'repo1', isDirectory: () => true },
+      ]);
+      fs.readdirSync.onThirdCall().returns([
+        { name: 'repo1', isDirectory: () => true },
+      ]);
+
+      const workspace = service.findWorkspace('/dest', 'feature-2');
+
+      expect(workspace).toEqual({
+        name: 'feature-2',
+        path: '/dest/feature-2',
+        repoCount: 1,
+      });
+    });
+
+    it('should return null when workspace not found', () => {
+      fs.existsSync.returns(true);
+      fs.readdirSync.onFirstCall().returns([
+        { name: 'feature-1', isDirectory: () => true },
+      ]);
+      fs.readdirSync.onSecondCall().returns([
+        { name: 'repo1', isDirectory: () => true },
+      ]);
+
+      const workspace = service.findWorkspace('/dest', 'nonexistent');
+
+      expect(workspace).toBeNull();
+    });
+
+    it('should return null when destPath does not exist', () => {
+      fs.existsSync.returns(false);
+
+      const workspace = service.findWorkspace('/dest', 'feature-1');
+
+      expect(workspace).toBeNull();
+    });
+  });
+
+  describe('Orchestration methods', () => {
+    let gitStub: sinon.SinonStubbedInstance<GitService>;
+    let parallelStub: sinon.SinonStubbedInstance<ParallelService>;
+    let tmuxStub: sinon.SinonStubbedInstance<TmuxService>;
+    let reposStub: sinon.SinonStubbedInstance<RepoService>;
+    let orchestratedService: WorkspaceService;
+
+    beforeEach(() => {
+      gitStub = sinon.createStubInstance(GitService);
+      parallelStub = sinon.createStubInstance(ParallelService);
+      tmuxStub = sinon.createStubInstance(TmuxService);
+      reposStub = sinon.createStubInstance(RepoService);
+      orchestratedService = new WorkspaceService(
+        fs as any,
+        shell as any,
+        gitStub as any,
+        parallelStub as any,
+        tmuxStub as any,
+        reposStub as any
+      );
+    });
+
+    describe('createBranchWorktrees', () => {
+      it('should create workspace and process repos in parallel', async () => {
+        fs.existsSync.returns(false);
+        parallelStub.processInParallel.resolves(2);
+
+        const result = await orchestratedService.createBranchWorktrees(
+          ['/source/repo1', '/source/repo2'],
+          '/dest',
+          'feature',
+          'master',
+          '.env'
+        );
+
+        sinon.assert.calledOnce(fs.mkdirSync);
+        sinon.assert.calledOnce(parallelStub.processInParallel);
+        expect(result).toEqual({
+          workspacePath: '/dest/feature',
+          successCount: 2,
+          totalCount: 2,
+        });
+      });
+
+      it('should call addWorktreeNewBranch for each repo', async () => {
+        fs.existsSync.returns(false);
+
+        let processFunc: any;
+        parallelStub.processInParallel.callsFake(async (items: any[], nameFunc: any, func: any) => {
+          processFunc = func;
+          return 1;
+        });
+
+        await orchestratedService.createBranchWorktrees(
+          ['/source/repo1'],
+          '/dest',
+          'feature',
+          'master',
+          '.env'
+        );
+
+        // Execute the process function manually
+        await processFunc('/source/repo1');
+
+        sinon.assert.calledOnce(gitStub.addWorktreeNewBranch);
+        sinon.assert.calledWith(
+          gitStub.addWorktreeNewBranch,
+          '/source/repo1',
+          '/dest/feature/repo1',
+          'feature',
+          'master'
+        );
+      });
+
+      it('should throw error when dependencies not configured', async () => {
+        const unconfiguredService = new WorkspaceService(fs as any, shell as any);
+
+        await expect(
+          unconfiguredService.createBranchWorktrees(
+            ['/source/repo1'],
+            '/dest',
+            'feature',
+            'master'
+          )
+        ).rejects.toThrow('WorkspaceService not configured with required dependencies');
+      });
+    });
+
+    describe('createCheckoutWorktrees', () => {
+      it('should create workspace and checkout existing branches', async () => {
+        fs.existsSync.returns(false);
+        parallelStub.processInParallel.resolves(3);
+
+        const result = await orchestratedService.createCheckoutWorktrees(
+          ['/source/repo1', '/source/repo2', '/source/repo3'],
+          '/dest',
+          'existing-feature',
+          '.env,.env.local'
+        );
+
+        sinon.assert.calledOnce(fs.mkdirSync);
+        sinon.assert.calledOnce(parallelStub.processInParallel);
+        expect(result).toEqual({
+          workspacePath: '/dest/existing-feature',
+          successCount: 3,
+          totalCount: 3,
+        });
+      });
+
+      it('should call addWorktree for each repo', async () => {
+        fs.existsSync.returns(false);
+
+        let processFunc: any;
+        parallelStub.processInParallel.callsFake(async (items: any[], nameFunc: any, func: any) => {
+          processFunc = func;
+          return 1;
+        });
+
+        await orchestratedService.createCheckoutWorktrees(
+          ['/source/repo1'],
+          '/dest',
+          'feature',
+          '.env'
+        );
+
+        await processFunc('/source/repo1');
+
+        sinon.assert.calledOnce(gitStub.addWorktree);
+        sinon.assert.calledWith(
+          gitStub.addWorktree,
+          '/source/repo1',
+          '/dest/feature/repo1',
+          'feature'
+        );
+      });
+    });
+
+    describe('createTmuxSession', () => {
+      it('should create tmux session and return success', async () => {
+        tmuxStub.createSession.resolves();
+
+        const result = await orchestratedService.createTmuxSession('/workspace', 'feature');
+
+        sinon.assert.calledOnceWithExactly(tmuxStub.createSession, '/workspace', 'feature');
+        expect(result).toEqual({ success: true });
+      });
+
+      it('should catch errors and return failure with message', async () => {
+        tmuxStub.createSession.rejects(new Error('tmux not found'));
+
+        const result = await orchestratedService.createTmuxSession('/workspace', 'feature');
+
+        expect(result).toEqual({ success: false, error: 'tmux not found' });
+      });
+
+      it('should throw error when tmux service not configured', async () => {
+        const unconfiguredService = new WorkspaceService(fs as any, shell as any);
+
+        await expect(
+          unconfiguredService.createTmuxSession('/workspace', 'feature')
+        ).rejects.toThrow('WorkspaceService not configured with tmux service');
+      });
+    });
+
+    describe('killTmuxSession', () => {
+      it('should kill tmux session and return success', async () => {
+        tmuxStub.killSession.resolves();
+
+        const result = await orchestratedService.killTmuxSession('feature');
+
+        sinon.assert.calledOnceWithExactly(tmuxStub.killSession, 'feature');
+        expect(result).toEqual({ success: true });
+      });
+
+      it('should catch errors and return failure with message', async () => {
+        tmuxStub.killSession.rejects(new Error('session not found'));
+
+        const result = await orchestratedService.killTmuxSession('feature');
+
+        expect(result).toEqual({ success: false, error: 'session not found' });
+      });
+    });
+
+    describe('removeWorktrees', () => {
+      it('should remove all worktrees and track success', async () => {
+        fs.readdirSync.returns([
+          { name: 'repo1', isDirectory: () => true },
+          { name: 'repo2', isDirectory: () => true },
+        ]);
+        reposStub.discoverRepos.returns(['/source/repo1', '/source/repo2']);
+        gitStub.removeWorktree.resolves();
+
+        const result = await orchestratedService.removeWorktrees(
+          ['/workspace/repo1', '/workspace/repo2'],
+          '/source'
+        );
+
+        expect(gitStub.removeWorktree.callCount).toBe(2);
+        sinon.assert.calledWith(gitStub.removeWorktree, '/source/repo1', '/workspace/repo1');
+        sinon.assert.calledWith(gitStub.removeWorktree, '/source/repo2', '/workspace/repo2');
+        expect(result).toEqual({
+          successCount: 2,
+          totalCount: 2,
+          errors: [],
+        });
+      });
+
+      it('should track errors when worktree removal fails', async () => {
+        fs.readdirSync.returns([
+          { name: 'repo1', isDirectory: () => true },
+        ]);
+        reposStub.discoverRepos.returns(['/source/repo1']);
+        const error: any = new Error('worktree removal failed');
+        error.stderr = 'fatal: worktree locked';
+        gitStub.removeWorktree.rejects(error);
+
+        const result = await orchestratedService.removeWorktrees(
+          ['/workspace/repo1'],
+          '/source'
+        );
+
+        expect(result).toEqual({
+          successCount: 0,
+          totalCount: 1,
+          errors: [{ repo: 'repo1', error: 'fatal: worktree locked' }],
+        });
+      });
+
+      it('should skip worktrees when source repo not found', async () => {
+        reposStub.discoverRepos.returns([]);
+
+        const result = await orchestratedService.removeWorktrees(
+          ['/workspace/repo1'],
+          '/source'
+        );
+
+        sinon.assert.notCalled(gitStub.removeWorktree);
+        expect(result).toEqual({
+          successCount: 0,
+          totalCount: 1,
+          errors: [{ repo: 'repo1', error: 'source repo not found' }],
+        });
+      });
+
+      it('should handle mix of successes and failures', async () => {
+        fs.readdirSync.returns([
+          { name: 'repo1', isDirectory: () => true },
+          { name: 'repo2', isDirectory: () => true },
+        ]);
+        reposStub.discoverRepos.returns(['/source/repo1', '/source/repo2']);
+        gitStub.removeWorktree.onFirstCall().resolves();
+        gitStub.removeWorktree.onSecondCall().rejects(new Error('failed'));
+
+        const result = await orchestratedService.removeWorktrees(
+          ['/workspace/repo1', '/workspace/repo2'],
+          '/source'
+        );
+
+        expect(result.successCount).toBe(1);
+        expect(result.totalCount).toBe(2);
+        expect(result.errors).toHaveLength(1);
+        expect(result.errors[0]).toEqual({ repo: 'repo2', error: 'failed' });
       });
     });
   });

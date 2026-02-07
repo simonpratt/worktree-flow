@@ -31,21 +31,7 @@ export function registerPushCommand(program: Command): void {
         const successCount = await services.parallel.processInParallel(
           dirs,
           (dir) => path.basename(dir),
-          async (dir) => {
-            try {
-              await services.git.push(dir);
-              return 'pushed';
-            } catch (err: any) {
-              // Retry with --set-upstream if no upstream configured
-              const stderr = err.stderr || err.message || '';
-              if (stderr.includes('no upstream') || stderr.includes('has no upstream')) {
-                const branch = await services.git.getCurrentBranch(dir);
-                await services.git.pushSetUpstream(dir, branch);
-                return 'pushed (set upstream)';
-              }
-              throw err;
-            }
-          }
+          async (dir) => services.git.pushWithRetry(dir)
         );
 
         services.console.log(`\n${successCount}/${dirs.length} repos pushed successfully.`);

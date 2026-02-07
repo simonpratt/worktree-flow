@@ -22,12 +22,17 @@ export function createServices() {
   // Create services
   const config = new ConfigService(fs);
   const git = new GitService(shell);
-  const repos = new RepoService(fs);
-  const workspace = new WorkspaceService(fs, shell);
-  const fetch = new FetchService(git, console);
   const parallel = new ParallelService(console);
   const status = new StatusService(git);
   const tmux = new TmuxService(shell);
+
+  // Create repos with git dependency
+  const repos = new RepoService(fs, git);
+
+  // Create workspace with dependencies for orchestration
+  const workspace = new WorkspaceService(fs, shell, git, parallel, tmux, repos);
+
+  const fetch = new FetchService(git, console);
 
   return {
     config,

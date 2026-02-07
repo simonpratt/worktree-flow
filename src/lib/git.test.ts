@@ -331,4 +331,105 @@ describe('GitService', () => {
       );
     });
   });
+
+  describe('pushWithRetry', () => {
+    it('should return "pushed" on successful push', async () => {
+      shell.execFile.resolves({ stdout: '', stderr: '' });
+
+      const result = await service.pushWithRetry('/worktree');
+
+      sinon.assert.calledOnce(shell.execFile);
+      sinon.assert.calledWith(
+        shell.execFile.firstCall,
+        'git',
+        ['-C', '/worktree', 'push']
+      );
+      expect(result).toBe('pushed');
+    });
+
+    it('should retry with set-upstream when no upstream configured', async () => {
+      const noUpstreamError: any = new Error('push failed');
+      noUpstreamError.stderr = 'fatal: The current branch has no upstream branch';
+
+      shell.execFile.onFirstCall().rejects(noUpstreamError);
+      shell.execFile.onSecondCall().resolves({ stdout: 'feature\n', stderr: '' }); // getCurrentBranch
+      shell.execFile.onThirdCall().resolves({ stdout: '', stderr: '' }); // pushSetUpstream
+
+      const result = await service.pushWithRetry('/worktree');
+
+      expect(shell.execFile.callCount).toBe(3);
+      sinon.assert.calledWith(shell.execFile.firstCall, 'git', ['-C', '/worktree', 'push']);
+      sinon.assert.calledWith(shell.execFile.secondCall, 'git', [
+        '-C',
+        '/worktree',
+        'rev-parse',
+        '--abbrev-ref',
+        'HEAD',
+      ]);
+      sinon.assert.calledWith(shell.execFile.thirdCall, 'git', [
+        '-C',
+        '/worktree',
+        'push',
+        '--set-upstream',
+        'origin',
+        'feature',
+      ]);
+      expect(result).toBe('pushed (set upstream)');
+    });
+
+    it('should handle "no upstream" error message variant', async () => {
+      const noUpstreamError: any = new Error('push failed');
+      noUpstreamError.stderr = 'fatal: no upstream configured for branch';
+
+      shell.execFile.onFirstCall().rejects(noUpstreamError);
+      shell.execFile.onSecondCall().resolves({ stdout: 'feature', stderr: '' });
+      shell.execFile.onThirdCall().resolves({ stdout: '', stderr: '' });
+
+      const result = await service.pushWithRetry('/worktree');
+
+      expect(result).toBe('pushed (set upstream)');
+    });
+
+    it('should check error message when no stderr available', async () => {
+      const error = new Error('fatal: no upstream branch');
+
+      shell.execFile.onFirstCall().rejects(error);
+      shell.execFile.onSecondCall().resolves({ stdout: 'main', stderr: '' });
+      shell.execFile.onThirdCall().resolves({ stdout: '', stderr: '' });
+
+      const result = await service.pushWithRetry('/worktree');
+
+      expect(result).toBe('pushed (set upstream)');
+    });
+
+    it('should throw error for non-upstream-related failures', async () => {
+      const error: any = new Error('network error');
+      error.stderr = 'fatal: unable to access remote';
+
+      shell.execFile.rejects(error);
+
+      await expect(service.pushWithRetry('/worktree')).rejects.toThrow('network error');
+      sinon.assert.calledOnce(shell.execFile);
+    });
+
+    it('should trim branch name before setting upstream', async () => {
+      const noUpstreamError: any = new Error('push failed');
+      noUpstreamError.stderr = 'fatal: no upstream';
+
+      shell.execFile.onFirstCall().rejects(noUpstreamError);
+      shell.execFile.onSecondCall().resolves({ stdout: 'feature\n  ', stderr: '' });
+      shell.execFile.onThirdCall().resolves({ stdout: '', stderr: '' });
+
+      await service.pushWithRetry('/worktree');
+
+      sinon.assert.calledWith(shell.execFile.thirdCall, 'git', [
+        '-C',
+        '/worktree',
+        'push',
+        '--set-upstream',
+        'origin',
+        'feature',
+      ]);
+    });
+  });
 });

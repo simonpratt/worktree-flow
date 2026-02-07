@@ -181,6 +181,106 @@ describe('ConfigService', () => {
       });
     });
   });
+
+  describe('getDisplayConfig', () => {
+    it('should return display config with default flags', () => {
+      fs.existsSync.returns(true);
+      fs.readFileSync.returns(JSON.stringify({
+        'source-path': '/home/user/repos',
+        'dest-path': '/home/user/workspaces',
+      }));
+
+      const displayConfig = service.getDisplayConfig();
+
+      expect(displayConfig['source-path']).toEqual({
+        value: '/home/user/repos',
+        isDefault: false,
+      });
+      expect(displayConfig['dest-path']).toEqual({
+        value: '/home/user/workspaces',
+        isDefault: false,
+      });
+      expect(displayConfig['copy-files'].isDefault).toBe(true);
+      expect(displayConfig['copy-files'].value).toContain('.env');
+      expect(displayConfig.tmux.isDefault).toBe(true);
+      expect(displayConfig['main-branch'].isDefault).toBe(true);
+      expect(displayConfig['post-checkout'].isDefault).toBe(true);
+    });
+
+    it('should mark custom values as non-default', () => {
+      fs.existsSync.returns(true);
+      fs.readFileSync.returns(JSON.stringify({
+        'source-path': '/home/user/repos',
+        'dest-path': '/home/user/workspaces',
+        'copy-files': '.env,.env.local',
+        'tmux': 'true',
+        'main-branch': 'main',
+        'post-checkout': 'npm install',
+      }));
+
+      const displayConfig = service.getDisplayConfig();
+
+      expect(displayConfig['copy-files']).toEqual({
+        value: '.env,.env.local',
+        isDefault: false,
+      });
+      expect(displayConfig.tmux).toEqual({
+        value: 'true',
+        isDefault: false,
+      });
+      expect(displayConfig['main-branch']).toEqual({
+        value: 'main',
+        isDefault: false,
+      });
+      expect(displayConfig['post-checkout']).toEqual({
+        value: 'npm install',
+        isDefault: false,
+      });
+    });
+
+    it('should show (not set) for missing required fields', () => {
+      fs.existsSync.returns(false);
+
+      const displayConfig = service.getDisplayConfig();
+
+      expect(displayConfig['source-path']).toEqual({
+        value: '(not set)',
+        isDefault: true,
+      });
+      expect(displayConfig['dest-path']).toEqual({
+        value: '(not set)',
+        isDefault: true,
+      });
+    });
+
+    it('should show default values with (default) suffix', () => {
+      fs.existsSync.returns(true);
+      fs.readFileSync.returns(JSON.stringify({
+        'source-path': '/home/user/repos',
+      }));
+
+      const displayConfig = service.getDisplayConfig();
+
+      expect(displayConfig['copy-files'].value).toBe('.env (default)');
+      expect(displayConfig.tmux.value).toBe('false (default)');
+      expect(displayConfig['main-branch'].value).toBe('master (default)');
+    });
+
+    it('should handle post-checkout as not set when undefined', () => {
+      fs.existsSync.returns(true);
+      fs.readFileSync.returns(JSON.stringify({
+        'source-path': '/home/user/repos',
+        'dest-path': '/home/user/workspaces',
+      }));
+
+      const displayConfig = service.getDisplayConfig();
+
+      expect(displayConfig['post-checkout']).toEqual({
+        value: '(not set)',
+        isDefault: true,
+      });
+    });
+  });
 });
 
 describe('validateAndTransformConfigValue', () => {

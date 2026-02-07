@@ -3,7 +3,6 @@ import chalk from 'chalk';
 import path from 'node:path';
 import confirm from '@inquirer/confirm';
 import { createServices } from '../lib/services.js';
-import { RepoService } from '../lib/repos.js';
 import { StatusService } from '../lib/status.js';
 import { WorkspaceNotFoundError, WorkspaceHasIssuesError } from '../lib/errors.js';
 
@@ -19,34 +18,26 @@ export function registerRemoveCommand(program: Command): void {
         const config = services.config.load();
         const workspacePath = path.join(destPath, branchName);
 
-        // Check if workspace exists
-        const workspaces = services.workspace.listWorkspaces(destPath);
-        const workspace = workspaces.find(ws => ws.name === branchName);
-
+        const workspace = services.workspace.findWorkspace(destPath, branchName);
         if (!workspace) {
           throw new WorkspaceNotFoundError(workspacePath);
         }
 
         services.console.log(`Checking workspace: ${chalk.cyan(workspacePath)}`);
 
-        // Get all worktree directories
         const worktreeDirs = services.workspace.getWorktreeDirs(workspacePath);
 
         if (worktreeDirs.length === 0) {
           services.console.log('No worktrees found in workspace.');
         } else {
-          // Fetch all repos to get latest remote state
           await services.fetch.fetchRepos(worktreeDirs);
 
-          // Check for uncommitted changes and changes ahead of main in all worktrees
           services.console.log(`\nChecking for uncommitted changes and commits ahead of ${config.mainBranch}...`);
+          const results = await services.status.checkAllWorktrees(worktreeDirs, config.mainBranch);
+
           const reposWithIssues: string[] = [];
-
-          for (const worktreePath of worktreeDirs) {
-            const repoName = RepoService.getRepoName(worktreePath);
-            const status = await services.status.getWorktreeStatus(worktreePath, config.mainBranch);
+          for (const { repoName, status } of results) {
             const message = StatusService.getStatusMessage(status, config.mainBranch);
-
             if (StatusService.hasIssues(status)) {
               services.console.log(`${repoName}... ${chalk.red(message)}`);
               reposWithIssues.push(repoName);
@@ -55,7 +46,6 @@ export function registerRemoveCommand(program: Command): void {
             }
           }
 
-          // Abort if any worktrees have issues
           if (reposWithIssues.length > 0) {
             throw new WorkspaceHasIssuesError(
               `${reposWithIssues.length} repo(s) have uncommitted or unmerged changes.\nPlease commit and merge your changes first.`
@@ -63,7 +53,6 @@ export function registerRemoveCommand(program: Command): void {
           }
         }
 
-        // Show what will be removed and ask for confirmation
         services.console.log(`\n${chalk.yellow('This will remove:')}`);
         services.console.log(`  Directory: ${chalk.cyan(workspacePath)}`);
         if (worktreeDirs.length > 0) {
@@ -84,36 +73,25 @@ export function registerRemoveCommand(program: Command): void {
         }
 
         if (worktreeDirs.length > 0) {
-          // Remove all worktrees
           services.console.log('\nRemoving worktrees...');
-          let successCount = 0;
+          const removeResult = await services.workspace.removeWorktrees(worktreeDirs, sourcePath);
 
-          for (const worktreePath of worktreeDirs) {
-            const repoName = RepoService.getRepoName(worktreePath);
-            const sourceRepoPath = path.join(sourcePath, repoName);
-
-            try {
-              // Check if source repo exists
-              const repos = services.repos.discoverRepos(sourcePath);
-              if (!repos.includes(sourceRepoPath)) {
-                services.console.log(
-                  `${repoName}... ${chalk.yellow('source repo not found, skipping worktree removal')}`
-                );
-                continue;
-              }
-
-              await services.git.removeWorktree(sourceRepoPath, worktreePath);
-              services.console.log(`${repoName}... ${chalk.green('removed')}`);
-              successCount++;
-            } catch (err: any) {
-              services.console.log(`${repoName}... ${chalk.red(`error: ${err.stderr || err.message}`)}`);
+          for (const { repo, error } of removeResult.errors) {
+            if (error === 'source repo not found') {
+              services.console.log(`${repo}... ${chalk.yellow('source repo not found, skipping worktree removal')}`);
+            } else {
+              services.console.log(`${repo}... ${chalk.red(`error: ${error}`)}`);
             }
           }
 
-          services.console.log(`\nRemoved ${successCount}/${worktreeDirs.length} worktree(s).`);
+          const successfulRemovals = removeResult.totalCount - removeResult.errors.length;
+          for (let i = 0; i < successfulRemovals; i++) {
+            services.console.log(`${worktreeDirs[i].split('/').pop()}... ${chalk.green('removed')}`);
+          }
+
+          services.console.log(`\nRemoved ${removeResult.successCount}/${removeResult.totalCount} worktree(s).`);
         }
 
-        // Remove workspace directory
         services.console.log('\nRemoving workspace directory...');
         try {
           services.workspace.removeWorkspaceDir(workspacePath);
@@ -123,14 +101,13 @@ export function registerRemoveCommand(program: Command): void {
           services.process.exit(1);
         }
 
-        // Kill tmux session if enabled
         if (config.tmux) {
           services.console.log('\nKilling tmux session...');
-          try {
-            await services.tmux.killSession(branchName);
+          const tmuxResult = await services.workspace.killTmuxSession(branchName);
+          if (tmuxResult.success) {
             services.console.log(`${chalk.green('Killed tmux session:')} ${branchName}`);
-          } catch (error: any) {
-            services.console.error(chalk.yellow(`Warning: Failed to kill tmux session: ${error.message}`));
+          } else {
+            services.console.error(chalk.yellow(`Warning: Failed to kill tmux session: ${tmuxResult.error}`));
           }
         }
 
