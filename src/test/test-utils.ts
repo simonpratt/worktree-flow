@@ -1,7 +1,7 @@
 import * as sinon from 'sinon';
 import { Volume } from 'memfs';
 import type { IFileSystem, IShell, IConsole, IProcess } from '../adapters/types.js';
-import type { Services } from './services.js';
+import type { Services } from '../lib/services.js';
 
 /**
  * Creates an in-memory filesystem using memfs
