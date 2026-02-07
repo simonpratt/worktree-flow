@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import sinon from 'sinon';
-import { WorkspaceService } from './workspace.js';
-import { WorkspaceAlreadyExistsError } from './errors.js';
-import { createMemFs, createMockShell } from './test-utils.js';
-import { GitService } from './git.js';
-import { ParallelService } from './parallel.js';
-import { TmuxService } from './tmux.js';
-import { RepoService } from './repos.js';
-import type { IFileSystem } from '../adapters/types.js';
+import { WorkspaceService } from '../workspace.js';
+import { WorkspaceAlreadyExistsError } from '../errors.js';
+import { createMemFs, createMockShell } from '../../test/test-utils.js';
+import { GitService } from '../git.js';
+import { ParallelService } from '../parallel.js';
+import { TmuxService } from '../tmux.js';
+import { RepoService } from '../repos.js';
+import type { IFileSystem } from '../../adapters/types.js';
 
 describe('WorkspaceService', () => {
   let shell: sinon.SinonStubbedInstance<any>;

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import sinon from 'sinon';
-import { ParallelService } from './parallel.js';
-import { createMockConsole } from './test-utils.js';
+import { ParallelService } from '../parallel.js';
+import { createMockConsole } from '../../test/test-utils.js';
 
 describe('ParallelService', () => {
   let console: sinon.SinonStubbedInstance<any>;

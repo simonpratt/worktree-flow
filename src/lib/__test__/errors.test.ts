@@ -6,7 +6,7 @@ import {
   NoReposFoundError,
   WorkspaceHasIssuesError,
   NotInWorkspaceError,
-} from './errors.js';
+} from '../errors.js';
 
 describe('Error Classes', () => {
   describe('ConfigNotSetError', () => {

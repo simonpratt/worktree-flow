@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import sinon from 'sinon';
-import { FetchService } from './fetch.js';
-import { GitService } from './git.js';
-import { createMockShell, createMockConsole } from './test-utils.js';
+import { FetchService } from '../fetch.js';
+import { GitService } from '../git.js';
+import { createMockShell, createMockConsole } from '../../test/test-utils.js';
 
 describe('FetchService', () => {
   let shell: sinon.SinonStubbedInstance<any>;

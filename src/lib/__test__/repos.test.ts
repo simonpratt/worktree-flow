@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import sinon from 'sinon';
-import { RepoService } from './repos.js';
-import { createMemFs, createMockShell } from './test-utils.js';
-import { GitService } from './git.js';
+import { RepoService } from '../repos.js';
+import { createMemFs, createMockShell } from '../../test/test-utils.js';
+import { GitService } from '../git.js';
 
 describe('RepoService', () => {
   describe('discoverRepos', () => {

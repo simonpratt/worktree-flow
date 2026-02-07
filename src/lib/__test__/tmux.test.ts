@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import sinon from 'sinon';
-import { TmuxService } from './tmux.js';
-import { createMockShell } from './test-utils.js';
+import { TmuxService } from '../tmux.js';
+import { createMockShell } from '../../test/test-utils.js';
 
 describe('TmuxService', () => {
   let shell: sinon.SinonStubbedInstance<any>;

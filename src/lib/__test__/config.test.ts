@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
-import { ConfigService, validateAndTransformConfigValue, isValidKey, getConfigPath } from './config.js';
-import { ConfigNotSetError } from './errors.js';
-import { createMemFs } from './test-utils.js';
+import { ConfigService, validateAndTransformConfigValue, isValidKey, getConfigPath } from '../config.js';
+import { ConfigNotSetError } from '../errors.js';
+import { createMemFs } from '../../test/test-utils.js';
 
 const configPath = getConfigPath();
 
