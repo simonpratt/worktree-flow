@@ -1,55 +1,31 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import sinon from 'sinon';
 import { RepoService } from './repos.js';
-import { createMockFileSystem, createMockShell } from './test-utils.js';
+import { createMemFs, createMockShell } from './test-utils.js';
 import { GitService } from './git.js';
 
 describe('RepoService', () => {
-  let fs: sinon.SinonStubbedInstance<any>;
-  let service: RepoService;
-
-  beforeEach(() => {
-    fs = createMockFileSystem();
-    service = new RepoService(fs as any);
-  });
-
-  afterEach(() => {
-    sinon.restore();
-  });
-
   describe('discoverRepos', () => {
-    it('should read directory with withFileTypes option', () => {
-      fs.readdirSync.returns([]);
-
-      service.discoverRepos('/source');
-
-      sinon.assert.calledOnceWithExactly(fs.readdirSync, '/source', { withFileTypes: true });
-    });
-
-    it('should filter for directories and check for .git', () => {
-      fs.readdirSync.returns([
-        { name: 'repo1', isDirectory: () => true },
-        { name: 'repo2', isDirectory: () => true },
-        { name: 'file.txt', isDirectory: () => false },
-      ]);
-      fs.existsSync.onFirstCall().returns(true);  // repo1/.git exists
-      fs.existsSync.onSecondCall().returns(false); // repo2/.git does not exist
+    it('should find directories containing .git', () => {
+      const { fs } = createMemFs({
+        '/source/repo1/.git/HEAD': 'ref: refs/heads/main',
+        '/source/repo2/README.md': 'no git here',
+        '/source/file.txt': 'not a repo',
+      });
+      const service = new RepoService(fs);
 
       const repos = service.discoverRepos('/source');
 
-      sinon.assert.calledWith(fs.existsSync, '/source/repo1/.git');
-      sinon.assert.calledWith(fs.existsSync, '/source/repo2/.git');
-      expect(fs.existsSync.callCount).toBe(2);
       expect(repos).toEqual(['/source/repo1']);
     });
 
     it('should return sorted repo paths', () => {
-      fs.readdirSync.returns([
-        { name: 'zebra', isDirectory: () => true },
-        { name: 'alpha', isDirectory: () => true },
-        { name: 'beta', isDirectory: () => true },
-      ]);
-      fs.existsSync.returns(true);
+      const { fs } = createMemFs({
+        '/source/zebra/.git/HEAD': '',
+        '/source/alpha/.git/HEAD': '',
+        '/source/beta/.git/HEAD': '',
+      });
+      const service = new RepoService(fs);
 
       const repos = service.discoverRepos('/source');
 
@@ -57,25 +33,23 @@ describe('RepoService', () => {
     });
 
     it('should exclude non-directory entries', () => {
-      fs.readdirSync.returns([
-        { name: 'repo1', isDirectory: () => true },
-        { name: 'README.md', isDirectory: () => false },
-        { name: 'file.txt', isDirectory: () => false },
-      ]);
-      fs.existsSync.returns(true);
+      const { fs } = createMemFs({
+        '/source/repo1/.git/HEAD': '',
+        '/source/README.md': 'readme',
+        '/source/file.txt': 'file',
+      });
+      const service = new RepoService(fs);
 
-      service.discoverRepos('/source');
+      const repos = service.discoverRepos('/source');
 
-      // Should only check .git for directories
-      expect(fs.existsSync.callCount).toBe(1);
-      sinon.assert.calledWith(fs.existsSync, '/source/repo1/.git');
+      expect(repos).toEqual(['/source/repo1']);
     });
 
     it('should return empty array when no git repos found', () => {
-      fs.readdirSync.returns([
-        { name: 'not-a-repo', isDirectory: () => true },
-      ]);
-      fs.existsSync.returns(false);
+      const { fs } = createMemFs({
+        '/source/not-a-repo/README.md': 'readme',
+      });
+      const service = new RepoService(fs);
 
       const repos = service.discoverRepos('/source');
 
@@ -110,7 +84,11 @@ describe('RepoService', () => {
       shell = createMockShell();
       git = new GitService(shell as any);
       gitStub = sinon.stub(git);
-      serviceWithGit = new RepoService(fs as any, gitStub as any);
+      serviceWithGit = new RepoService({} as any, gitStub as any);
+    });
+
+    afterEach(() => {
+      sinon.restore();
     });
 
     it('should find repos that have the specified branch', async () => {
@@ -188,7 +166,7 @@ describe('RepoService', () => {
     });
 
     it('should throw error when git service not configured', async () => {
-      const unconfiguredService = new RepoService(fs as any);
+      const unconfiguredService = new RepoService({} as any);
 
       await expect(
         unconfiguredService.findReposWithBranch(['/source/repo1'], 'feature')
@@ -197,6 +175,8 @@ describe('RepoService', () => {
   });
 
   describe('formatRepoChoices', () => {
+    const service = new RepoService({} as any);
+
     it('should format repo paths as choices', () => {
       const choices = service.formatRepoChoices([
         '/source/zebra-repo',

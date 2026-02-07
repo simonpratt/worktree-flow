@@ -1,58 +1,46 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import sinon from 'sinon';
+import { describe, it, expect } from 'vitest';
 import path from 'node:path';
 import { ConfigService, validateAndTransformConfigValue, isValidKey, getConfigPath } from './config.js';
 import { ConfigNotSetError } from './errors.js';
-import { createMockFileSystem } from './test-utils.js';
+import { createMemFs } from './test-utils.js';
+
+const configPath = getConfigPath();
 
 describe('ConfigService', () => {
-  let fs: sinon.SinonStubbedInstance<any>;
-  let service: ConfigService;
-
-  beforeEach(() => {
-    fs = createMockFileSystem();
-    service = new ConfigService(fs as any);
-  });
-
-  afterEach(() => {
-    sinon.restore();
-  });
-
   describe('loadRaw', () => {
     it('should return empty object when config file does not exist', () => {
-      fs.existsSync.returns(false);
+      const { fs } = createMemFs();
+      const service = new ConfigService(fs);
 
       const config = service.loadRaw();
 
-      const configPath = getConfigPath();
-      sinon.assert.calledOnceWithExactly(fs.existsSync, configPath);
       expect(config).toEqual({});
     });
 
     it('should read and parse config file when it exists', () => {
-      const configPath = getConfigPath();
       const configData = {
         'source-path': '/home/user/repos',
         'dest-path': '/home/user/workspaces',
         'tmux': 'true',
       };
-
-      fs.existsSync.returns(true);
-      fs.readFileSync.returns(JSON.stringify(configData));
+      const { fs } = createMemFs({
+        [configPath]: JSON.stringify(configData),
+      });
+      const service = new ConfigService(fs);
 
       const config = service.loadRaw();
 
-      sinon.assert.calledOnceWithExactly(fs.existsSync, configPath);
-      sinon.assert.calledOnceWithExactly(fs.readFileSync, configPath, 'utf-8');
       expect(config).toEqual(configData);
     });
 
     it('should throw error for invalid config schema', () => {
-      fs.existsSync.returns(true);
-      fs.readFileSync.returns(JSON.stringify({
-        'source-path': '/home/user/repos',
-        'tmux': 'invalid',
-      }));
+      const { fs } = createMemFs({
+        [configPath]: JSON.stringify({
+          'source-path': '/home/user/repos',
+          'tmux': 'invalid',
+        }),
+      });
+      const service = new ConfigService(fs);
 
       expect(() => service.loadRaw()).toThrow();
     });
@@ -60,6 +48,9 @@ describe('ConfigService', () => {
 
   describe('saveRaw', () => {
     it('should create config directory and write config file', () => {
+      const { vol, fs } = createMemFs();
+      const service = new ConfigService(fs);
+
       const config = {
         'source-path': '/home/user/repos',
         'dest-path': '/home/user/workspaces',
@@ -67,31 +58,28 @@ describe('ConfigService', () => {
 
       service.saveRaw(config);
 
-      const configPath = getConfigPath();
-      const configDir = path.dirname(configPath);
-
-      sinon.assert.calledOnceWithExactly(fs.mkdirSync, configDir, { recursive: true });
-      sinon.assert.calledOnce(fs.writeFileSync);
-
-      const writeCall = fs.writeFileSync.firstCall;
-      expect(writeCall.args[0]).toBe(configPath);
-      expect(JSON.parse(writeCall.args[1])).toEqual(config);
+      const written = JSON.parse(vol.readFileSync(configPath, 'utf-8') as string);
+      expect(written).toEqual(config);
     });
 
     it('should validate config before saving', () => {
+      const { vol, fs } = createMemFs();
+      const service = new ConfigService(fs);
+
       const invalidConfig = {
         'source-path': '/home/user/repos',
         'tmux': 'invalid' as any,
       };
 
       expect(() => service.saveRaw(invalidConfig)).toThrow();
-      sinon.assert.notCalled(fs.writeFileSync);
+      expect(vol.existsSync(configPath)).toBe(false);
     });
   });
 
   describe('load', () => {
     it('should return config with defaults when file does not exist', () => {
-      fs.existsSync.returns(false);
+      const { fs } = createMemFs();
+      const service = new ConfigService(fs);
 
       const config = service.load();
 
@@ -103,11 +91,13 @@ describe('ConfigService', () => {
     });
 
     it('should transform raw config to parsed config', () => {
-      fs.existsSync.returns(true);
-      fs.readFileSync.returns(JSON.stringify({
-        'source-path': '/home/user/repos',
-        'dest-path': '/home/user/workspaces',
-      }));
+      const { fs } = createMemFs({
+        [configPath]: JSON.stringify({
+          'source-path': '/home/user/repos',
+          'dest-path': '/home/user/workspaces',
+        }),
+      });
+      const service = new ConfigService(fs);
 
       const config = service.load();
 
@@ -121,10 +111,10 @@ describe('ConfigService', () => {
     });
 
     it('should convert tmux string to boolean', () => {
-      fs.existsSync.returns(true);
-      fs.readFileSync.returns(JSON.stringify({
-        'tmux': 'true',
-      }));
+      const { fs } = createMemFs({
+        [configPath]: JSON.stringify({ 'tmux': 'true' }),
+      });
+      const service = new ConfigService(fs);
 
       const config = service.load();
 
@@ -132,12 +122,14 @@ describe('ConfigService', () => {
     });
 
     it('should use custom values when provided', () => {
-      fs.existsSync.returns(true);
-      fs.readFileSync.returns(JSON.stringify({
-        'main-branch': 'main',
-        'copy-files': '.env,.env.local',
-        'post-checkout': 'npm install',
-      }));
+      const { fs } = createMemFs({
+        [configPath]: JSON.stringify({
+          'main-branch': 'main',
+          'copy-files': '.env,.env.local',
+          'post-checkout': 'npm install',
+        }),
+      });
+      const service = new ConfigService(fs);
 
       const config = service.load();
 
@@ -149,29 +141,31 @@ describe('ConfigService', () => {
 
   describe('getRequired', () => {
     it('should throw ConfigNotSetError when source-path is missing', () => {
-      fs.existsSync.returns(true);
-      fs.readFileSync.returns(JSON.stringify({
-        'dest-path': '/home/user/workspaces',
-      }));
+      const { fs } = createMemFs({
+        [configPath]: JSON.stringify({ 'dest-path': '/home/user/workspaces' }),
+      });
+      const service = new ConfigService(fs);
 
       expect(() => service.getRequired()).toThrow(ConfigNotSetError);
     });
 
     it('should throw ConfigNotSetError when dest-path is missing', () => {
-      fs.existsSync.returns(true);
-      fs.readFileSync.returns(JSON.stringify({
-        'source-path': '/home/user/repos',
-      }));
+      const { fs } = createMemFs({
+        [configPath]: JSON.stringify({ 'source-path': '/home/user/repos' }),
+      });
+      const service = new ConfigService(fs);
 
       expect(() => service.getRequired()).toThrow(ConfigNotSetError);
     });
 
     it('should return required config when both paths are set', () => {
-      fs.existsSync.returns(true);
-      fs.readFileSync.returns(JSON.stringify({
-        'source-path': '/home/user/repos',
-        'dest-path': '/home/user/workspaces',
-      }));
+      const { fs } = createMemFs({
+        [configPath]: JSON.stringify({
+          'source-path': '/home/user/repos',
+          'dest-path': '/home/user/workspaces',
+        }),
+      });
+      const service = new ConfigService(fs);
 
       const config = service.getRequired();
 
@@ -184,11 +178,13 @@ describe('ConfigService', () => {
 
   describe('getDisplayConfig', () => {
     it('should return display config with default flags', () => {
-      fs.existsSync.returns(true);
-      fs.readFileSync.returns(JSON.stringify({
-        'source-path': '/home/user/repos',
-        'dest-path': '/home/user/workspaces',
-      }));
+      const { fs } = createMemFs({
+        [configPath]: JSON.stringify({
+          'source-path': '/home/user/repos',
+          'dest-path': '/home/user/workspaces',
+        }),
+      });
+      const service = new ConfigService(fs);
 
       const displayConfig = service.getDisplayConfig();
 
@@ -208,15 +204,17 @@ describe('ConfigService', () => {
     });
 
     it('should mark custom values as non-default', () => {
-      fs.existsSync.returns(true);
-      fs.readFileSync.returns(JSON.stringify({
-        'source-path': '/home/user/repos',
-        'dest-path': '/home/user/workspaces',
-        'copy-files': '.env,.env.local',
-        'tmux': 'true',
-        'main-branch': 'main',
-        'post-checkout': 'npm install',
-      }));
+      const { fs } = createMemFs({
+        [configPath]: JSON.stringify({
+          'source-path': '/home/user/repos',
+          'dest-path': '/home/user/workspaces',
+          'copy-files': '.env,.env.local',
+          'tmux': 'true',
+          'main-branch': 'main',
+          'post-checkout': 'npm install',
+        }),
+      });
+      const service = new ConfigService(fs);
 
       const displayConfig = service.getDisplayConfig();
 
@@ -239,7 +237,8 @@ describe('ConfigService', () => {
     });
 
     it('should show (not set) for missing required fields', () => {
-      fs.existsSync.returns(false);
+      const { fs } = createMemFs();
+      const service = new ConfigService(fs);
 
       const displayConfig = service.getDisplayConfig();
 
@@ -254,10 +253,12 @@ describe('ConfigService', () => {
     });
 
     it('should show default values with (default) suffix', () => {
-      fs.existsSync.returns(true);
-      fs.readFileSync.returns(JSON.stringify({
-        'source-path': '/home/user/repos',
-      }));
+      const { fs } = createMemFs({
+        [configPath]: JSON.stringify({
+          'source-path': '/home/user/repos',
+        }),
+      });
+      const service = new ConfigService(fs);
 
       const displayConfig = service.getDisplayConfig();
 
@@ -267,11 +268,13 @@ describe('ConfigService', () => {
     });
 
     it('should handle post-checkout as not set when undefined', () => {
-      fs.existsSync.returns(true);
-      fs.readFileSync.returns(JSON.stringify({
-        'source-path': '/home/user/repos',
-        'dest-path': '/home/user/workspaces',
-      }));
+      const { fs } = createMemFs({
+        [configPath]: JSON.stringify({
+          'source-path': '/home/user/repos',
+          'dest-path': '/home/user/workspaces',
+        }),
+      });
+      const service = new ConfigService(fs);
 
       const displayConfig = service.getDisplayConfig();
 

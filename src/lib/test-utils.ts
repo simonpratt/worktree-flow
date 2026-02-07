@@ -1,19 +1,13 @@
 import * as sinon from 'sinon';
+import { Volume } from 'memfs';
 import type { IFileSystem, IShell, IConsole, IProcess } from '../adapters/types.js';
 
 /**
- * Creates a mock filesystem using Sinon stubs
+ * Creates an in-memory filesystem using memfs
  */
-export function createMockFileSystem(): sinon.SinonStubbedInstance<IFileSystem> {
-  return {
-    existsSync: sinon.stub(),
-    readFileSync: sinon.stub(),
-    writeFileSync: sinon.stub(),
-    mkdirSync: sinon.stub(),
-    readdirSync: sinon.stub() as any,
-    copyFileSync: sinon.stub(),
-    rmSync: sinon.stub(),
-  };
+export function createMemFs(files: Record<string, string> = {}) {
+  const vol = Volume.fromJSON(files);
+  return { vol, fs: vol as unknown as IFileSystem };
 }
 
 /**

@@ -37,6 +37,7 @@
     "@types/sinon": "^21.0.0",
     "@vitest/coverage-v8": "^4.0.18",
     "@vitest/ui": "^4.0.18",
+    "memfs": "^4.56.10",
     "sinon": "^21.0.1",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"
