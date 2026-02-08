@@ -6,7 +6,9 @@ import { NodeFileSystem, NodeShell, NodeConsole, NodeProcess } from '../adapters
 import { ConfigService } from './config.js';
 import { GitService } from './git.js';
 import { RepoService } from './repos.js';
-import { WorkspaceService } from './workspace.js';
+import { WorkspaceDirectoryService } from './workspaceDirectory.js';
+import { WorktreeService } from './worktree.js';
+import { PostCheckoutService } from './postCheckout.js';
 import { FetchService } from './fetch.js';
 import { ParallelService } from './parallel.js';
 import { StatusService } from './status.js';
@@ -19,26 +21,27 @@ export function createServices() {
   const console = new NodeConsole();
   const process = new NodeProcess();
 
-  // Create services
+  // Create services (no service-to-service dependencies)
   const config = new ConfigService(fs);
   const git = new GitService(shell);
   const parallel = new ParallelService(console);
   const status = new StatusService(git);
   const tmux = new TmuxService(shell);
-
-  // Create repos with git dependency
-  const repos = new RepoService(fs, git);
-
-  // Create workspace with dependencies for orchestration
-  const workspace = new WorkspaceService(fs, shell, git, parallel, tmux, repos);
-
   const fetch = new FetchService(git, console);
+  const repos = new RepoService(fs, git);
+  const postCheckout = new PostCheckoutService(shell);
+
+  // Focused workspace services
+  const workspaceDir = new WorkspaceDirectoryService(fs);
+  const worktree = new WorktreeService(fs, git);
 
   return {
     config,
     git,
     repos,
-    workspace,
+    workspaceDir,
+    worktree,
+    postCheckout,
     fetch,
     parallel,
     status,

@@ -5,7 +5,7 @@ import type { Services } from '../lib/services.js';
 
 export async function runList(services: Services): Promise<void> {
   const { destPath } = services.config.getRequired();
-  const workspaces = services.workspace.listWorkspaces(destPath);
+  const workspaces = services.workspaceDir.listWorkspaces(destPath);
 
   if (workspaces.length === 0) {
     services.console.log('No workspaces found.');

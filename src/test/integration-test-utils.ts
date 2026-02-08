@@ -7,12 +7,16 @@ import type { IConsole, IProcess } from '../adapters/types.js';
 import { ConfigService } from '../lib/config.js';
 import { GitService } from '../lib/git.js';
 import { RepoService } from '../lib/repos.js';
-import { WorkspaceService } from '../lib/workspace.js';
+import { WorkspaceDirectoryService } from '../lib/workspaceDirectory.js';
+import { WorktreeService } from '../lib/worktree.js';
+import { PostCheckoutService } from '../lib/postCheckout.js';
 import { FetchService } from '../lib/fetch.js';
 import { ParallelService } from '../lib/parallel.js';
 import { StatusService } from '../lib/status.js';
 import { TmuxService } from '../lib/tmux.js';
 import type { Services } from '../lib/services.js';
+import { createUseCases } from '../usecases/usecases.js';
+import type { UseCases } from '../usecases/usecases.js';
 
 const shell = new NodeShell();
 
@@ -57,6 +61,7 @@ export async function createRemoteBranchRef(repoPath: string, branchName: string
 
 export type IntegrationServices = {
   services: Services;
+  useCases: UseCases;
   stubs: {
     console: sinon.SinonStubbedInstance<IConsole>;
     process: sinon.SinonStubbedInstance<IProcess>;
@@ -83,7 +88,11 @@ export function createIntegrationServices(sourcePath: string, destPath: string):
   const status = new StatusService(gitService);
   const tmuxStub = { createSession: sinon.stub(), killSession: sinon.stub() } as any;
   const repos = new RepoService(nodeFs, gitService);
-  const workspace = new WorkspaceService(nodeFs, nodeShell, gitService, parallel, tmuxStub, repos);
+  const postCheckout = new PostCheckoutService(nodeShell);
+
+  // Focused workspace services
+  const workspaceDir = new WorkspaceDirectoryService(nodeFs);
+  const worktree = new WorktreeService(nodeFs, gitService);
 
   // Stub fetch to be a no-op (no remote to fetch from)
   const fetch = { fetchRepos: sinon.stub().resolves() } as any;
@@ -107,7 +116,9 @@ export function createIntegrationServices(sourcePath: string, destPath: string):
     config,
     git: gitService,
     repos,
-    workspace,
+    workspaceDir,
+    worktree,
+    postCheckout,
     fetch,
     parallel,
     status,
@@ -116,8 +127,11 @@ export function createIntegrationServices(sourcePath: string, destPath: string):
     process: processStub,
   } as any;
 
+  const useCases = createUseCases(services);
+
   return {
     services,
+    useCases,
     stubs: {
       console: consoleStub,
       process: processStub,

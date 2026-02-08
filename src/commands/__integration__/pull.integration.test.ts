@@ -34,13 +34,13 @@ describe('pull integration', () => {
     integration = createIntegrationServices(sourcePath, destPath);
     (integration.stubs.process.cwd as sinon.SinonStub).returns('/tmp/nowhere');
 
-    await expect(runPull(undefined, integration.services)).rejects.toThrow(NotInWorkspaceError);
+    await expect(runPull(undefined, integration.useCases, integration.services)).rejects.toThrow(NotInWorkspaceError);
   });
 
   it('should throw WorkspaceNotFoundError when explicit branch does not exist', async () => {
     integration = createIntegrationServices(sourcePath, destPath);
 
-    await expect(runPull('nonexistent', integration.services)).rejects.toThrow(WorkspaceNotFoundError);
+    await expect(runPull('nonexistent', integration.useCases, integration.services)).rejects.toThrow(WorkspaceNotFoundError);
   });
 
   it('should detect workspace and attempt pull on repos', async () => {
@@ -48,19 +48,21 @@ describe('pull integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    const result = await integration.services.workspace.createBranchWorktrees(
-      [repo1],
+    const result = await integration.useCases.createBranchWorkspace.execute({
+      repos: [repo1],
+      branchName: 'feature',
+      sourceBranch: 'master',
+      sourcePath,
       destPath,
-      'feature',
-      'master',
-      '.env'
-    );
+      copyFiles: '.env',
+      tmux: false,
+    });
 
     // Set cwd to inside the workspace
     (integration.stubs.process.cwd as sinon.SinonStub).returns(result.workspacePath);
 
     // Pull will fail (no real remote) but the orchestration should complete
-    await runPull(undefined, integration.services);
+    await runPull(undefined, integration.useCases, integration.services);
 
     const logCalls = (integration.stubs.console.log as sinon.SinonStub).args.map(
       (a: any[]) => a[0]
@@ -76,19 +78,21 @@ describe('pull integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    const result = await integration.services.workspace.createBranchWorktrees(
-      [repo1],
+    const result = await integration.useCases.createBranchWorkspace.execute({
+      repos: [repo1],
+      branchName: 'feature',
+      sourceBranch: 'master',
+      sourcePath,
       destPath,
-      'feature',
-      'master',
-      '.env'
-    );
+      copyFiles: '.env',
+      tmux: false,
+    });
 
     // Set cwd to inside a repo within the workspace
     const repoCwd = path.join(result.workspacePath, 'repo1');
     (integration.stubs.process.cwd as sinon.SinonStub).returns(repoCwd);
 
-    await runPull(undefined, integration.services);
+    await runPull(undefined, integration.useCases, integration.services);
 
     const logCalls = (integration.stubs.console.log as sinon.SinonStub).args.map(
       (a: any[]) => a[0]
@@ -104,18 +108,20 @@ describe('pull integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    await integration.services.workspace.createBranchWorktrees(
-      [repo1],
+    await integration.useCases.createBranchWorkspace.execute({
+      repos: [repo1],
+      branchName: 'feature',
+      sourceBranch: 'master',
+      sourcePath,
       destPath,
-      'feature',
-      'master',
-      '.env'
-    );
+      copyFiles: '.env',
+      tmux: false,
+    });
 
     // Set cwd to somewhere else - should not matter when explicit branch is provided
     (integration.stubs.process.cwd as sinon.SinonStub).returns('/tmp/somewhere');
 
-    await runPull('feature', integration.services);
+    await runPull('feature', integration.useCases, integration.services);
 
     const logCalls = (integration.stubs.console.log as sinon.SinonStub).args.map(
       (a: any[]) => a[0]

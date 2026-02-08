@@ -4,11 +4,14 @@ import input from '@inquirer/input';
 import confirm from '@inquirer/confirm';
 import chalk from 'chalk';
 import { createServices } from '../lib/services.js';
+import { createUseCases } from '../usecases/usecases.js';
 import type { Services } from '../lib/services.js';
+import type { UseCases } from '../usecases/usecases.js';
 import { NoReposFoundError } from '../lib/errors.js';
 
 export async function runBranch(
   branchName: string,
+  useCases: UseCases,
   services: Services,
   deps: {
     checkbox: (opts: any) => Promise<string[]>;
@@ -24,6 +27,7 @@ export async function runBranch(
     throw new NoReposFoundError(sourcePath);
   }
 
+  // User prompts
   const selected = await deps.checkbox({
     message: `Select repos for branch "${branchName}":`,
     choices: services.repos.formatRepoChoices(repos),
@@ -40,45 +44,42 @@ export async function runBranch(
     default: 'master',
   });
 
-  await services.fetch.fetchRepos(selected);
-
-  services.console.log('\nCreating worktrees...');
-  const result = await services.workspace.createBranchWorktrees(
-    selected,
-    destPath,
-    branchName,
-    sourceBranch,
-    config.copyFiles
-  );
-
-  services.workspace.copyAgentsMd(sourcePath, result.workspacePath);
-
-  if (config.tmux) {
-    const tmuxResult = await services.workspace.createTmuxSession(result.workspacePath, branchName);
-    if (tmuxResult.success) {
-      services.console.log(`Created tmux session: ${chalk.cyan(branchName)}`);
-    } else {
-      services.console.error(chalk.yellow(`Warning: Failed to create tmux session: ${tmuxResult.error}`));
-    }
+  let shouldRunPostCheckout = false;
+  if (config.postCheckout) {
+    shouldRunPostCheckout = await deps.confirm({
+      message: `Run "${config.postCheckout}" in all workspaces?`,
+      default: true,
+    });
   }
 
+  services.console.log('\nCreating workspace...');
+
+  // Execute use case
+  const result = await useCases.createBranchWorkspace.execute({
+    repos: selected,
+    branchName,
+    sourceBranch,
+    sourcePath,
+    destPath,
+    copyFiles: config.copyFiles,
+    tmux: config.tmux,
+    postCheckout: shouldRunPostCheckout ? config.postCheckout : undefined,
+  });
+
+  // Display results
   services.console.log(
     `\nCreated workspace at ${chalk.cyan(result.workspacePath)} with ${result.successCount}/${result.totalCount} repos.`
   );
 
-  if (config.postCheckout) {
-    const shouldRun = await deps.confirm({
-      message: `Run "${config.postCheckout}" in all workspaces?`,
-      default: true,
-    });
+  if (result.tmuxCreated) {
+    services.console.log(`Created tmux session: ${chalk.cyan(branchName)}`);
+  }
 
-    if (shouldRun) {
-      const worktreeDirs = services.workspace.getWorktreeDirs(result.workspacePath);
-      services.console.log(`\nRunning "${config.postCheckout}" in ${worktreeDirs.length} workspace(s)...`);
-      const completedCount = await services.workspace.runPostCheckoutCommand(worktreeDirs, config.postCheckout);
-      services.console.log(`\nCompleted in ${completedCount}/${worktreeDirs.length} workspace(s).`);
-    }
-  } else {
+  if (result.postCheckoutSuccess !== undefined) {
+    services.console.log(
+      `\nCompleted post-checkout in ${result.postCheckoutSuccess}/${result.postCheckoutTotal} workspace(s).`
+    );
+  } else if (!config.postCheckout) {
     services.console.log('\nTip: Configure a post-checkout command to run automatically after branching/checkout.');
     services.console.log('  Example: flow config set post-checkout "npm ci"');
   }
@@ -90,9 +91,10 @@ export function registerBranchCommand(program: Command): void {
     .description('Create branches and worktrees for selected repos')
     .action(async (branchName: string) => {
       const services = createServices();
+      const useCases = createUseCases(services);
 
       try {
-        await runBranch(branchName, services, { checkbox, input, confirm });
+        await runBranch(branchName, useCases, services, { checkbox, input, confirm });
       } catch (error: any) {
         services.console.error(error.message);
         services.process.exit(1);

@@ -42,13 +42,15 @@ describe('list integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    await integration.services.workspace.createBranchWorktrees(
-      [repo1, repo2],
+    await integration.useCases.createBranchWorkspace.execute({
+      repos: [repo1, repo2],
+      branchName: 'feature-a',
+      sourceBranch: 'master',
+      sourcePath,
       destPath,
-      'feature-a',
-      'master',
-      '.env'
-    );
+      copyFiles: '.env',
+      tmux: false,
+    });
 
     await runList(integration.services);
 
@@ -66,21 +68,25 @@ describe('list integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    await integration.services.workspace.createBranchWorktrees(
-      [repo1],
+    await integration.useCases.createBranchWorkspace.execute({
+      repos: [repo1],
+      branchName: 'feature-a',
+      sourceBranch: 'master',
+      sourcePath,
       destPath,
-      'feature-a',
-      'master',
-      '.env'
-    );
+      copyFiles: '.env',
+      tmux: false,
+    });
 
-    await integration.services.workspace.createBranchWorktrees(
-      [repo2],
+    await integration.useCases.createBranchWorkspace.execute({
+      repos: [repo2],
+      branchName: 'feature-b',
+      sourceBranch: 'master',
+      sourcePath,
       destPath,
-      'feature-b',
-      'master',
-      '.env'
-    );
+      copyFiles: '.env',
+      tmux: false,
+    });
 
     await runList(integration.services);
 

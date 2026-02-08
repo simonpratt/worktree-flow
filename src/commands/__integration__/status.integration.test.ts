@@ -34,7 +34,7 @@ describe('status integration', () => {
     integration = createIntegrationServices(sourcePath, destPath);
 
     await expect(
-      runStatus('nonexistent', integration.services)
+      runStatus('nonexistent', integration.useCases, integration.services)
     ).rejects.toThrow(WorkspaceNotFoundError);
   });
 
@@ -42,7 +42,7 @@ describe('status integration', () => {
     integration = createIntegrationServices(sourcePath, destPath);
     (integration.stubs.process.cwd as sinon.SinonStub).returns('/tmp/nowhere');
 
-    await expect(runStatus(undefined, integration.services)).rejects.toThrow(NotInWorkspaceError);
+    await expect(runStatus(undefined, integration.useCases, integration.services)).rejects.toThrow(NotInWorkspaceError);
   });
 
   it('should show clean status for repos with no changes', async () => {
@@ -50,15 +50,17 @@ describe('status integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    await integration.services.workspace.createBranchWorktrees(
-      [repo1],
+    await integration.useCases.createBranchWorkspace.execute({
+      repos: [repo1],
+      branchName: 'feature',
+      sourceBranch: 'master',
+      sourcePath,
       destPath,
-      'feature',
-      'master',
-      '.env'
-    );
+      copyFiles: '.env',
+      tmux: false,
+    });
 
-    await runStatus('feature', integration.services);
+    await runStatus('feature', integration.useCases, integration.services);
 
     const logCalls = (integration.stubs.console.log as sinon.SinonStub).args.map(
       (a: any[]) => a[0]
@@ -74,19 +76,21 @@ describe('status integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    const result = await integration.services.workspace.createBranchWorktrees(
-      [repo1],
+    const result = await integration.useCases.createBranchWorkspace.execute({
+      repos: [repo1],
+      branchName: 'feature',
+      sourceBranch: 'master',
+      sourcePath,
       destPath,
-      'feature',
-      'master',
-      '.env'
-    );
+      copyFiles: '.env',
+      tmux: false,
+    });
 
     // Add an uncommitted file in the worktree
     const worktreePath = path.join(result.workspacePath, 'repo1');
     fs.writeFileSync(path.join(worktreePath, 'dirty.txt'), 'uncommitted\n');
 
-    await runStatus('feature', integration.services);
+    await runStatus('feature', integration.useCases, integration.services);
 
     const logCalls = (integration.stubs.console.log as sinon.SinonStub).args.map(
       (a: any[]) => a[0]
@@ -102,19 +106,21 @@ describe('status integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    const result = await integration.services.workspace.createBranchWorktrees(
-      [repo1, repo2],
+    const result = await integration.useCases.createBranchWorkspace.execute({
+      repos: [repo1, repo2],
+      branchName: 'feature',
+      sourceBranch: 'master',
+      sourcePath,
       destPath,
-      'feature',
-      'master',
-      '.env'
-    );
+      copyFiles: '.env',
+      tmux: false,
+    });
 
     // Make repo1 dirty, leave repo2 clean
     const wt1 = path.join(result.workspacePath, 'repo1');
     fs.writeFileSync(path.join(wt1, 'dirty.txt'), 'uncommitted\n');
 
-    await runStatus('feature', integration.services);
+    await runStatus('feature', integration.useCases, integration.services);
 
     const logCalls = (integration.stubs.console.log as sinon.SinonStub).args.map(
       (a: any[]) => a[0]
@@ -130,18 +136,20 @@ describe('status integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    const result = await integration.services.workspace.createBranchWorktrees(
-      [repo1],
+    const result = await integration.useCases.createBranchWorkspace.execute({
+      repos: [repo1],
+      branchName: 'feature',
+      sourceBranch: 'master',
+      sourcePath,
       destPath,
-      'feature',
-      'master',
-      '.env'
-    );
+      copyFiles: '.env',
+      tmux: false,
+    });
 
     // Set cwd to inside the workspace
     (integration.stubs.process.cwd as sinon.SinonStub).returns(result.workspacePath);
 
-    await runStatus(undefined, integration.services);
+    await runStatus(undefined, integration.useCases, integration.services);
 
     const logCalls = (integration.stubs.console.log as sinon.SinonStub).args.map(
       (a: any[]) => a[0]
@@ -156,19 +164,21 @@ describe('status integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    const result = await integration.services.workspace.createBranchWorktrees(
-      [repo1],
+    const result = await integration.useCases.createBranchWorkspace.execute({
+      repos: [repo1],
+      branchName: 'feature',
+      sourceBranch: 'master',
+      sourcePath,
       destPath,
-      'feature',
-      'master',
-      '.env'
-    );
+      copyFiles: '.env',
+      tmux: false,
+    });
 
     // Set cwd to inside a repo within the workspace
     const repoCwd = path.join(result.workspacePath, 'repo1');
     (integration.stubs.process.cwd as sinon.SinonStub).returns(repoCwd);
 
-    await runStatus(undefined, integration.services);
+    await runStatus(undefined, integration.useCases, integration.services);
 
     const logCalls = (integration.stubs.console.log as sinon.SinonStub).args.map(
       (a: any[]) => a[0]

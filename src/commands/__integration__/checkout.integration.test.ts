@@ -40,7 +40,7 @@ describe('checkout integration', () => {
     await createRemoteBranchRef(repo2, 'feature');
 
     integration = createIntegrationServices(sourcePath, destPath);
-    await runCheckout('feature', integration.services, { confirm: confirmStub });
+    await runCheckout('feature', integration.useCases, integration.services, { confirm: confirmStub });
 
     const { NodeShell } = await import('../../adapters/node.js');
     const shell = new NodeShell();
@@ -64,7 +64,7 @@ describe('checkout integration', () => {
     (integration.stubs.process.exit as sinon.SinonStub).throws(new Error('exit'));
 
     await expect(
-      runCheckout('nonexistent', integration.services, { confirm: confirmStub })
+      runCheckout('nonexistent', integration.useCases, integration.services, { confirm: confirmStub })
     ).rejects.toThrow('exit');
 
     sinon.assert.calledWith(integration.stubs.process.exit as any, 1);
@@ -81,7 +81,7 @@ describe('checkout integration', () => {
     fs.writeFileSync(path.join(repo2, '.env'), 'SECRET=repo2\n');
 
     integration = createIntegrationServices(sourcePath, destPath);
-    await runCheckout('feature', integration.services, { confirm: confirmStub });
+    await runCheckout('feature', integration.useCases, integration.services, { confirm: confirmStub });
 
     for (const [name, expected] of [['repo1', 'SECRET=repo1\n'], ['repo2', 'SECRET=repo2\n']] as const) {
       const envPath = path.join(destPath, 'feature', name, '.env');
@@ -98,7 +98,7 @@ describe('checkout integration', () => {
     fs.writeFileSync(path.join(sourcePath, 'AGENTS.md'), '# Agents\nDo stuff.\n');
 
     integration = createIntegrationServices(sourcePath, destPath);
-    await runCheckout('feature', integration.services, { confirm: confirmStub });
+    await runCheckout('feature', integration.useCases, integration.services, { confirm: confirmStub });
 
     const agentsMd = path.join(destPath, 'feature', 'AGENTS.md');
     expect(fs.existsSync(agentsMd)).toBe(true);

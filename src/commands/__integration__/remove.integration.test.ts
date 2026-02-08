@@ -37,7 +37,7 @@ describe('remove integration', () => {
     (integration.stubs.process.cwd as sinon.SinonStub).returns('/tmp/nowhere');
 
     await expect(
-      runRemove(undefined, integration.services, { confirm: confirmStub })
+      runRemove(undefined, integration.useCases, integration.services, { confirm: confirmStub })
     ).rejects.toThrow(NotInWorkspaceError);
   });
 
@@ -46,20 +46,22 @@ describe('remove integration', () => {
 
     // Create a workspace with a worktree via createBranchWorktrees
     integration = createIntegrationServices(sourcePath, destPath);
-    const result = await integration.services.workspace.createBranchWorktrees(
-      [repo1],
+    const result = await integration.useCases.createBranchWorkspace.execute({
+      repos: [repo1],
+      branchName: 'feature',
+      sourceBranch: 'master',
+      sourcePath,
       destPath,
-      'feature',
-      'master',
-      '.env'
-    );
+      copyFiles: '.env',
+      tmux: false,
+    });
 
     const workspacePath = result.workspacePath;
     const worktreePath = path.join(workspacePath, 'repo1');
     expect(fs.existsSync(worktreePath)).toBe(true);
 
     // Now remove the workspace
-    await runRemove('feature', integration.services, { confirm: confirmStub });
+    await runRemove('feature', integration.useCases, integration.services, { confirm: confirmStub });
 
     // Workspace directory should be gone
     expect(fs.existsSync(workspacePath)).toBe(false);
@@ -75,13 +77,15 @@ describe('remove integration', () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
 
     integration = createIntegrationServices(sourcePath, destPath);
-    const result = await integration.services.workspace.createBranchWorktrees(
-      [repo1],
+    const result = await integration.useCases.createBranchWorkspace.execute({
+      repos: [repo1],
+      branchName: 'feature',
+      sourceBranch: 'master',
+      sourcePath,
       destPath,
-      'feature',
-      'master',
-      '.env'
-    );
+      copyFiles: '.env',
+      tmux: false,
+    });
 
     const worktreePath = path.join(result.workspacePath, 'repo1');
 
@@ -89,7 +93,7 @@ describe('remove integration', () => {
     fs.writeFileSync(path.join(worktreePath, 'dirty.txt'), 'uncommitted\n');
 
     await expect(
-      runRemove('feature', integration.services, { confirm: confirmStub })
+      runRemove('feature', integration.useCases, integration.services, { confirm: confirmStub })
     ).rejects.toThrow(WorkspaceHasIssuesError);
 
     // Workspace should still exist (not removed)
@@ -101,18 +105,20 @@ describe('remove integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    const result = await integration.services.workspace.createBranchWorktrees(
-      [repo1],
+    const result = await integration.useCases.createBranchWorkspace.execute({
+      repos: [repo1],
+      branchName: 'feature',
+      sourceBranch: 'master',
+      sourcePath,
       destPath,
-      'feature',
-      'master',
-      '.env'
-    );
+      copyFiles: '.env',
+      tmux: false,
+    });
 
     // Set cwd to inside the workspace
     (integration.stubs.process.cwd as sinon.SinonStub).returns(result.workspacePath);
 
-    await runRemove(undefined, integration.services, { confirm: confirmStub });
+    await runRemove(undefined, integration.useCases, integration.services, { confirm: confirmStub });
 
     // Workspace directory should be gone
     expect(fs.existsSync(result.workspacePath)).toBe(false);
@@ -129,19 +135,21 @@ describe('remove integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    const result = await integration.services.workspace.createBranchWorktrees(
-      [repo1],
+    const result = await integration.useCases.createBranchWorkspace.execute({
+      repos: [repo1],
+      branchName: 'feature',
+      sourceBranch: 'master',
+      sourcePath,
       destPath,
-      'feature',
-      'master',
-      '.env'
-    );
+      copyFiles: '.env',
+      tmux: false,
+    });
 
     // Set cwd to inside a repo within the workspace
     const repoCwd = path.join(result.workspacePath, 'repo1');
     (integration.stubs.process.cwd as sinon.SinonStub).returns(repoCwd);
 
-    await runRemove(undefined, integration.services, { confirm: confirmStub });
+    await runRemove(undefined, integration.useCases, integration.services, { confirm: confirmStub });
 
     // Workspace directory should be gone
     expect(fs.existsSync(result.workspacePath)).toBe(false);

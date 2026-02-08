@@ -42,7 +42,7 @@ describe('branch integration', () => {
 
     const checkboxStub = sinon.stub().resolves([repo1, repo2]);
 
-    await runBranch('new-feature', integration.services, {
+    await runBranch('new-feature', integration.useCases, integration.services, {
       checkbox: checkboxStub,
       input: inputStub,
       confirm: confirmStub,
@@ -74,7 +74,7 @@ describe('branch integration', () => {
     const checkboxStub = sinon.stub().resolves([repo1]);
 
     await expect(
-      runBranch('new-feature', integration.services, {
+      runBranch('new-feature', integration.useCases, integration.services, {
         checkbox: checkboxStub,
         input: inputStub,
         confirm: confirmStub,
