@@ -15,7 +15,6 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
-    "prepublishOnly": "npm run build",
     "validate": "npm run type-check && npm run test"
   },
   "keywords": [
