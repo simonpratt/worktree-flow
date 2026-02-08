@@ -1,155 +1,105 @@
 # worktree-flow
 
-Manage git worktrees across a poly-repo environment.
+> Multi-repo feature development with git worktrees
 
-## What is worktree-flow?
+[![npm version](https://img.shields.io/npm/v/worktree-flow)](https://www.npmjs.com/package/worktree-flow)
+[![npm downloads](https://img.shields.io/npm/dm/worktree-flow)](https://www.npmjs.com/package/worktree-flow)
+[![license](https://img.shields.io/npm/l/worktree-flow)](https://github.com/simonpratt/worktree-flow/blob/master/LICENSE)
 
-`flow` helps you work on multi-repo features by creating isolated workspace directories with git worktrees. Instead of switching branches across multiple repositories manually, flow creates a workspace folder containing worktrees for all relevant repos on the same branch.
+Stop juggling branches across repos. `flow` creates isolated workspaces with git worktrees from multiple repositories, all on the same branch, with a single command.
 
-**Before:**
 ```
-~/repos/
-├── AGENTS.md
-├── my-api-1/          (main branch)
-├── my-api-2/          (main branch)
-└── my-client/         (main branch)
-```
-
-**After running `flow branch TICKET-123`:**
-```
-~/workspaces/TICKET-123/
-├── AGENTS.md          (copied from ~/repos)
-├── my-api-1/          (TICKET-123 branch - new worktree)
-└── my-client/         (TICKET-123 branch - new worktree)
+~/repos/                              ~/workspaces/TICKET-123/
+├── api-1/     (main)                 ├── api-1/     (TICKET-123 branch)
+├── api-2/     (main)       flow      ├── client/    (TICKET-123 branch)
+├── client/    (main)     -------->   └── AGENTS.md  (copied from ~/repos)
+└── AGENTS.md
 ```
 
-## Installation
+## Quick Start
 
 ```bash
 npm install -g worktree-flow
+
+# Point flow at your repos and workspace directory
+flow config set source-path ~/repos
+flow config set dest-path ~/workspaces
+
+# Create a workspace with new branches
+flow branch TICKET-123
+# → Select repos interactively, creates branches + worktrees
+
+# Or checkout an existing branch
+flow checkout TICKET-123
+# → Auto-detects which repos have the branch
 ```
 
-Or install locally:
+## Why worktree-flow?
 
-```bash
-npm install worktree-flow
-npm link
-```
+Working on features that span multiple repositories means manually creating branches, switching between repos, and keeping everything in sync. Git worktrees solve part of this, but managing them across a poly-repo is still tedious.
+
+`flow` automates the entire workflow:
+
+- **One command** to create branches across repos with interactive selection
+- **Workspace isolation** so each feature gets its own directory with worktrees
+- **Workspace-level operations** to push, pull, and check status across all repos at once
+- **Safe cleanup** that checks for uncommitted changes and unpushed commits before removing
+- **Post-checkout hooks** to run setup commands (like `npm ci`) in parallel after branching
+
+## Commands
+
+### `flow branch <name>`
+
+Create a new branch across selected repos. Interactively select which repos to include, then creates branches and worktrees in a new workspace directory.
+
+### `flow checkout <name>`
+
+Checkout an existing branch. Fetches all repos, detects which have the branch, and creates worktrees.
+
+### `flow pull`
+
+Pull latest changes for all repos in the current workspace. Run from anywhere inside a workspace.
+
+### `flow push`
+
+Push all repos in the current workspace. Automatically sets upstream on first push.
+
+### `flow status [name]`
+
+Check the status of all repos in a workspace. Shows uncommitted changes, commits ahead of main, and up-to-date repos.
+
+### `flow list`
+
+List all workspaces and their repo counts.
+
+### `flow remove <name>`
+
+Remove a workspace and all its worktrees. Fetches latest, checks for uncommitted changes and unpushed commits, and prompts for confirmation before removing.
+
+### `flow prune`
+
+Remove stale workspaces in bulk. Finds workspaces where all worktrees are clean, fully merged, and haven't been committed to in over 7 days.
+
+### `flow config set <key> <value>`
+
+Configure flow settings. See [Configuration](#configuration) below.
 
 ## Configuration
 
-Set the paths where your repos live and where workspaces should be created:
+Settings are stored in `~/.config/flow/config.json`.
 
-```bash
-flow config set source-path ~/repos
-flow config set dest-path ~/workspaces
-```
-
-Optional configuration:
-
-```bash
-# Set the main branch name (default: master)
-flow config set main-branch main
-
-# Enable tmux session creation (default: false)
-flow config set tmux true
-
-# Set config files to copy to worktrees (default: .env)
-flow config set copy-files .env,.env.local
-
-# Set command to run after checkout/branching (optional, prompts if set)
-flow config set post-checkout "npm ci"
-```
-
-Configuration is stored in `~/.config/flow/config.json`.
-
-## Usage
-
-### Create a new branch across repos
-
-Interactively select which repos to branch:
-
-```bash
-flow branch TICKET-123
-```
-
-Use spacebar to select repos, enter to confirm. Creates new branches and worktrees.
-
-If you've configured a post-checkout command, flow will prompt you to run it in all workspaces in parallel. This is useful for tasks like installing dependencies after branching.
-
-### Checkout an existing branch
-
-Automatically detects which repos have the branch:
-
-```bash
-flow checkout TICKET-123
-```
-
-Fetches all repos and creates worktrees for repos that have the branch.
-
-If you've configured a post-checkout command, flow will prompt you to run it in all workspaces in parallel. This is useful for tasks like installing dependencies after switching branches.
-
-### Pull changes in a workspace
-
-From anywhere inside a workspace directory:
-
-```bash
-cd ~/workspaces/TICKET-123
-flow pull
-```
-
-Pulls latest changes for all repos in the workspace.
-
-### Push changes in a workspace
-
-From anywhere inside a workspace directory:
-
-```bash
-cd ~/workspaces/TICKET-123/my-api-1
-flow push
-```
-
-Pushes all repos in the workspace. Automatically sets upstream on first push.
-
-### Check workspace status
-
-Check the status of all repos in a workspace:
-
-```bash
-flow status TICKET-123
-```
-
-Fetches latest changes from remote, then shows which repos have:
-- Uncommitted changes
-- Commits ahead of the main branch
-- Are up to date
-
-This helps you quickly see what needs attention before removing a workspace.
-
-### Remove a workspace
-
-Remove a workspace and all its worktrees:
-
-```bash
-flow remove TICKET-123
-```
-
-This command will:
-1. Fetch latest changes from remote
-2. Check all worktrees for uncommitted changes and changes ahead of main (diff against configured main branch)
-3. Abort if any uncommitted changes or commits ahead of main are found
-4. Show what will be removed and ask for confirmation (y/n)
-5. Remove all worktrees from their source repos
-6. Delete the workspace folder
-7. Kill the tmux session (if tmux is enabled)
-
-The "ahead of main" check compares your branch against the configured main branch (default: `master`) to detect actual code differences, so it's safe to remove branches even after they've been squash-merged and the remote branch deleted.
-
-Use this to clean up when you're done with a branch.
+| Key | Description | Default |
+|-----|-------------|---------|
+| `source-path` | Directory containing your source repos | *required* |
+| `dest-path` | Directory where workspaces are created | *required* |
+| `main-branch` | Main branch name | `master` |
+| `tmux` | Create tmux sessions for workspaces | `false` |
+| `copy-files` | Files to copy from source repos to worktrees | `.env` |
+| `post-checkout` | Command to run after checkout (e.g. `npm ci`) | *none* |
 
 ## AGENTS.md
 
-If an `AGENTS.md` file exists at the root of your source-path, it will be copied to each workspace root.
+If an `AGENTS.md` file exists at the root of your source-path, it will be copied into each workspace. This is useful for providing AI coding agents with context about your multi-repo setup.
 
 ## License
 
