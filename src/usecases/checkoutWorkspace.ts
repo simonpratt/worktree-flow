@@ -100,7 +100,8 @@ export class CheckoutWorkspaceUseCase {
     let tmuxCreated = false;
     if (params.tmux) {
       try {
-        await this.tmux.createSession(workspacePath, params.branchName);
+        const worktreeDirs = this.workspaceDir.getWorktreeDirs(workspacePath);
+        await this.tmux.createSession(workspacePath, params.branchName, worktreeDirs);
         tmuxCreated = true;
       } catch (error) {
         // Don't fail

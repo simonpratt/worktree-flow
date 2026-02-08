@@ -93,7 +93,7 @@ Settings are stored in `~/.config/flow/config.json`.
 | `source-path` | Directory containing your source repos | *required* |
 | `dest-path` | Directory where workspaces are created | *required* |
 | `main-branch` | Main branch name | `master` |
-| `tmux` | Create tmux sessions for workspaces | `false` |
+| `tmux` | Create tmux sessions with split panes (root + each worktree) | `false` |
 | `copy-files` | Files to copy from source repos to worktrees | `.env` |
 | `post-checkout` | Command to run after checkout (e.g. `npm ci`) | *none* |
 

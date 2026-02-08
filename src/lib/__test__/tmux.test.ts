@@ -17,10 +17,10 @@ describe('TmuxService', () => {
   });
 
   describe('createSession', () => {
-    it('should execute tmux new-session with correct arguments', async () => {
+    it('should create session with root pane only when no worktrees provided', async () => {
       shell.execFile.resolves({ stdout: '', stderr: '' });
 
-      await service.createSession('/workspace/feature', 'feature-branch');
+      await service.createSession('/workspace/feature', 'feature-branch', []);
 
       sinon.assert.calledOnceWithExactly(
         shell.execFile,
@@ -29,12 +29,72 @@ describe('TmuxService', () => {
       );
     });
 
+    it('should create session with split panes for root and worktrees', async () => {
+      shell.execFile.resolves({ stdout: '', stderr: '' });
+
+      await service.createSession('/workspace/feature', 'feature-branch', [
+        '/workspace/feature/repo1',
+        '/workspace/feature/repo2'
+      ]);
+
+      // Should create base session in root
+      sinon.assert.calledWith(
+        shell.execFile,
+        'tmux',
+        ['new-session', '-d', '-s', 'feature-branch', '-c', '/workspace/feature']
+      );
+
+      // Should split window for repo1
+      sinon.assert.calledWith(
+        shell.execFile,
+        'tmux',
+        ['split-window', '-t', 'feature-branch', '-c', '/workspace/feature/repo1']
+      );
+
+      // Should split window for repo2
+      sinon.assert.calledWith(
+        shell.execFile,
+        'tmux',
+        ['split-window', '-t', 'feature-branch', '-c', '/workspace/feature/repo2']
+      );
+
+      // Should apply tiled layout
+      sinon.assert.calledWith(
+        shell.execFile,
+        'tmux',
+        ['select-layout', '-t', 'feature-branch', 'tiled']
+      );
+
+      expect(shell.execFile.callCount).toBe(4);
+    });
+
+    it('should create session with split panes for multiple worktrees', async () => {
+      shell.execFile.resolves({ stdout: '', stderr: '' });
+
+      await service.createSession('/workspace/feature', 'feature-branch', [
+        '/workspace/feature/repo1',
+        '/workspace/feature/repo2',
+        '/workspace/feature/repo3',
+        '/workspace/feature/repo4'
+      ]);
+
+      // Base session + 4 split-windows + select-layout = 6 calls
+      expect(shell.execFile.callCount).toBe(6);
+
+      // Verify layout is applied
+      sinon.assert.calledWith(
+        shell.execFile,
+        'tmux',
+        ['select-layout', '-t', 'feature-branch', 'tiled']
+      );
+    });
+
     it('should ignore duplicate session errors', async () => {
       const error: any = new Error('duplicate session: feature-branch');
       error.message = 'duplicate session: feature-branch';
       shell.execFile.rejects(error);
 
-      await expect(service.createSession('/workspace/feature', 'feature-branch')).resolves.toBeUndefined();
+      await expect(service.createSession('/workspace/feature', 'feature-branch', [])).resolves.toBeUndefined();
 
       sinon.assert.calledOnce(shell.execFile);
     });
@@ -42,7 +102,16 @@ describe('TmuxService', () => {
     it('should throw other errors', async () => {
       shell.execFile.rejects(new Error('tmux not found'));
 
-      await expect(service.createSession('/workspace/feature', 'feature-branch')).rejects.toThrow('tmux not found');
+      await expect(service.createSession('/workspace/feature', 'feature-branch', [])).rejects.toThrow('tmux not found');
+    });
+
+    it('should handle split-window errors gracefully', async () => {
+      shell.execFile.onFirstCall().resolves({ stdout: '', stderr: '' });
+      shell.execFile.onSecondCall().rejects(new Error('split failed'));
+
+      await expect(
+        service.createSession('/workspace/feature', 'feature-branch', ['/workspace/feature/repo1'])
+      ).rejects.toThrow('split failed');
     });
 
 });

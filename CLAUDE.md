@@ -11,8 +11,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 We're following a TDD Flow. When making changes
 1. Investigate the test files and modify/add coverage for the new behaviour.
 2. Make the changes
-4. Ensure type-check passes via `npm run type-check`
-3. Ensure the tests pass via the `npm run test:coverage` command.
+3. Ensure type-check passes via `npm run type-check`
+4. Ensure the tests pass via the `npm run test:coverage` command.
+5. Update the README.md, if relevant. We want to keep this short and concise while covering key behaviour.
 
 Tests are split into three categories:
 - Files in `lib/` are tested via unit tests in the `lib/__test__` folder. Use the memfs helpers where possible if testing the file system.

@@ -6,8 +6,9 @@ import type { IShell } from '../adapters/types.js';
 export class TmuxService {
   constructor(private shell: IShell) {}
 
-  async createSession(workspacePath: string, sessionName: string): Promise<void> {
+  async createSession(workspacePath: string, sessionName: string, worktreePaths: string[] = []): Promise<void> {
     try {
+      // Create base session in workspace root
       await this.shell.execFile('tmux', [
         'new-session',
         '-d',
@@ -16,6 +17,27 @@ export class TmuxService {
         '-c',
         workspacePath,
       ]);
+
+      // Create split panes for each worktree
+      for (const worktreePath of worktreePaths) {
+        await this.shell.execFile('tmux', [
+          'split-window',
+          '-t',
+          sessionName,
+          '-c',
+          worktreePath,
+        ]);
+      }
+
+      // Apply tiled layout if we have multiple panes (root + worktrees)
+      if (worktreePaths.length > 0) {
+        await this.shell.execFile('tmux', [
+          'select-layout',
+          '-t',
+          sessionName,
+          'tiled',
+        ]);
+      }
     } catch (error: any) {
       // If session already exists, ignore the error
       if (!error.message?.includes('duplicate session')) {
