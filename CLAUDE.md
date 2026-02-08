@@ -14,8 +14,9 @@ We're following a TDD Flow. When making changes
 4. Ensure type-check passes via `npm run type-check`
 3. Ensure the tests pass via the `npm run test:coverage` command.
 
-Test are split into two categories
+Tests are split into three categories:
 - Files in `lib/` are tested via unit tests in the `lib/__test__` folder. Use the memfs helpers where possible if testing the file system.
+- Files in `usecases/` are tested via unit tests in the `usecases/__test__` folder. Mock all services with sinon stubs.
 - Files in `commands/` are tested via integration tests in the `commands/__integration` folder. Minimise stubbing.
 
 For all testing focus on behaviour, not shallow validation of output.
@@ -35,19 +36,40 @@ flow --help
 
 ## Architecture
 
-The codebase follows **Hexagonal Architecture** (Ports & Adapters) for testability:
+The codebase follows **Hexagonal Architecture** (Ports & Adapters) with a **Use Case Layer**:
+
+```
+Commands (Adapter Layer)
+  ↓
+Use Cases (Application Layer)
+  ↓
+Services (Domain Layer)
+  ↓
+Adapters (Ports)
+```
 
 **Entry Point**: `src/cli.ts` - Registers all Commander.js commands
 
 **Commands** (`src/commands/`):
-- Thin orchestration layer handling CLI concerns (user prompts, error handling)
-- Use `createServices()` to get service instances with production adapters
+- Thin layer handling CLI concerns (user prompts, console output, error handling)
+- Use `createUseCases()` to get use case instances
 - Catch errors and handle process.exit at command level
-- Never put business logic in commands - delegate to services
+- Never put business logic in commands - delegate to use cases
+
+**Use Cases** (`src/usecases/`):
+- `CreateBranchWorkspaceUseCase` - Orchestrate workspace creation with new branches
+- `CheckoutWorkspaceUseCase` - Orchestrate workspace creation for existing branches
+- `RemoveWorkspaceUseCase` - Orchestrate workspace removal with validation
+- `PushWorkspaceUseCase` - Push all worktrees in a workspace
+- `PullWorkspaceUseCase` - Pull all worktrees in a workspace
+- `CheckWorkspaceStatusUseCase` - Check status of all worktrees
+- `usecases.ts` - Factory function that wires use cases with services
 
 **Services** (`src/lib/`):
 - `ConfigService` - Manages `~/.config/flow/config.json` with Zod schemas
-- `WorkspaceService` - Workspace directory operations, post-checkout command execution
+- `WorkspaceDirectoryService` - Workspace directory operations (create, detect, list, remove)
+- `WorktreeService` - Worktree creation and config file copying
+- `PostCheckoutService` - Execute post-checkout commands in worktrees
 - `RepoService` - Repository discovery and filtering from source-path
 - `GitService` - Git worktree operations (add, remove, branch detection)
 - `FetchService` - Parallel git fetch across repos
@@ -56,6 +78,7 @@ The codebase follows **Hexagonal Architecture** (Ports & Adapters) for testabili
 - `StatusService` - Git status checking (uncommitted changes, ahead of main)
 - `services.ts` - Factory function that wires services with adapters
 - `errors.ts` - Custom error classes (ConfigNotSetError, WorkspaceNotFoundError, etc.)
+- `workspaceResolver.ts` - Utility for resolving workspace from branch name or cwd
 
 **Adapters** (`src/adapters/`):
 - `types.ts` - Interfaces for I/O operations (IFileSystem, IShell, IConsole, IProcess)
