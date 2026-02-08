@@ -4,7 +4,7 @@
   "description": "Manage git worktrees across a poly-repo environment",
   "type": "module",
   "bin": {
-    "flow": "./dist/cli.js"
+    "flow": "dist/cli.js"
   },
   "files": [
     "dist"
