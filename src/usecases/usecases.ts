@@ -5,6 +5,7 @@ import { RemoveWorkspaceUseCase } from './removeWorkspace.js';
 import { PushWorkspaceUseCase } from './pushWorkspace.js';
 import { PullWorkspaceUseCase } from './pullWorkspace.js';
 import { CheckWorkspaceStatusUseCase } from './checkWorkspaceStatus.js';
+import { DiscoverPrunableWorkspacesUseCase } from './discoverPrunableWorkspaces.js';
 
 /**
  * Factory function for creating all use cases with their service dependencies.
@@ -52,6 +53,12 @@ export function createUseCases(services: Services) {
       services.workspaceDir,
       services.fetch,
       services.status
+    ),
+    discoverPrunableWorkspaces: new DiscoverPrunableWorkspacesUseCase(
+      services.workspaceDir,
+      services.fetch,
+      services.status,
+      services.git
     ),
   };
 }

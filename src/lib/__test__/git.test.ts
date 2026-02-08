@@ -357,6 +357,47 @@ describe('GitService', () => {
     });
   });
 
+  describe('getLastCommitDate', () => {
+    it('should execute git log to get last commit date', async () => {
+      shell.execFile.resolves({ stdout: '2026-01-15T10:30:45+00:00\n', stderr: '' });
+
+      const result = await service.getLastCommitDate('/worktree');
+
+      sinon.assert.calledOnceWithExactly(
+        shell.execFile,
+        'git',
+        ['-C', '/worktree', 'log', '-1', '--format=%aI', 'HEAD'],
+        { encoding: 'utf-8' }
+      );
+      expect(result).toBeInstanceOf(Date);
+      expect(result.toISOString()).toBe('2026-01-15T10:30:45.000Z');
+    });
+
+    it('should parse ISO date correctly', async () => {
+      shell.execFile.resolves({ stdout: '2025-12-25T15:45:30-05:00', stderr: '' });
+
+      const result = await service.getLastCommitDate('/repo');
+
+      expect(result).toBeInstanceOf(Date);
+      expect(result.getUTCFullYear()).toBe(2025);
+      expect(result.getUTCMonth()).toBe(11); // December is month 11
+    });
+
+    it('should handle whitespace in git output', async () => {
+      shell.execFile.resolves({ stdout: '  2026-02-01T12:00:00Z\n  ', stderr: '' });
+
+      const result = await service.getLastCommitDate('/worktree');
+
+      expect(result).toBeInstanceOf(Date);
+    });
+
+    it('should propagate errors from git log', async () => {
+      shell.execFile.rejects(new Error('fatal: bad revision'));
+
+      await expect(service.getLastCommitDate('/repo')).rejects.toThrow('fatal: bad revision');
+    });
+  });
+
   describe('pushWithRetry', () => {
     it('should return "pushed" on successful push', async () => {
       shell.execFile.resolves({ stdout: '', stderr: '' });

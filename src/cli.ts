@@ -8,6 +8,7 @@ import { registerPullCommand } from './commands/pull.js';
 import { registerPushCommand } from './commands/push.js';
 import { registerRemoveCommand } from './commands/remove.js';
 import { registerStatusCommand } from './commands/status.js';
+import { registerPruneCommand } from './commands/prune.js';
 
 const program = new Command();
 
@@ -24,5 +25,6 @@ registerPullCommand(program);
 registerPushCommand(program);
 registerRemoveCommand(program);
 registerStatusCommand(program);
+registerPruneCommand(program);
 
 program.parse();

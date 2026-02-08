@@ -119,6 +119,11 @@ export class GitService {
     await this.exec(repoPath, ['worktree', 'remove', worktreePath]);
   }
 
+  async getLastCommitDate(repoPath: string): Promise<Date> {
+    const output = await this.exec(repoPath, ['log', '-1', '--format=%aI', 'HEAD']);
+    return new Date(output.trim());
+  }
+
   /**
    * Push with automatic set-upstream retry if no upstream is configured
    */
