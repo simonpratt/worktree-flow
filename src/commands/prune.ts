@@ -48,12 +48,6 @@ export async function runPrune(
     services.console.log('');
   }
 
-  // Summary
-  const totalRepos = result.prunable.reduce((sum, ws) => sum + ws.repoCount, 0);
-  services.console.log(`${chalk.yellow('This will remove:')}`);
-  services.console.log(`  ${result.prunable.length} workspace(s)`);
-  services.console.log(`  ${totalRepos} worktree(s)`);
-
   const confirmed = await deps.confirm({
     message: 'Are you sure you want to prune these workspaces?',
     default: false,
