@@ -97,6 +97,7 @@ export async function runPrune(
 export function registerPruneCommand(program: Command): void {
   program
     .command('prune')
+    .alias('clean')
     .description('Remove old workspaces with no uncommitted changes and commits older than 7 days')
     .action(async () => {
       const services = createServices();

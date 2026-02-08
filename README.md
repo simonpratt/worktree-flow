@@ -68,15 +68,20 @@ Push all repos in the current workspace. Automatically sets upstream on first pu
 
 Check the status of all repos in a workspace. Shows uncommitted changes, commits ahead of main, and up-to-date repos.
 
-### `flow list`
+### `flow list` (alias: `ls`)
 
-List all workspaces and their repo counts.
+List all workspaces with status indicators. Shows:
+- Active workspace (marked with `*`) based on current directory
+- Overall status: `clean`, `uncommitted`, `ahead`, `behind`, `diverged`, or `mixed`
+- Repo count for each workspace
+
+Fetches all repos before checking status to ensure accurate information.
 
 ### `flow remove <name>`
 
 Remove a workspace and all its worktrees. Fetches latest, checks for uncommitted changes and unpushed commits, and prompts for confirmation before removing.
 
-### `flow prune`
+### `flow prune` (alias: `clean`)
 
 Remove stale workspaces in bulk. Finds workspaces where all worktrees are clean, fully merged, and haven't been committed to in over 7 days.
 

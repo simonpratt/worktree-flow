@@ -13,16 +13,18 @@ export class FetchService {
     private console: IConsole
   ) {}
 
-  async fetchRepos(repoPaths: string[]): Promise<void> {
+  async fetchRepos(repoPaths: string[], options?: { silent?: boolean }): Promise<void> {
     if (repoPaths.length === 0) {
       return;
     }
 
+    const silent = options?.silent ?? false;
     const total = repoPaths.length;
     let completed = 0;
     let failed = 0;
 
     const updateProgress = () => {
+      if (silent) return;
       const percent = Math.floor((completed / total) * 100);
       const message = `Fetching repos... ${completed}/${total} (${percent}%)`;
       this.console.write(`\r${message}`);
@@ -57,12 +59,14 @@ export class FetchService {
     );
     await Promise.all(workers);
 
-    // Clear the progress line and show summary
-    this.console.write('\r');
-    if (failed > 0) {
-      this.console.log(`Fetched ${total - failed}/${total} repos ${chalk.yellow(`(${failed} failed)`)}`);
-    } else {
-      this.console.log(`Fetched ${total} repos ${chalk.green('✓')}`);
+    if (!silent) {
+      // Clear the progress line and show summary
+      this.console.write('\r');
+      if (failed > 0) {
+        this.console.log(`Fetched ${total - failed}/${total} repos ${chalk.yellow(`(${failed} failed)`)}`);
+      } else {
+        this.console.log(`Fetched ${total} repos ${chalk.green('✓')}`);
+      }
     }
   }
 }

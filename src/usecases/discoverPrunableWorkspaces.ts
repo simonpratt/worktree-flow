@@ -1,9 +1,9 @@
-import path from 'node:path';
 import type { WorkspaceDirectoryService } from '../lib/workspaceDirectory.js';
 import type { FetchService } from '../lib/fetch.js';
 import type { StatusService, WorktreeStatus } from '../lib/status.js';
 import type { GitService } from '../lib/git.js';
 import { StatusService as StatusServiceClass } from '../lib/status.js';
+import { collectWorkspaceRepos } from '../lib/workspaceReposCollector.js';
 
 export type DiscoverPrunableWorkspacesParams = {
   destPath: string;
@@ -42,27 +42,17 @@ export class DiscoverPrunableWorkspacesUseCase {
     const cutoffDate = new Date(Date.now() - params.daysOld * 24 * 60 * 60 * 1000);
 
     // Collect all worktree directories and unique source repos across all workspaces
-    const uniqueSourceRepos = new Set<string>();
-    const workspaceWorktrees = new Map<string, string[]>();
-
-    for (const workspace of workspaces) {
-      const worktreeDirs = this.workspaceDir.getWorktreeDirs(workspace.path);
-      if (worktreeDirs.length > 0) {
-        workspaceWorktrees.set(workspace.path, worktreeDirs);
-        // Extract repo names and build source repo paths
-        worktreeDirs.forEach((worktreePath) => {
-          const repoName = path.basename(worktreePath);
-          const sourceRepoPath = path.join(params.sourcePath, repoName);
-          uniqueSourceRepos.add(sourceRepoPath);
-        });
-      }
-    }
+    const { uniqueSourceRepos, workspaceWorktrees } = collectWorkspaceRepos(
+      workspaces,
+      this.workspaceDir,
+      params.sourcePath
+    );
 
     // Fetch all unique source repos once
     // Since worktrees share the same git repository, fetching in one worktree
     // updates the remote refs for all worktrees of that repository
-    if (uniqueSourceRepos.size > 0) {
-      await this.fetch.fetchRepos(Array.from(uniqueSourceRepos));
+    if (uniqueSourceRepos.length > 0) {
+      await this.fetch.fetchRepos(uniqueSourceRepos);
     }
 
     // Now analyze each workspace
