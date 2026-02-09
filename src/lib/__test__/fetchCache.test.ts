@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { FetchCacheService } from '../fetchCache.js';
 import { createMemFs } from '../../test/test-utils.js';
 import path from 'node:path';
@@ -71,6 +71,8 @@ describe('FetchCacheService', () => {
     });
 
     it('should handle corrupted cache gracefully', () => {
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
       const { service, vol, fs } = createService();
       vol.fromJSON({
         [cachePath]: 'invalid json {'
@@ -81,6 +83,8 @@ describe('FetchCacheService', () => {
 
       // Cache file should be deleted
       expect(fs.existsSync(cachePath)).toBe(false);
+
+      consoleWarnSpy.mockRestore();
     });
   });
 
@@ -134,6 +138,8 @@ describe('FetchCacheService', () => {
     });
 
     it('should not throw on write errors', () => {
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
       const { service } = createService();
       // Create service with a mock fs that throws on write
       const mockFs = {
@@ -149,6 +155,8 @@ describe('FetchCacheService', () => {
       expect(() => {
         serviceWithMockFs.markFetched('/path/to/repo');
       }).not.toThrow();
+
+      consoleWarnSpy.mockRestore();
     });
   });
 
