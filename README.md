@@ -4,6 +4,7 @@
 
 [![npm version](https://img.shields.io/npm/v/worktree-flow)](https://www.npmjs.com/package/worktree-flow)
 [![npm downloads](https://img.shields.io/npm/dm/worktree-flow)](https://www.npmjs.com/package/worktree-flow)
+[![Build](https://github.com/simonpratt/worktree-flow/actions/workflows/build.yml/badge.svg)](https://github.com/simonpratt/worktree-flow/actions/workflows/build.yml)
 [![license](https://img.shields.io/npm/l/worktree-flow)](https://github.com/simonpratt/worktree-flow/blob/master/LICENSE)
 
 Stop juggling branches across repos. `flow` creates isolated workspaces with git worktrees from multiple repositories, all on the same branch, with a single command.
