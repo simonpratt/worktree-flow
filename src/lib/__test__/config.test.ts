@@ -87,6 +87,8 @@ describe('ConfigService', () => {
         copyFiles: '.env',
         tmux: false,
         mainBranch: 'master',
+        fetchCacheTtlSeconds: 300,
+        postCheckout: undefined,
       });
     });
 
@@ -107,6 +109,8 @@ describe('ConfigService', () => {
         copyFiles: '.env',
         tmux: false,
         mainBranch: 'master',
+        fetchCacheTtlSeconds: 300,
+        postCheckout: undefined,
       });
     });
 
@@ -138,6 +142,7 @@ describe('ConfigService', () => {
           'main-branch': 'main',
           'copy-files': '.env,.env.local',
           'post-checkout': 'npm install',
+          'fetch-cache-ttl-seconds': '600',
         }),
       });
       const service = new ConfigService(fs);
@@ -147,6 +152,7 @@ describe('ConfigService', () => {
       expect(config.mainBranch).toBe('main');
       expect(config.copyFiles).toBe('.env,.env.local');
       expect(config.postCheckout).toBe('npm install');
+      expect(config.fetchCacheTtlSeconds).toBe(600);
     });
   });
 
@@ -212,6 +218,7 @@ describe('ConfigService', () => {
       expect(displayConfig.tmux.isDefault).toBe(true);
       expect(displayConfig['main-branch'].isDefault).toBe(true);
       expect(displayConfig['post-checkout'].isDefault).toBe(true);
+      expect(displayConfig['fetch-cache-ttl-seconds'].isDefault).toBe(true);
     });
 
     it('should mark custom values as non-default', () => {
@@ -223,6 +230,7 @@ describe('ConfigService', () => {
           'tmux': 'true',
           'main-branch': 'main',
           'post-checkout': 'npm install',
+          'fetch-cache-ttl-seconds': '600',
         }),
       });
       const service = new ConfigService(fs);
@@ -243,6 +251,10 @@ describe('ConfigService', () => {
       });
       expect(displayConfig['post-checkout']).toEqual({
         value: 'npm install',
+        isDefault: false,
+      });
+      expect(displayConfig['fetch-cache-ttl-seconds']).toEqual({
+        value: '600',
         isDefault: false,
       });
     });
@@ -319,6 +331,13 @@ describe('validateAndTransformConfigValue', () => {
     expect(validateAndTransformConfigValue('main-branch', 'main')).toBe('main');
     expect(validateAndTransformConfigValue('post-checkout', 'npm install')).toBe('npm install');
   });
+
+  it('should validate fetch-cache-ttl-seconds as non-negative integer', () => {
+    expect(validateAndTransformConfigValue('fetch-cache-ttl-seconds', '300')).toBe('300');
+    expect(validateAndTransformConfigValue('fetch-cache-ttl-seconds', '0')).toBe('0');
+    expect(() => validateAndTransformConfigValue('fetch-cache-ttl-seconds', '-1')).toThrow();
+    expect(() => validateAndTransformConfigValue('fetch-cache-ttl-seconds', 'abc')).toThrow();
+  });
 });
 
 describe('isValidKey', () => {
@@ -329,6 +348,7 @@ describe('isValidKey', () => {
     expect(isValidKey('tmux')).toBe(true);
     expect(isValidKey('main-branch')).toBe(true);
     expect(isValidKey('post-checkout')).toBe(true);
+    expect(isValidKey('fetch-cache-ttl-seconds')).toBe(true);
   });
 
   it('should return false for invalid keys', () => {

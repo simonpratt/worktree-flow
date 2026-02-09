@@ -12,6 +12,7 @@ export async function runStatus(
   useCases: UseCases,
   services: Services
 ): Promise<void> {
+  const { sourcePath } = services.config.getRequired();
   const config = services.config.load();
   const { workspacePath } = resolveWorkspace(
     branchName,
@@ -28,6 +29,13 @@ export async function runStatus(
     services.console.log('\nNo worktrees found in workspace.');
     return;
   }
+
+  // Fetch workspace repos
+  await useCases.fetchWorkspaceRepos.execute({
+    workspacePath,
+    sourcePath,
+    fetchCacheTtlSeconds: config.fetchCacheTtlSeconds,
+  });
 
   services.console.log('');
   services.console.log(`\nStatus (comparing against ${chalk.cyan(config.mainBranch)}):\n`);

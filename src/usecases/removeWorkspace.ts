@@ -2,7 +2,6 @@ import path from 'node:path';
 import type { WorkspaceDirectoryService } from '../lib/workspaceDirectory.js';
 import type { WorktreeService } from '../lib/worktree.js';
 import type { RepoService } from '../lib/repos.js';
-import type { FetchService } from '../lib/fetch.js';
 import type { StatusService } from '../lib/status.js';
 import type { TmuxService } from '../lib/tmux.js';
 import { WorkspaceHasIssuesError } from '../lib/errors.js';
@@ -34,7 +33,6 @@ export class RemoveWorkspaceUseCase {
     private workspaceDir: WorkspaceDirectoryService,
     private worktree: WorktreeService,
     private repos: RepoService,
-    private fetch: FetchService,
     private status: StatusService,
     private tmux: TmuxService
   ) {}
@@ -43,10 +41,8 @@ export class RemoveWorkspaceUseCase {
     const worktreeDirs = this.workspaceDir.getWorktreeDirs(params.workspacePath);
     const issuesFound: Array<{ repoName: string; issue: string }> = [];
 
-    // 1. Fetch and check status if worktrees exist
+    // 1. Check status if worktrees exist
     if (worktreeDirs.length > 0) {
-      await this.fetch.fetchRepos(worktreeDirs);
-
       const results = await this.status.checkAllWorktrees(
         worktreeDirs,
         params.mainBranch

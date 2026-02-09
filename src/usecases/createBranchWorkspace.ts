@@ -2,7 +2,6 @@ import path from 'node:path';
 import type { WorkspaceDirectoryService } from '../lib/workspaceDirectory.js';
 import type { WorktreeService } from '../lib/worktree.js';
 import { RepoService } from '../lib/repos.js';
-import type { FetchService } from '../lib/fetch.js';
 import type { ParallelService } from '../lib/parallel.js';
 import type { TmuxService } from '../lib/tmux.js';
 import type { PostCheckoutService } from '../lib/postCheckout.js';
@@ -29,30 +28,26 @@ export type CreateBranchWorkspaceResult = {
 
 /**
  * Use case for creating a workspace with new branches across multiple repos.
- * Orchestrates the entire workflow from fetching to post-checkout commands.
+ * Orchestrates the entire workflow from workspace creation to post-checkout commands.
  */
 export class CreateBranchWorkspaceUseCase {
   constructor(
     private workspaceDir: WorkspaceDirectoryService,
     private worktree: WorktreeService,
     private repos: RepoService,
-    private fetch: FetchService,
     private parallel: ParallelService,
     private tmux: TmuxService,
     private postCheckout: PostCheckoutService
   ) {}
 
   async execute(params: CreateBranchWorkspaceParams): Promise<CreateBranchWorkspaceResult> {
-    // 1. Fetch all repos
-    await this.fetch.fetchRepos(params.repos);
-
-    // 2. Create workspace directory
+    // 1. Create workspace directory
     const workspacePath = this.workspaceDir.createWorkspaceDir(
       params.destPath,
       params.branchName
     );
 
-    // 3. Create worktrees in parallel
+    // 2. Create worktrees in parallel
     const successCount = await this.parallel.processInParallel(
       params.repos,
       (repoPath) => RepoService.getRepoName(repoPath),
@@ -77,10 +72,10 @@ export class CreateBranchWorkspaceUseCase {
       }
     );
 
-    // 4. Copy AGENTS.md if exists
+    // 3. Copy AGENTS.md if exists
     this.workspaceDir.copyAgentsMd(params.sourcePath, workspacePath);
 
-    // 5. Create tmux session if enabled
+    // 4. Create tmux session if enabled
     let tmuxCreated = false;
     if (params.tmux) {
       try {
@@ -92,7 +87,7 @@ export class CreateBranchWorkspaceUseCase {
       }
     }
 
-    // 6. Run post-checkout command if configured
+    // 5. Run post-checkout command if configured
     let postCheckoutResult;
     if (params.postCheckout) {
       const worktreeDirs = this.workspaceDir.getWorktreeDirs(workspacePath);

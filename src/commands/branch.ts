@@ -54,6 +54,11 @@ export async function runBranch(
 
   services.console.log('\nCreating workspace...');
 
+  // Fetch all selected repos
+  await services.fetch.fetchRepos(selected, {
+    ttlSeconds: config.fetchCacheTtlSeconds,
+  });
+
   // Execute use case
   const result = await useCases.createBranchWorkspace.execute({
     repos: selected,

@@ -1,7 +1,5 @@
 import type { WorkspaceDirectoryService } from '../lib/workspaceDirectory.js';
-import type { FetchService } from '../lib/fetch.js';
 import type { StatusService, WorktreeStatus } from '../lib/status.js';
-import { collectWorkspaceRepos } from '../lib/workspaceReposCollector.js';
 
 export type ListWorkspacesWithStatusParams = {
   destPath: string;
@@ -24,12 +22,11 @@ export type ListWorkspacesWithStatusResult = {
 
 /**
  * Use case for listing all workspaces with their status information.
- * Fetches all repos and checks status for each workspace's worktrees.
+ * Checks status for each workspace's worktrees.
  */
 export class ListWorkspacesWithStatusUseCase {
   constructor(
     private workspaceDir: WorkspaceDirectoryService,
-    private fetch: FetchService,
     private status: StatusService
   ) {}
 
@@ -40,23 +37,11 @@ export class ListWorkspacesWithStatusUseCase {
       return { workspaces: [] };
     }
 
-    // Collect all worktree directories and unique source repos across all workspaces
-    const { uniqueSourceRepos, workspaceWorktrees } = collectWorkspaceRepos(
-      workspaces,
-      this.workspaceDir,
-      params.sourcePath
-    );
-
-    // Fetch all unique source repos once (silently to avoid UI jumping)
-    if (uniqueSourceRepos.length > 0) {
-      await this.fetch.fetchRepos(uniqueSourceRepos, { silent: true });
-    }
-
     // Check status and detect active workspace
     const workspacesWithStatus: WorkspaceWithStatus[] = [];
 
     for (const workspace of workspaces) {
-      const worktreeDirs = workspaceWorktrees.get(workspace.path);
+      const worktreeDirs = this.workspaceDir.getWorktreeDirs(workspace.path);
 
       // Skip workspaces with no worktrees
       if (!worktreeDirs || worktreeDirs.length === 0) {

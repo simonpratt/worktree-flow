@@ -2,12 +2,10 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import sinon from 'sinon';
 import { ListWorkspacesWithStatusUseCase } from '../listWorkspacesWithStatus.js';
 import type { WorkspaceDirectoryService } from '../../lib/workspaceDirectory.js';
-import type { FetchService } from '../../lib/fetch.js';
 import type { StatusService } from '../../lib/status.js';
 
 describe('ListWorkspacesWithStatusUseCase', () => {
   let workspaceDir: sinon.SinonStubbedInstance<WorkspaceDirectoryService>;
-  let fetch: sinon.SinonStubbedInstance<FetchService>;
   let status: sinon.SinonStubbedInstance<StatusService>;
   let useCase: ListWorkspacesWithStatusUseCase;
 
@@ -18,15 +16,11 @@ describe('ListWorkspacesWithStatusUseCase', () => {
       detectWorkspace: sinon.stub(),
     } as any;
 
-    fetch = {
-      fetchRepos: sinon.stub().resolves(),
-    } as any;
-
     status = {
       checkAllWorktrees: sinon.stub(),
     } as any;
 
-    useCase = new ListWorkspacesWithStatusUseCase(workspaceDir, fetch, status);
+    useCase = new ListWorkspacesWithStatusUseCase(workspaceDir, status);
   });
 
   it('should return empty array when no workspaces exist', async () => {
@@ -40,10 +34,9 @@ describe('ListWorkspacesWithStatusUseCase', () => {
     });
 
     expect(result.workspaces).toEqual([]);
-    sinon.assert.notCalled(fetch.fetchRepos);
   });
 
-  it('should fetch repos and check status for all workspaces', async () => {
+  it('should check status for all workspaces', async () => {
     workspaceDir.listWorkspaces.returns([
       { name: 'feature-a', path: '/dest/feature-a', repoCount: 2 },
     ]);
@@ -66,8 +59,6 @@ describe('ListWorkspacesWithStatusUseCase', () => {
       cwd: '/dest',
     });
 
-    sinon.assert.calledOnce(fetch.fetchRepos);
-    sinon.assert.calledWith(fetch.fetchRepos, ['/source/repo1', '/source/repo2']);
     sinon.assert.calledOnce(status.checkAllWorktrees);
 
     expect(result.workspaces).toHaveLength(1);
@@ -107,7 +98,7 @@ describe('ListWorkspacesWithStatusUseCase', () => {
     expect(result.workspaces[0].isActive).toBe(true);
   });
 
-  it('should deduplicate repos when multiple workspaces share same repos', async () => {
+  it('should handle multiple workspaces with same repo names', async () => {
     workspaceDir.listWorkspaces.returns([
       { name: 'feature-a', path: '/dest/feature-a', repoCount: 1 },
       { name: 'feature-b', path: '/dest/feature-b', repoCount: 1 },
@@ -127,16 +118,15 @@ describe('ListWorkspacesWithStatusUseCase', () => {
       { repoName: 'repo1', status: { type: 'clean', comparedTo: 'origin' } },
     ]);
 
-    await useCase.execute({
+    const result = await useCase.execute({
       destPath: '/dest',
       sourcePath: '/source',
       mainBranch: 'main',
       cwd: '/dest',
     });
 
-    // Should only fetch repo1 once even though it's in both workspaces
-    sinon.assert.calledOnce(fetch.fetchRepos);
-    sinon.assert.calledWith(fetch.fetchRepos, ['/source/repo1']);
+    // Should check status for each workspace separately
+    expect(result.workspaces).toHaveLength(2);
   });
 
   it('should skip workspaces with no worktrees', async () => {

@@ -56,7 +56,15 @@ export async function runList(useCases: UseCases, services: Services): Promise<v
   }
   services.console.log('');
 
-  // Phase 2: Fetch and check status
+  // Phase 2: Fetch repos used across all workspaces
+  await useCases.fetchUsedRepos.execute({
+    destPath,
+    sourcePath,
+    fetchCacheTtlSeconds: config.fetchCacheTtlSeconds,
+    silent: true,
+  });
+
+  // Phase 3: Check status for all workspaces
   const result = await useCases.listWorkspacesWithStatus.execute({
     destPath,
     sourcePath,
@@ -64,7 +72,7 @@ export async function runList(useCases: UseCases, services: Services): Promise<v
     cwd,
   });
 
-  // Phase 3: Clear previous output and re-print with status
+  // Phase 4: Clear previous output and re-print with status
   // Lines to clear:
   // - 2 lines from '\nWorkspaces:' (blank line + header)
   // - N workspace lines

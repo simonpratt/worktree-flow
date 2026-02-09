@@ -26,6 +26,12 @@ export async function runCheckout(
   services.console.log('\nChecking for branch...');
 
   try {
+    // Fetch all repos from source-path
+    await useCases.fetchAllRepos.execute({
+      sourcePath,
+      fetchCacheTtlSeconds: config.fetchCacheTtlSeconds,
+    });
+
     // Execute use case
     const result = await useCases.checkoutWorkspace.execute({
       branchName,

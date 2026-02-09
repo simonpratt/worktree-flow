@@ -12,6 +12,7 @@ const RawConfigSchema = z.object({
   'tmux': z.enum(['true', 'false']).optional(),
   'main-branch': z.string().optional(),
   'post-checkout': z.string().optional(),
+  'fetch-cache-ttl-seconds': z.string().optional(),
 });
 
 // Parsed config schema (with proper types)
@@ -22,6 +23,7 @@ const ParsedConfigSchema = z.object({
   tmux: z.boolean().default(false),
   mainBranch: z.string().default('master'),
   postCheckout: z.string().optional(),
+  fetchCacheTtlSeconds: z.number().default(300),
 });
 
 // Required config schema (for getRequired)
@@ -38,13 +40,20 @@ const ConfigValueSchemas = {
   'tmux': z.enum(['true', 'false']),
   'main-branch': z.string(),
   'post-checkout': z.string(),
+  'fetch-cache-ttl-seconds': z.string().refine(
+    (val) => {
+      const num = parseInt(val, 10);
+      return !isNaN(num) && num >= 0;
+    },
+    { message: 'Must be a non-negative integer' }
+  ),
 } as const;
 
 export type RawConfig = z.infer<typeof RawConfigSchema>;
 export type ParsedConfig = z.infer<typeof ParsedConfigSchema>;
 export type RequiredConfig = z.infer<typeof RequiredConfigSchema>;
 
-export const CONFIG_KEYS = ['source-path', 'dest-path', 'copy-files', 'tmux', 'main-branch', 'post-checkout'] as const;
+export const CONFIG_KEYS = ['source-path', 'dest-path', 'copy-files', 'tmux', 'main-branch', 'post-checkout', 'fetch-cache-ttl-seconds'] as const;
 export type ConfigKey = (typeof CONFIG_KEYS)[number];
 
 /**
@@ -98,6 +107,9 @@ export class ConfigService {
       tmux: raw.tmux === 'true',
       mainBranch: raw['main-branch'],
       postCheckout: raw['post-checkout'],
+      fetchCacheTtlSeconds: raw['fetch-cache-ttl-seconds']
+        ? parseInt(raw['fetch-cache-ttl-seconds'], 10)
+        : undefined,
     });
   }
 
@@ -151,6 +163,10 @@ export class ConfigService {
       'post-checkout': {
         value: raw['post-checkout'] ?? '(not set)',
         isDefault: !raw['post-checkout'],
+      },
+      'fetch-cache-ttl-seconds': {
+        value: raw['fetch-cache-ttl-seconds'] ?? `${config.fetchCacheTtlSeconds} (default)`,
+        isDefault: !raw['fetch-cache-ttl-seconds'],
       },
     };
   }

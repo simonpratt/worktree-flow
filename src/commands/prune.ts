@@ -16,6 +16,13 @@ export async function runPrune(
 
   services.console.log('Analyzing workspaces for pruning...\n');
 
+  // Fetch repos used across all workspaces
+  await useCases.fetchUsedRepos.execute({
+    destPath,
+    sourcePath,
+    fetchCacheTtlSeconds: config.fetchCacheTtlSeconds,
+  });
+
   // Analyze workspaces to find prunable ones
   const result = await useCases.discoverPrunableWorkspaces.execute({
     destPath,

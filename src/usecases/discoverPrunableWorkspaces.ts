@@ -1,9 +1,7 @@
 import type { WorkspaceDirectoryService } from '../lib/workspaceDirectory.js';
-import type { FetchService } from '../lib/fetch.js';
 import type { StatusService, WorktreeStatus } from '../lib/status.js';
 import type { GitService } from '../lib/git.js';
 import { StatusService as StatusServiceClass } from '../lib/status.js';
-import { collectWorkspaceRepos } from '../lib/workspaceReposCollector.js';
 
 export type DiscoverPrunableWorkspacesParams = {
   destPath: string;
@@ -31,7 +29,6 @@ export type DiscoverPrunableWorkspacesResult = {
 export class DiscoverPrunableWorkspacesUseCase {
   constructor(
     private workspaceDir: WorkspaceDirectoryService,
-    private fetch: FetchService,
     private status: StatusService,
     private git: GitService
   ) {}
@@ -41,23 +38,9 @@ export class DiscoverPrunableWorkspacesUseCase {
     const prunable: PrunableWorkspace[] = [];
     const cutoffDate = new Date(Date.now() - params.daysOld * 24 * 60 * 60 * 1000);
 
-    // Collect all worktree directories and unique source repos across all workspaces
-    const { uniqueSourceRepos, workspaceWorktrees } = collectWorkspaceRepos(
-      workspaces,
-      this.workspaceDir,
-      params.sourcePath
-    );
-
-    // Fetch all unique source repos once
-    // Since worktrees share the same git repository, fetching in one worktree
-    // updates the remote refs for all worktrees of that repository
-    if (uniqueSourceRepos.length > 0) {
-      await this.fetch.fetchRepos(uniqueSourceRepos);
-    }
-
-    // Now analyze each workspace
+    // Analyze each workspace
     for (const workspace of workspaces) {
-      const worktreeDirs = workspaceWorktrees.get(workspace.path);
+      const worktreeDirs = this.workspaceDir.getWorktreeDirs(workspace.path);
 
       // Skip workspaces with no worktrees
       if (!worktreeDirs || worktreeDirs.length === 0) {

@@ -10,6 +10,7 @@ import { WorkspaceDirectoryService } from './workspaceDirectory.js';
 import { WorktreeService } from './worktree.js';
 import { PostCheckoutService } from './postCheckout.js';
 import { FetchService } from './fetch.js';
+import { FetchCacheService } from './fetchCache.js';
 import { ParallelService } from './parallel.js';
 import { StatusService } from './status.js';
 import { TmuxService } from './tmux.js';
@@ -27,7 +28,8 @@ export function createServices() {
   const parallel = new ParallelService(console);
   const status = new StatusService(git);
   const tmux = new TmuxService(shell);
-  const fetch = new FetchService(git, console);
+  const fetchCache = new FetchCacheService(fs);
+  const fetch = new FetchService(git, console, fetchCache);
   const repos = new RepoService(fs, git);
   const postCheckout = new PostCheckoutService(shell);
 
@@ -43,6 +45,7 @@ export function createServices() {
     worktree,
     postCheckout,
     fetch,
+    fetchCache,
     parallel,
     status,
     tmux,

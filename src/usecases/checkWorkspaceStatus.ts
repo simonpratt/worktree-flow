@@ -1,5 +1,4 @@
 import type { WorkspaceDirectoryService } from '../lib/workspaceDirectory.js';
-import type { FetchService } from '../lib/fetch.js';
 import type { StatusService, WorktreeStatus } from '../lib/status.js';
 
 export type CheckWorkspaceStatusParams = {
@@ -17,14 +16,11 @@ export type CheckWorkspaceStatusResult = {
 export class CheckWorkspaceStatusUseCase {
   constructor(
     private workspaceDir: WorkspaceDirectoryService,
-    private fetch: FetchService,
     private status: StatusService
   ) {}
 
   async execute(params: CheckWorkspaceStatusParams): Promise<CheckWorkspaceStatusResult> {
     const worktreeDirs = this.workspaceDir.getWorktreeDirs(params.workspacePath);
-
-    await this.fetch.fetchRepos(worktreeDirs);
 
     const statuses = await this.status.checkAllWorktrees(
       worktreeDirs,

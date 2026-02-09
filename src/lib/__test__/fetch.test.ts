@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import sinon from 'sinon';
 import { FetchService } from '../fetch.js';
 import { GitService } from '../git.js';
+import { FetchCacheService } from '../fetchCache.js';
 import { createMockShell, createMockConsole } from '../../test/test-utils.js';
 
 describe('FetchService', () => {
@@ -9,6 +10,8 @@ describe('FetchService', () => {
   let console: sinon.SinonStubbedInstance<any>;
   let git: GitService;
   let gitStub: sinon.SinonStubbedInstance<GitService>;
+  let cache: FetchCacheService;
+  let cacheStub: sinon.SinonStubbedInstance<FetchCacheService>;
   let service: FetchService;
 
   beforeEach(() => {
@@ -16,7 +19,9 @@ describe('FetchService', () => {
     console = createMockConsole();
     git = new GitService(shell as any);
     gitStub = sinon.stub(git);
-    service = new FetchService(gitStub as any, console as any);
+    cache = new FetchCacheService({} as any);
+    cacheStub = sinon.stub(cache);
+    service = new FetchService(gitStub as any, console as any, cacheStub as any);
   });
 
   afterEach(() => {
@@ -26,6 +31,7 @@ describe('FetchService', () => {
   describe('fetchRepos', () => {
     it('should call git.fetch for each repo', async () => {
       gitStub.fetch.resolves();
+      cacheStub.filterReposToFetch.returnsArg(0); // Return all repos (no cache hits)
 
       await service.fetchRepos(['/repo1', '/repo2', '/repo3']);
 
@@ -37,6 +43,7 @@ describe('FetchService', () => {
 
     it('should write progress updates', async () => {
       gitStub.fetch.resolves();
+      cacheStub.filterReposToFetch.returnsArg(0);
 
       await service.fetchRepos(['/repo1', '/repo2']);
 
@@ -44,13 +51,15 @@ describe('FetchService', () => {
       sinon.assert.called(console.write);
       // Should have progress messages
       const progressWrites = console.write.getCalls().filter((call: sinon.SinonSpyCall) =>
-        call.args[0].includes('Fetching repos')
+        call.args[0].includes('Fetching')
       );
       expect(progressWrites.length).toBeGreaterThan(0);
     });
 
     it('should log final success message when all succeed', async () => {
       gitStub.fetch.resolves();
+      cacheStub.filterReposToFetch.returnsArg(0);
+      cacheStub.markFetched.returns();
 
       await service.fetchRepos(['/repo1', '/repo2', '/repo3']);
 
@@ -64,6 +73,8 @@ describe('FetchService', () => {
       gitStub.fetch.onFirstCall().resolves();
       gitStub.fetch.onSecondCall().rejects(new Error('Network error'));
       gitStub.fetch.onThirdCall().resolves();
+      cacheStub.filterReposToFetch.returnsArg(0);
+      cacheStub.markFetched.returns();
 
       await service.fetchRepos(['/repo1', '/repo2', '/repo3']);
 
@@ -76,6 +87,7 @@ describe('FetchService', () => {
 
     it('should show failed count when all fail', async () => {
       gitStub.fetch.rejects(new Error('Network error'));
+      cacheStub.filterReposToFetch.returnsArg(0);
 
       await service.fetchRepos(['/repo1', '/repo2']);
 
@@ -86,6 +98,8 @@ describe('FetchService', () => {
 
     it('should clear progress line before final message', async () => {
       gitStub.fetch.resolves();
+      cacheStub.filterReposToFetch.returnsArg(0);
+      cacheStub.markFetched.returns();
 
       await service.fetchRepos(['/repo1']);
 
@@ -113,6 +127,8 @@ describe('FetchService', () => {
         await new Promise(resolve => setTimeout(resolve, 10));
         currentlyRunning--;
       });
+      cacheStub.filterReposToFetch.returnsArg(0);
+      cacheStub.markFetched.returns();
 
       await service.fetchRepos(repos);
 
@@ -123,6 +139,8 @@ describe('FetchService', () => {
 
     it('should update progress percentage correctly', async () => {
       gitStub.fetch.resolves();
+      cacheStub.filterReposToFetch.returnsArg(0);
+      cacheStub.markFetched.returns();
 
       await service.fetchRepos(['/repo1', '/repo2']);
 
@@ -136,6 +154,78 @@ describe('FetchService', () => {
         call.args[0].includes('100%')
       );
       expect(hasHundredPercent).toBe(true);
+    });
+
+    it('should skip fetching when all repos are cached', async () => {
+      cacheStub.filterReposToFetch.returns([]); // All repos cached
+
+      await service.fetchRepos(['/repo1', '/repo2', '/repo3']);
+
+      sinon.assert.notCalled(gitStub.fetch);
+      sinon.assert.called(console.log);
+      const lastLog = console.log.lastCall.args[0];
+      expect(lastLog).toContain('All 3 repos up to date (cached)');
+    });
+
+    it('should show cached count when some repos are cached', async () => {
+      gitStub.fetch.resolves();
+      cacheStub.filterReposToFetch.returns(['/repo2']); // Only repo2 needs fetching
+      cacheStub.markFetched.returns();
+
+      await service.fetchRepos(['/repo1', '/repo2', '/repo3']);
+
+      expect(gitStub.fetch.callCount).toBe(1);
+      sinon.assert.calledWith(gitStub.fetch, '/repo2');
+
+      const lastLog = console.log.lastCall.args[0];
+      expect(lastLog).toContain('Fetched 1 repo');
+      expect(lastLog).toContain('2 cached');
+    });
+
+    it('should update cache after successful fetch', async () => {
+      gitStub.fetch.resolves();
+      cacheStub.filterReposToFetch.returnsArg(0);
+      cacheStub.markFetched.returns();
+
+      await service.fetchRepos(['/repo1', '/repo2']);
+
+      expect(cacheStub.markFetched.callCount).toBe(2);
+      sinon.assert.calledWith(cacheStub.markFetched, '/repo1');
+      sinon.assert.calledWith(cacheStub.markFetched, '/repo2');
+    });
+
+    it('should not update cache on fetch failure', async () => {
+      gitStub.fetch.onFirstCall().resolves();
+      gitStub.fetch.onSecondCall().rejects(new Error('Network error'));
+      cacheStub.filterReposToFetch.returnsArg(0);
+      cacheStub.markFetched.returns();
+
+      await service.fetchRepos(['/repo1', '/repo2']);
+
+      // Only successful fetch should update cache
+      expect(cacheStub.markFetched.callCount).toBe(1);
+      sinon.assert.calledWith(cacheStub.markFetched, '/repo1');
+      sinon.assert.neverCalledWith(cacheStub.markFetched, '/repo2');
+    });
+
+    it('should pass ttlSeconds to cache filter', async () => {
+      gitStub.fetch.resolves();
+      cacheStub.filterReposToFetch.returnsArg(0);
+      cacheStub.markFetched.returns();
+
+      await service.fetchRepos(['/repo1', '/repo2'], { ttlSeconds: 600 });
+
+      sinon.assert.calledWith(cacheStub.filterReposToFetch, ['/repo1', '/repo2'], 600);
+    });
+
+    it('should use default TTL of 300 when not specified', async () => {
+      gitStub.fetch.resolves();
+      cacheStub.filterReposToFetch.returnsArg(0);
+      cacheStub.markFetched.returns();
+
+      await service.fetchRepos(['/repo1', '/repo2']);
+
+      sinon.assert.calledWith(cacheStub.filterReposToFetch, ['/repo1', '/repo2'], 300);
     });
   });
 });

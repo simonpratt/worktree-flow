@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import sinon from 'sinon';
 import { DiscoverPrunableWorkspacesUseCase } from '../discoverPrunableWorkspaces.js';
 import type { WorkspaceDirectoryService } from '../../lib/workspaceDirectory.js';
-import type { FetchService } from '../../lib/fetch.js';
 import type { StatusService } from '../../lib/status.js';
 import type { GitService } from '../../lib/git.js';
 import type { WorktreeStatus } from '../../lib/status.js';
@@ -10,7 +9,6 @@ import type { WorktreeStatus } from '../../lib/status.js';
 describe('DiscoverPrunableWorkspacesUseCase', () => {
   let useCase: DiscoverPrunableWorkspacesUseCase;
   let workspaceDirStub: sinon.SinonStubbedInstance<WorkspaceDirectoryService>;
-  let fetchStub: sinon.SinonStubbedInstance<FetchService>;
   let statusStub: sinon.SinonStubbedInstance<StatusService>;
   let gitStub: sinon.SinonStubbedInstance<GitService>;
 
@@ -18,10 +16,6 @@ describe('DiscoverPrunableWorkspacesUseCase', () => {
     workspaceDirStub = {
       listWorkspaces: sinon.stub(),
       getWorktreeDirs: sinon.stub(),
-    } as any;
-
-    fetchStub = {
-      fetchRepos: sinon.stub().resolves(),
     } as any;
 
     statusStub = {
@@ -34,7 +28,6 @@ describe('DiscoverPrunableWorkspacesUseCase', () => {
 
     useCase = new DiscoverPrunableWorkspacesUseCase(
       workspaceDirStub as any,
-      fetchStub as any,
       statusStub as any,
       gitStub as any
     );
@@ -72,7 +65,6 @@ describe('DiscoverPrunableWorkspacesUseCase', () => {
     });
 
     expect(result.prunable).toEqual([]);
-    sinon.assert.notCalled(fetchStub.fetchRepos);
   });
 
   it('should include workspace when all worktrees have no issues and are old enough', async () => {
@@ -324,16 +316,9 @@ describe('DiscoverPrunableWorkspacesUseCase', () => {
       mainBranch: 'master',
       daysOld: 7,
     });
-
-    sinon.assert.callOrder(
-      fetchStub.fetchRepos,
-      statusStub.checkAllWorktrees
-    );
-    // Should fetch the source repo, not the worktree
-    sinon.assert.calledOnceWithExactly(fetchStub.fetchRepos, ['/source/repo1']);
   });
 
-  it('should fetch all repos from all workspaces only once', async () => {
+  it('should handle all repos from all workspaces', async () => {
     const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
 
     workspaceDirStub.listWorkspaces.returns([
@@ -354,19 +339,14 @@ describe('DiscoverPrunableWorkspacesUseCase', () => {
 
     gitStub.getLastCommitDate.resolves(tenDaysAgo);
 
-    await useCase.execute({
+    const result = await useCase.execute({
       destPath: '/dest',
       sourcePath: '/source',
       mainBranch: 'master',
       daysOld: 7,
     });
 
-    // Should only call fetch once with unique source repos
-    // Note: repo1 appears in both workspaces but should only be fetched once
-    sinon.assert.calledOnce(fetchStub.fetchRepos);
-    const fetchArgs = fetchStub.fetchRepos.firstCall.args[0];
-    expect(fetchArgs).toHaveLength(2); // Only 2 unique repos: repo1 and repo2
-    expect(fetchArgs).toContain('/source/repo1');
-    expect(fetchArgs).toContain('/source/repo2');
+    // Should analyze both workspaces
+    expect(result.prunable).toHaveLength(2);
   });
 });

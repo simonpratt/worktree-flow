@@ -30,7 +30,11 @@ export async function runRemove(
 
   // Display status check if worktrees exist
   if (worktreeDirs.length > 0) {
-    await services.fetch.fetchRepos(worktreeDirs);
+    await useCases.fetchWorkspaceRepos.execute({
+      workspacePath,
+      sourcePath,
+      fetchCacheTtlSeconds: config.fetchCacheTtlSeconds,
+    });
 
     services.console.log(`\nChecking for uncommitted changes and commits ahead of ${config.mainBranch}...`);
     const results = await services.status.checkAllWorktrees(worktreeDirs, config.mainBranch);
