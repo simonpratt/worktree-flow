@@ -61,6 +61,18 @@ export function registerConfigCommand(program: Command): void {
         const displayValue = isDefault ? chalk.gray(value) : chalk.green(value);
         services.console.log(`  ${chalk.cyan(key)}: ${displayValue}`);
       }
+
+      // Display per-repo post-checkout commands
+      const perRepoCommands = displayConfig.perRepoPostCheckout;
+      if (Object.keys(perRepoCommands).length > 0) {
+        services.console.log('');
+        services.console.log(chalk.bold('Per-repo post-checkout commands:'));
+        services.console.log('');
+        for (const [repo, command] of Object.entries(perRepoCommands)) {
+          services.console.log(`  ${chalk.cyan(repo)}: ${chalk.green(command)}`);
+        }
+      }
+
       services.console.log('');
     });
 }

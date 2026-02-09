@@ -138,7 +138,9 @@ export class ConfigService {
   /**
    * Get config display values (formatted for CLI output)
    */
-  getDisplayConfig(): Record<ConfigKey, { value: string; isDefault: boolean }> {
+  getDisplayConfig(): Record<ConfigKey, { value: string; isDefault: boolean }> & {
+    perRepoPostCheckout: Record<string, string>;
+  } {
     const raw = this.loadRaw();
     const config = this.load();
 
@@ -171,6 +173,7 @@ export class ConfigService {
         value: raw['fetch-cache-ttl-seconds'] ?? `${config.fetchCacheTtlSeconds} (default)`,
         isDefault: !raw['fetch-cache-ttl-seconds'],
       },
+      perRepoPostCheckout: config.perRepoPostCheckout,
     };
   }
 }

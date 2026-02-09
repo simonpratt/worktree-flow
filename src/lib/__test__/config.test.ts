@@ -336,6 +336,41 @@ describe('ConfigService', () => {
         isDefault: true,
       });
     });
+
+    it('should include per-repo post-checkout commands', () => {
+      const { fs } = createMemFs({
+        [configPath]: JSON.stringify({
+          'source-path': '/home/user/repos',
+          'dest-path': '/home/user/workspaces',
+          'per-repo-post-checkout': {
+            'repo1': 'npm install',
+            'repo2': 'yarn install',
+          },
+        }),
+      });
+      const service = new ConfigService(fs);
+
+      const displayConfig = service.getDisplayConfig();
+
+      expect(displayConfig.perRepoPostCheckout).toEqual({
+        repo1: 'npm install',
+        repo2: 'yarn install',
+      });
+    });
+
+    it('should include empty object for per-repo post-checkout when not set', () => {
+      const { fs } = createMemFs({
+        [configPath]: JSON.stringify({
+          'source-path': '/home/user/repos',
+          'dest-path': '/home/user/workspaces',
+        }),
+      });
+      const service = new ConfigService(fs);
+
+      const displayConfig = service.getDisplayConfig();
+
+      expect(displayConfig.perRepoPostCheckout).toEqual({});
+    });
   });
 });
 
