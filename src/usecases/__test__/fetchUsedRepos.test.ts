@@ -47,7 +47,7 @@ describe('FetchUsedReposUseCase', () => {
     sinon.assert.calledWith(
       fetch.fetchRepos,
       ['/source/repo1', '/source/repo2'],
-      { silent: true, ttlSeconds: 300 }
+      { silent: false, ttlSeconds: 300 }
     );
   });
 
@@ -61,10 +61,10 @@ describe('FetchUsedReposUseCase', () => {
     });
 
     sinon.assert.calledOnce(fetch.fetchRepos);
-    sinon.assert.calledWith(fetch.fetchRepos, [], { silent: true, ttlSeconds: 300 });
+    sinon.assert.calledWith(fetch.fetchRepos, [], { silent: false, ttlSeconds: 300 });
   });
 
-  it('should fetch with silent=true to avoid UI jumping', async () => {
+  it('should default to silent=false when not specified', async () => {
     workspaceDir.listWorkspaces.withArgs('/dest').returns([
       { name: 'feature-a', path: '/dest/feature-a', repoCount: 1 },
     ]);
@@ -77,6 +77,26 @@ describe('FetchUsedReposUseCase', () => {
       destPath: '/dest',
       sourcePath: '/source',
       fetchCacheTtlSeconds: 300,
+    });
+
+    const callArgs = fetch.fetchRepos.firstCall.args[1];
+    expect(callArgs?.silent).toBe(false);
+  });
+
+  it('should respect silent=true when explicitly passed', async () => {
+    workspaceDir.listWorkspaces.withArgs('/dest').returns([
+      { name: 'feature-a', path: '/dest/feature-a', repoCount: 1 },
+    ]);
+
+    workspaceDir.getWorktreeDirs
+      .withArgs('/dest/feature-a')
+      .returns(['/dest/feature-a/repo1']);
+
+    await useCase.execute({
+      destPath: '/dest',
+      sourcePath: '/source',
+      fetchCacheTtlSeconds: 300,
+      silent: true,
     });
 
     const callArgs = fetch.fetchRepos.firstCall.args[1];
@@ -98,7 +118,7 @@ describe('FetchUsedReposUseCase', () => {
     sinon.assert.calledWith(
       fetch.fetchRepos,
       ['/source/repo1'],
-      { silent: true, ttlSeconds: 0 }
+      { silent: false, ttlSeconds: 0 }
     );
   });
 
@@ -130,7 +150,7 @@ describe('FetchUsedReposUseCase', () => {
     });
 
     sinon.assert.calledOnce(fetch.fetchRepos);
-    sinon.assert.calledWith(fetch.fetchRepos, [], { silent: true, ttlSeconds: 300 });
+    sinon.assert.calledWith(fetch.fetchRepos, [], { silent: false, ttlSeconds: 300 });
   });
 
   it('should deduplicate repos across multiple workspaces', async () => {
@@ -162,7 +182,7 @@ describe('FetchUsedReposUseCase', () => {
     sinon.assert.calledWith(
       fetch.fetchRepos,
       ['/source/repo1', '/source/repo2', '/source/repo3'],
-      { silent: true, ttlSeconds: 300 }
+      { silent: false, ttlSeconds: 300 }
     );
   });
 });

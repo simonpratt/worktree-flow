@@ -36,7 +36,7 @@ describe('FetchWorkspaceReposUseCase', () => {
     sinon.assert.calledWith(
       fetch.fetchRepos,
       ['/source/repo1', '/source/repo2'],
-      { silent: true, ttlSeconds: 300 }
+      { silent: false, ttlSeconds: 300 }
     );
   });
 
@@ -51,16 +51,30 @@ describe('FetchWorkspaceReposUseCase', () => {
 
     // Should still call fetchRepos with empty array
     sinon.assert.calledOnce(fetch.fetchRepos);
-    sinon.assert.calledWith(fetch.fetchRepos, [], { silent: true, ttlSeconds: 300 });
+    sinon.assert.calledWith(fetch.fetchRepos, [], { silent: false, ttlSeconds: 300 });
   });
 
-  it('should fetch with silent=true to avoid UI jumping', async () => {
+  it('should default to silent=false when not specified', async () => {
     workspaceDir.getWorktreeDirs.returns(['/dest/ws/repo1']);
 
     await useCase.execute({
       workspacePath: '/dest/ws',
       sourcePath: '/source',
       fetchCacheTtlSeconds: 300,
+    });
+
+    const callArgs = fetch.fetchRepos.firstCall.args[1];
+    expect(callArgs?.silent).toBe(false);
+  });
+
+  it('should respect silent=true when explicitly passed', async () => {
+    workspaceDir.getWorktreeDirs.returns(['/dest/ws/repo1']);
+
+    await useCase.execute({
+      workspacePath: '/dest/ws',
+      sourcePath: '/source',
+      fetchCacheTtlSeconds: 300,
+      silent: true,
     });
 
     const callArgs = fetch.fetchRepos.firstCall.args[1];
@@ -79,7 +93,7 @@ describe('FetchWorkspaceReposUseCase', () => {
     sinon.assert.calledWith(
       fetch.fetchRepos,
       ['/source/repo1'],
-      { silent: true, ttlSeconds: 0 }
+      { silent: false, ttlSeconds: 0 }
     );
   });
 
@@ -101,7 +115,7 @@ describe('FetchWorkspaceReposUseCase', () => {
     sinon.assert.calledWith(
       fetch.fetchRepos,
       ['/source/repo1', '/source/repo2'],
-      { silent: true, ttlSeconds: 300 }
+      { silent: false, ttlSeconds: 300 }
     );
   });
 
