@@ -86,6 +86,12 @@ Remove a workspace and all its worktrees. Fetches latest, checks for uncommitted
 
 Remove stale workspaces in bulk. Finds workspaces where all worktrees are clean, fully merged, and haven't been committed to in over 7 days.
 
+### `flow tmux resume`
+
+Create tmux sessions for all workspaces that don't already have one. Each session is created with split panes (one for the workspace root and one for each worktree) using a tiled layout. Skips workspaces that already have active sessions.
+
+Requires `tmux` to be installed and the `tmux` config option to be enabled.
+
 ### `flow config set <key> <value>`
 
 Configure flow settings. See [Configuration](#configuration) below.

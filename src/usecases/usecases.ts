@@ -10,6 +10,7 @@ import { ListWorkspacesWithStatusUseCase } from './listWorkspacesWithStatus.js';
 import { FetchAllReposUseCase } from './fetchAllRepos.js';
 import { FetchWorkspaceReposUseCase } from './fetchWorkspaceRepos.js';
 import { FetchUsedReposUseCase } from './fetchUsedRepos.js';
+import { ResumeTmuxSessionsUseCase } from './resumeTmuxSessions.js';
 
 /**
  * Factory function for creating all use cases with their service dependencies.
@@ -71,6 +72,10 @@ export function createUseCases(services: Services) {
     listWorkspacesWithStatus: new ListWorkspacesWithStatusUseCase(
       services.workspaceDir,
       services.status
+    ),
+    resumeTmuxSessions: new ResumeTmuxSessionsUseCase(
+      services.workspaceDir,
+      services.tmux
     ),
   };
 }

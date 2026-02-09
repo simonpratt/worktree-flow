@@ -10,6 +10,7 @@ import { registerRemoveCommand } from './commands/remove.js';
 import { registerStatusCommand } from './commands/status.js';
 import { registerPruneCommand } from './commands/prune.js';
 import { registerFetchCommand } from './commands/fetch.js';
+import { registerTmuxCommand } from './commands/tmux.js';
 
 const program = new Command();
 
@@ -28,5 +29,6 @@ registerRemoveCommand(program);
 registerStatusCommand(program);
 registerPruneCommand(program);
 registerFetchCommand(program);
+registerTmuxCommand(program);
 
 program.parse();
