@@ -81,4 +81,49 @@ describe('branch integration', () => {
       })
     ).rejects.toThrow(WorkspaceAlreadyExistsError);
   });
+
+  it('should run per-repo post-checkout commands, falling back to global', async () => {
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+    const repo2 = await initGitRepo(sourcePath, 'repo2');
+    const repo3 = await initGitRepo(sourcePath, 'repo3');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+
+    // Configure post-checkout commands
+    integration.services.config.load = sinon.stub().returns({
+      sourcePath,
+      destPath,
+      copyFiles: '.env',
+      tmux: false,
+      mainBranch: 'master',
+      postCheckout: 'echo "global" > postcheckout.txt',
+      perRepoPostCheckout: {
+        repo1: 'echo "repo1-custom" > postcheckout.txt',
+        repo2: 'echo "repo2-custom" > postcheckout.txt',
+      },
+      fetchCacheTtlSeconds: 300,
+    });
+
+    const checkboxStub = sinon.stub().resolves([repo1, repo2, repo3]);
+    confirmStub.resolves(true); // Confirm running post-checkout
+
+    await runBranch('feature-test', integration.useCases, integration.services, {
+      checkbox: checkboxStub,
+      input: inputStub,
+      confirm: confirmStub,
+    });
+
+    // Verify post-checkout ran with per-repo overrides
+    const wt1 = path.join(destPath, 'feature-test', 'repo1');
+    const wt2 = path.join(destPath, 'feature-test', 'repo2');
+    const wt3 = path.join(destPath, 'feature-test', 'repo3');
+
+    const content1 = fs.readFileSync(path.join(wt1, 'postcheckout.txt'), 'utf-8').trim();
+    const content2 = fs.readFileSync(path.join(wt2, 'postcheckout.txt'), 'utf-8').trim();
+    const content3 = fs.readFileSync(path.join(wt3, 'postcheckout.txt'), 'utf-8').trim();
+
+    expect(content1).toBe('repo1-custom'); // Per-repo override
+    expect(content2).toBe('repo2-custom'); // Per-repo override
+    expect(content3).toBe('global'); // Global fallback
+  });
 });

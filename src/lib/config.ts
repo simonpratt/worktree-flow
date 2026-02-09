@@ -13,6 +13,7 @@ const RawConfigSchema = z.object({
   'main-branch': z.string().optional(),
   'post-checkout': z.string().optional(),
   'fetch-cache-ttl-seconds': z.string().optional(),
+  'per-repo-post-checkout': z.record(z.string(), z.string()).optional(),
 });
 
 // Parsed config schema (with proper types)
@@ -24,6 +25,7 @@ const ParsedConfigSchema = z.object({
   mainBranch: z.string().default('master'),
   postCheckout: z.string().optional(),
   fetchCacheTtlSeconds: z.number().default(300),
+  perRepoPostCheckout: z.record(z.string(), z.string()).default({}),
 });
 
 // Required config schema (for getRequired)
@@ -110,6 +112,7 @@ export class ConfigService {
       fetchCacheTtlSeconds: raw['fetch-cache-ttl-seconds']
         ? parseInt(raw['fetch-cache-ttl-seconds'], 10)
         : undefined,
+      perRepoPostCheckout: raw['per-repo-post-checkout'],
     });
   }
 

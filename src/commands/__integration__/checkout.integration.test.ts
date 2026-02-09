@@ -104,4 +104,47 @@ describe('checkout integration', () => {
     expect(fs.existsSync(agentsMd)).toBe(true);
     expect(fs.readFileSync(agentsMd, 'utf-8')).toBe('# Agents\nDo stuff.\n');
   });
+
+  it('should run per-repo post-checkout commands, falling back to global', async () => {
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+    const repo2 = await initGitRepo(sourcePath, 'repo2');
+    const repo3 = await initGitRepo(sourcePath, 'repo3');
+    await createRemoteBranchRef(repo1, 'feature');
+    await createRemoteBranchRef(repo2, 'feature');
+    await createRemoteBranchRef(repo3, 'feature');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+
+    // Configure post-checkout commands
+    integration.services.config.load = sinon.stub().returns({
+      sourcePath,
+      destPath,
+      copyFiles: '.env',
+      tmux: false,
+      mainBranch: 'master',
+      postCheckout: 'echo "global" > postcheckout.txt',
+      perRepoPostCheckout: {
+        repo1: 'echo "repo1-custom" > postcheckout.txt',
+        repo3: 'echo "repo3-custom" > postcheckout.txt',
+      },
+      fetchCacheTtlSeconds: 300,
+    });
+
+    confirmStub.resolves(true); // Confirm running post-checkout
+
+    await runCheckout('feature', integration.useCases, integration.services, { confirm: confirmStub });
+
+    // Verify post-checkout ran with per-repo overrides
+    const wt1 = path.join(destPath, 'feature', 'repo1');
+    const wt2 = path.join(destPath, 'feature', 'repo2');
+    const wt3 = path.join(destPath, 'feature', 'repo3');
+
+    const content1 = fs.readFileSync(path.join(wt1, 'postcheckout.txt'), 'utf-8').trim();
+    const content2 = fs.readFileSync(path.join(wt2, 'postcheckout.txt'), 'utf-8').trim();
+    const content3 = fs.readFileSync(path.join(wt3, 'postcheckout.txt'), 'utf-8').trim();
+
+    expect(content1).toBe('repo1-custom'); // Per-repo override
+    expect(content2).toBe('global'); // Global fallback
+    expect(content3).toBe('repo3-custom'); // Per-repo override
+  });
 });

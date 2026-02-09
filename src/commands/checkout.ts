@@ -40,6 +40,7 @@ export async function runCheckout(
       copyFiles: config.copyFiles,
       tmux: config.tmux,
       postCheckout: shouldRunPostCheckout ? config.postCheckout : undefined,
+      perRepoPostCheckout: shouldRunPostCheckout ? config.perRepoPostCheckout: {},
     });
 
     // Display branch check results

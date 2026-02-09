@@ -89,6 +89,7 @@ describe('ConfigService', () => {
         mainBranch: 'master',
         fetchCacheTtlSeconds: 300,
         postCheckout: undefined,
+        perRepoPostCheckout: {},
       });
     });
 
@@ -111,6 +112,7 @@ describe('ConfigService', () => {
         mainBranch: 'master',
         fetchCacheTtlSeconds: 300,
         postCheckout: undefined,
+        perRepoPostCheckout: {},
       });
     });
 
@@ -153,6 +155,34 @@ describe('ConfigService', () => {
       expect(config.copyFiles).toBe('.env,.env.local');
       expect(config.postCheckout).toBe('npm install');
       expect(config.fetchCacheTtlSeconds).toBe(600);
+    });
+
+    it('should load per-repo post-checkout commands', () => {
+      const { fs } = createMemFs({
+        [configPath]: JSON.stringify({
+          'per-repo-post-checkout': {
+            'repo1': 'npm install && npm run build',
+            'repo2': 'yarn install',
+          },
+        }),
+      });
+      const service = new ConfigService(fs);
+
+      const config = service.load();
+
+      expect(config.perRepoPostCheckout).toEqual({
+        repo1: 'npm install && npm run build',
+        repo2: 'yarn install',
+      });
+    });
+
+    it('should default to empty object for per-repo post-checkout when not set', () => {
+      const { fs } = createMemFs();
+      const service = new ConfigService(fs);
+
+      const config = service.load();
+
+      expect(config.perRepoPostCheckout).toEqual({});
     });
   });
 

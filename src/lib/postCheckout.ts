@@ -1,3 +1,4 @@
+import path from 'node:path';
 import type { IShell } from '../adapters/types.js';
 
 /**
@@ -8,14 +9,23 @@ export class PostCheckoutService {
 
   async runCommand(
     worktreeDirs: string[],
-    command: string
+    globalCommand: string | undefined,
+    perRepoCommands: Record<string, string>
   ): Promise<{ successCount: number; totalCount: number }> {
-    let successCount = 0;
+    // Determine command for each worktree (per-repo overrides global)
+    const commandsToRun = worktreeDirs
+      .map((dir) => {
+        const repoName = path.basename(dir);
+        const command = perRepoCommands[repoName] ?? globalCommand;
+        return command ? { dir, command } : null;
+      })
+      .filter((x): x is { dir: string; command: string } => x !== null);
 
+    let successCount = 0;
     await Promise.allSettled(
-      worktreeDirs.map(async (worktreeDir) => {
+      commandsToRun.map(async ({ dir, command }) => {
         try {
-          await this.shell.execFile('sh', ['-c', command], { cwd: worktreeDir });
+          await this.shell.execFile('sh', ['-c', command], { cwd: dir });
           successCount++;
         } catch {
           // Error handled by caller
@@ -23,6 +33,6 @@ export class PostCheckoutService {
       })
     );
 
-    return { successCount, totalCount: worktreeDirs.length };
+    return { successCount, totalCount: commandsToRun.length };
   }
 }

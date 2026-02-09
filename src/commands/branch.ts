@@ -69,6 +69,7 @@ export async function runBranch(
     copyFiles: config.copyFiles,
     tmux: config.tmux,
     postCheckout: shouldRunPostCheckout ? config.postCheckout : undefined,
+    perRepoPostCheckout: shouldRunPostCheckout ? config.perRepoPostCheckout: {},
   });
 
   // Display results

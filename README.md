@@ -101,6 +101,23 @@ Settings are stored in `~/.config/flow/config.json`.
 | `tmux` | Create tmux sessions with split panes (root + each worktree) | `false` |
 | `copy-files` | Files to copy from source repos to worktrees | `.env` |
 | `post-checkout` | Command to run after checkout (e.g. `npm ci`) | *none* |
+| `per-repo-post-checkout` | Per-repo commands (see below) | `{}` |
+
+### Per-repo post-checkout commands
+
+Configure different commands for specific repos by editing `~/.config/flow/config.json`:
+
+```json
+{
+  "post-checkout": "npm ci",
+  "per-repo-post-checkout": {
+    "api-service": "npm ci && npm run build",
+    "frontend": "yarn install"
+  }
+}
+```
+
+Repos with per-repo commands use those; others fall back to the global `post-checkout` command.
 
 ## AGENTS.md
 

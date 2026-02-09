@@ -15,6 +15,7 @@ export type CreateBranchWorkspaceParams = {
   copyFiles?: string;
   tmux: boolean;
   postCheckout?: string;
+  perRepoPostCheckout?: Record<string, string>;
 };
 
 export type CreateBranchWorkspaceResult = {
@@ -89,11 +90,12 @@ export class CreateBranchWorkspaceUseCase {
 
     // 5. Run post-checkout command if configured
     let postCheckoutResult;
-    if (params.postCheckout) {
+    if (params.postCheckout || params.perRepoPostCheckout) {
       const worktreeDirs = this.workspaceDir.getWorktreeDirs(workspacePath);
       postCheckoutResult = await this.postCheckout.runCommand(
         worktreeDirs,
-        params.postCheckout
+        params.postCheckout,
+        params.perRepoPostCheckout ?? {}
       );
     }
 

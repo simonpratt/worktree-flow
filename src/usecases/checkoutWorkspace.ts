@@ -14,6 +14,7 @@ export type CheckoutWorkspaceParams = {
   copyFiles?: string;
   tmux: boolean;
   postCheckout?: string;
+  perRepoPostCheckout?: Record<string, string>;
 };
 
 export type CheckoutWorkspaceResult = {
@@ -105,11 +106,12 @@ export class CheckoutWorkspaceUseCase {
 
     // 7. Run post-checkout if configured
     let postCheckoutResult;
-    if (params.postCheckout) {
+    if (params.postCheckout || params.perRepoPostCheckout) {
       const worktreeDirs = this.workspaceDir.getWorktreeDirs(workspacePath);
       postCheckoutResult = await this.postCheckout.runCommand(
         worktreeDirs,
-        params.postCheckout
+        params.postCheckout,
+        params.perRepoPostCheckout ?? {}
       );
     }
 
