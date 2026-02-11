@@ -1,7 +1,9 @@
 import path from 'node:path';
 import type { WorkspaceDirectoryService } from '../lib/workspaceDirectory.js';
+import type { WorkspaceConfigService } from '../lib/workspaceConfig.js';
 import type { WorktreeService } from '../lib/worktree.js';
 import { RepoService, type RepoBranchCheckResult } from '../lib/repos.js';
+import type { GitService } from '../lib/git.js';
 import type { ParallelService } from '../lib/parallel.js';
 import type { TmuxService } from '../lib/tmux.js';
 import type { PostCheckoutService } from '../lib/postCheckout.js';
@@ -35,8 +37,10 @@ export type CheckoutWorkspaceResult = {
 export class CheckoutWorkspaceUseCase {
   constructor(
     private workspaceDir: WorkspaceDirectoryService,
+    private workspaceConfig: WorkspaceConfigService,
     private worktree: WorktreeService,
     private repos: RepoService,
+    private git: GitService,
     private parallel: ParallelService,
     private tmux: TmuxService,
     private postCheckout: PostCheckoutService
@@ -92,7 +96,21 @@ export class CheckoutWorkspaceUseCase {
     // 5. Copy AGENTS.md
     this.workspaceDir.copyAgentsMd(params.sourcePath, workspacePath);
 
-    // 6. Create tmux session if enabled
+    // 6. Detect base branches for each repo
+    const baseBranches: Record<string, string> = {};
+    for (const repoPath of matching) {
+      const repoName = RepoService.getRepoName(repoPath);
+      const baseBranch = await this.git.findFirstExistingBranch(
+        repoPath,
+        ['master', 'main', 'trunk', 'develop']
+      );
+      baseBranches[repoName] = baseBranch || 'master';
+    }
+
+    // 7. Save workspace config with base branches
+    this.workspaceConfig.save(workspacePath, { baseBranches });
+
+    // 8. Create tmux session if enabled
     let tmuxCreated = false;
     if (params.tmux) {
       try {
@@ -104,7 +122,7 @@ export class CheckoutWorkspaceUseCase {
       }
     }
 
-    // 7. Run post-checkout if configured
+    // 9. Run post-checkout if configured
     let postCheckoutResult;
     if (params.postCheckout || params.perRepoPostCheckout) {
       const worktreeDirs = this.workspaceDir.getWorktreeDirs(workspacePath);

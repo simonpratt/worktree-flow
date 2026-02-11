@@ -2,10 +2,12 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import sinon from 'sinon';
 import { ListWorkspacesWithStatusUseCase } from '../listWorkspacesWithStatus.js';
 import type { WorkspaceDirectoryService } from '../../lib/workspaceDirectory.js';
+import type { WorkspaceConfigService } from '../../lib/workspaceConfig.js';
 import type { StatusService } from '../../lib/status.js';
 
 describe('ListWorkspacesWithStatusUseCase', () => {
   let workspaceDir: sinon.SinonStubbedInstance<WorkspaceDirectoryService>;
+  let workspaceConfig: sinon.SinonStubbedInstance<WorkspaceConfigService>;
   let status: sinon.SinonStubbedInstance<StatusService>;
   let useCase: ListWorkspacesWithStatusUseCase;
 
@@ -16,11 +18,15 @@ describe('ListWorkspacesWithStatusUseCase', () => {
       detectWorkspace: sinon.stub(),
     } as any;
 
+    workspaceConfig = {
+      load: sinon.stub().returns({ baseBranches: {} }),
+    } as any;
+
     status = {
       checkAllWorktrees: sinon.stub(),
     } as any;
 
-    useCase = new ListWorkspacesWithStatusUseCase(workspaceDir, status);
+    useCase = new ListWorkspacesWithStatusUseCase(workspaceDir, workspaceConfig, status);
   });
 
   it('should return empty array when no workspaces exist', async () => {
@@ -29,7 +35,6 @@ describe('ListWorkspacesWithStatusUseCase', () => {
     const result = await useCase.execute({
       destPath: '/dest',
       sourcePath: '/source',
-      mainBranch: 'main',
       cwd: '/dest',
     });
 
@@ -55,7 +60,6 @@ describe('ListWorkspacesWithStatusUseCase', () => {
     const result = await useCase.execute({
       destPath: '/dest',
       sourcePath: '/source',
-      mainBranch: 'main',
       cwd: '/dest',
     });
 
@@ -91,7 +95,6 @@ describe('ListWorkspacesWithStatusUseCase', () => {
     const result = await useCase.execute({
       destPath: '/dest',
       sourcePath: '/source',
-      mainBranch: 'main',
       cwd: '/dest/feature-a/repo1',
     });
 
@@ -121,7 +124,6 @@ describe('ListWorkspacesWithStatusUseCase', () => {
     const result = await useCase.execute({
       destPath: '/dest',
       sourcePath: '/source',
-      mainBranch: 'main',
       cwd: '/dest',
     });
 
@@ -139,7 +141,6 @@ describe('ListWorkspacesWithStatusUseCase', () => {
     const result = await useCase.execute({
       destPath: '/dest',
       sourcePath: '/source',
-      mainBranch: 'main',
       cwd: '/dest',
     });
 
@@ -164,17 +165,16 @@ describe('ListWorkspacesWithStatusUseCase', () => {
     workspaceDir.detectWorkspace.returns(null);
 
     status.checkAllWorktrees
-      .withArgs(['/dest/clean-workspace/repo1'], 'main')
+      .onFirstCall()
       .resolves([{ repoName: 'repo1', status: { type: 'clean', comparedTo: 'main' } }]);
 
     status.checkAllWorktrees
-      .withArgs(['/dest/dirty-workspace/repo2'], 'main')
+      .onSecondCall()
       .resolves([{ repoName: 'repo2', status: { type: 'uncommitted' } }]);
 
     const result = await useCase.execute({
       destPath: '/dest',
       sourcePath: '/source',
-      mainBranch: 'main',
       cwd: '/dest',
     });
 

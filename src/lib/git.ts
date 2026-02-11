@@ -31,6 +31,17 @@ export class GitService {
     }
   }
 
+  async findFirstExistingBranch(
+    repoPath: string,
+    candidates: string[]
+  ): Promise<string | null> {
+    for (const branch of candidates) {
+      const exists = await this.localRemoteBranchExists(repoPath, branch);
+      if (exists) return branch;
+    }
+    return null;
+  }
+
   async addWorktreeNewBranch(
     repoPath: string,
     worktreePath: string,

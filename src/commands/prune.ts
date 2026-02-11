@@ -27,7 +27,6 @@ export async function runPrune(
   const result = await useCases.discoverPrunableWorkspaces.execute({
     destPath,
     sourcePath,
-    mainBranch: config.mainBranch,
     daysOld: 7,
   });
 
@@ -35,7 +34,7 @@ export async function runPrune(
     services.console.log('No workspaces to prune.');
     services.console.log(`\nWorkspaces are prunable when:`);
     services.console.log(`  - All worktrees have no uncommitted changes`);
-    services.console.log(`  - All worktrees are not ahead of ${config.mainBranch}`);
+    services.console.log(`  - All worktrees are not ahead of their base branch`);
     services.console.log(`  - Last commit is more than 7 days old`);
     services.process.exit(0);
   }
@@ -79,7 +78,6 @@ export async function runPrune(
         workspacePath: workspace.path,
         branchName: workspace.name,
         sourcePath,
-        mainBranch: config.mainBranch,
         tmux: config.tmux,
       });
 

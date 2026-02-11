@@ -112,7 +112,7 @@ describe('StatusService', () => {
 
       const results = await service.checkAllWorktrees(
         ['/workspace/repo1', '/workspace/repo2'],
-        'master'
+        () => 'master'
       );
 
       expect(results).toHaveLength(2);
@@ -132,7 +132,7 @@ describe('StatusService', () => {
 
       const results = await service.checkAllWorktrees(
         ['/long/path/to/workspace/my-repo'],
-        'main'
+        () => 'main'
       );
 
       expect(results[0].repoName).toBe('my-repo');
@@ -145,7 +145,7 @@ describe('StatusService', () => {
 
       const results = await service.checkAllWorktrees(
         ['/workspace/repo1', '/workspace/repo2'],
-        'master'
+        () => 'master'
       );
 
       expect(results).toHaveLength(2);
@@ -155,10 +155,30 @@ describe('StatusService', () => {
     });
 
     it('should return empty array for empty worktree list', async () => {
-      const results = await service.checkAllWorktrees([], 'master');
+      const results = await service.checkAllWorktrees([], () => 'master');
 
       expect(results).toEqual([]);
       sinon.assert.notCalled(gitStub.hasUncommittedChanges);
+    });
+
+    it('should call getBaseBranch with correct repo name', async () => {
+      gitStub.hasUncommittedChanges.resolves(false);
+      gitStub.isAheadOfMain.onFirstCall().resolves(false);
+      gitStub.isAheadOfMain.onSecondCall().resolves(false);
+
+      const getBaseBranch = sinon.stub();
+      getBaseBranch.withArgs('repo1').returns('master');
+      getBaseBranch.withArgs('repo2').returns('main');
+
+      await service.checkAllWorktrees(
+        ['/workspace/repo1', '/workspace/repo2'],
+        getBaseBranch
+      );
+
+      sinon.assert.calledWith(getBaseBranch, 'repo1');
+      sinon.assert.calledWith(getBaseBranch, 'repo2');
+      sinon.assert.calledWith(gitStub.isAheadOfMain, '/workspace/repo1', 'master');
+      sinon.assert.calledWith(gitStub.isAheadOfMain, '/workspace/repo2', 'main');
     });
   });
 
@@ -172,7 +192,7 @@ describe('StatusService', () => {
 
       const reposWithIssues = await service.findReposWithIssues(
         ['/workspace/repo1', '/workspace/repo2', '/workspace/repo3'],
-        'master'
+        () => 'master'
       );
 
       expect(reposWithIssues).toEqual(['repo1', 'repo2']);
@@ -184,7 +204,7 @@ describe('StatusService', () => {
 
       const reposWithIssues = await service.findReposWithIssues(
         ['/workspace/repo1', '/workspace/repo2'],
-        'master'
+        () => 'master'
       );
 
       expect(reposWithIssues).toEqual([]);
@@ -197,7 +217,7 @@ describe('StatusService', () => {
 
       const reposWithIssues = await service.findReposWithIssues(
         ['/workspace/repo1', '/workspace/repo2'],
-        'master'
+        () => 'master'
       );
 
       expect(reposWithIssues).toEqual(['repo2']);

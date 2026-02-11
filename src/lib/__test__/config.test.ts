@@ -86,7 +86,6 @@ describe('ConfigService', () => {
       expect(config).toEqual({
         copyFiles: '.env',
         tmux: false,
-        mainBranch: 'master',
         fetchCacheTtlSeconds: 300,
         postCheckout: undefined,
         perRepoPostCheckout: {},
@@ -109,7 +108,6 @@ describe('ConfigService', () => {
         destPath: '/home/user/workspaces',
         copyFiles: '.env',
         tmux: false,
-        mainBranch: 'master',
         fetchCacheTtlSeconds: 300,
         postCheckout: undefined,
         perRepoPostCheckout: {},
@@ -141,7 +139,6 @@ describe('ConfigService', () => {
     it('should use custom values when provided', () => {
       const { fs } = createMemFs({
         [configPath]: JSON.stringify({
-          'main-branch': 'main',
           'copy-files': '.env,.env.local',
           'post-checkout': 'npm install',
           'fetch-cache-ttl-seconds': '600',
@@ -151,7 +148,6 @@ describe('ConfigService', () => {
 
       const config = service.load();
 
-      expect(config.mainBranch).toBe('main');
       expect(config.copyFiles).toBe('.env,.env.local');
       expect(config.postCheckout).toBe('npm install');
       expect(config.fetchCacheTtlSeconds).toBe(600);
@@ -246,7 +242,6 @@ describe('ConfigService', () => {
       expect(displayConfig['copy-files'].isDefault).toBe(true);
       expect(displayConfig['copy-files'].value).toContain('.env');
       expect(displayConfig.tmux.isDefault).toBe(true);
-      expect(displayConfig['main-branch'].isDefault).toBe(true);
       expect(displayConfig['post-checkout'].isDefault).toBe(true);
       expect(displayConfig['fetch-cache-ttl-seconds'].isDefault).toBe(true);
     });
@@ -258,7 +253,6 @@ describe('ConfigService', () => {
           'dest-path': '/home/user/workspaces',
           'copy-files': '.env,.env.local',
           'tmux': 'true',
-          'main-branch': 'main',
           'post-checkout': 'npm install',
           'fetch-cache-ttl-seconds': '600',
         }),
@@ -273,10 +267,6 @@ describe('ConfigService', () => {
       });
       expect(displayConfig.tmux).toEqual({
         value: 'true',
-        isDefault: false,
-      });
-      expect(displayConfig['main-branch']).toEqual({
-        value: 'main',
         isDefault: false,
       });
       expect(displayConfig['post-checkout']).toEqual({
@@ -317,7 +307,6 @@ describe('ConfigService', () => {
 
       expect(displayConfig['copy-files'].value).toBe('.env (default)');
       expect(displayConfig.tmux.value).toBe('false (default)');
-      expect(displayConfig['main-branch'].value).toBe('master (default)');
     });
 
     it('should handle post-checkout as not set when undefined', () => {
@@ -393,7 +382,6 @@ describe('validateAndTransformConfigValue', () => {
 
   it('should accept valid string values', () => {
     expect(validateAndTransformConfigValue('copy-files', '.env')).toBe('.env');
-    expect(validateAndTransformConfigValue('main-branch', 'main')).toBe('main');
     expect(validateAndTransformConfigValue('post-checkout', 'npm install')).toBe('npm install');
   });
 
@@ -411,7 +399,6 @@ describe('isValidKey', () => {
     expect(isValidKey('dest-path')).toBe(true);
     expect(isValidKey('copy-files')).toBe(true);
     expect(isValidKey('tmux')).toBe(true);
-    expect(isValidKey('main-branch')).toBe(true);
     expect(isValidKey('post-checkout')).toBe(true);
     expect(isValidKey('fetch-cache-ttl-seconds')).toBe(true);
   });

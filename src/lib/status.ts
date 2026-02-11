@@ -14,7 +14,7 @@ export class StatusService {
 
   async getWorktreeStatus(
     worktreePath: string,
-    mainBranch: string
+    baseBranch: string
   ): Promise<WorktreeStatus> {
     try {
       // Check for uncommitted changes first
@@ -23,8 +23,8 @@ export class StatusService {
         return { type: 'uncommitted' };
       }
 
-      // Compare against main using git cherry (handles squash merges)
-      const isAhead = await this.git.isAheadOfMain(worktreePath, mainBranch);
+      // Compare against base branch using git cherry (handles squash merges)
+      const isAhead = await this.git.isAheadOfMain(worktreePath, baseBranch);
       if (isAhead) {
         return { type: 'ahead', comparedTo: 'main' };
       }
@@ -38,14 +38,14 @@ export class StatusService {
     }
   }
 
-  static getStatusMessage(status: WorktreeStatus, mainBranch: string): string {
+  static getStatusMessage(status: WorktreeStatus, baseBranch: string): string {
     switch (status.type) {
       case 'clean':
         return 'up to date';
       case 'uncommitted':
         return 'uncommitted changes';
       case 'ahead':
-        return `ahead of ${mainBranch}`;
+        return `ahead of ${baseBranch}`;
       case 'error':
         return `error: ${status.error}`;
     }
@@ -64,12 +64,13 @@ export class StatusService {
    */
   async checkAllWorktrees(
     worktreeDirs: string[],
-    mainBranch: string
+    getBaseBranch: (repoName: string) => string
   ): Promise<Array<{ repoName: string; status: WorktreeStatus }>> {
     const results = await Promise.all(
       worktreeDirs.map(async (worktreePath) => {
         const repoName = worktreePath.split('/').pop() || worktreePath;
-        const status = await this.getWorktreeStatus(worktreePath, mainBranch);
+        const baseBranch = getBaseBranch(repoName);
+        const status = await this.getWorktreeStatus(worktreePath, baseBranch);
         return { repoName, status };
       })
     );
@@ -82,9 +83,9 @@ export class StatusService {
    */
   async findReposWithIssues(
     worktreeDirs: string[],
-    mainBranch: string
+    getBaseBranch: (repoName: string) => string
   ): Promise<string[]> {
-    const results = await this.checkAllWorktrees(worktreeDirs, mainBranch);
+    const results = await this.checkAllWorktrees(worktreeDirs, getBaseBranch);
     return results
       .filter(({ status }) => StatusService.hasIssues(status))
       .map(({ repoName }) => repoName);

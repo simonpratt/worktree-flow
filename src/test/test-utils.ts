@@ -54,7 +54,6 @@ export function createMockServices(): {
       load: sinon.stub().returns({
         copyFiles: '.env',
         tmux: false,
-        mainBranch: 'master',
       }),
       getRequired: sinon.stub().returns({
         sourcePath: '/source',

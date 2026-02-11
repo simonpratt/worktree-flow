@@ -36,11 +36,18 @@ export async function runRemove(
       fetchCacheTtlSeconds: config.fetchCacheTtlSeconds,
     });
 
-    services.console.log(`\nChecking for uncommitted changes and commits ahead of ${config.mainBranch}...`);
-    const results = await services.status.checkAllWorktrees(worktreeDirs, config.mainBranch);
+    services.console.log(`\nChecking for uncommitted changes and commits ahead of base branch...`);
+
+    // Load workspace config to get per-repo base branches
+    const workspaceConfig = services.workspaceConfig.load(workspacePath);
+    const getBaseBranch = (repoName: string) =>
+      workspaceConfig.baseBranches[repoName] || 'master';
+
+    const results = await services.status.checkAllWorktrees(worktreeDirs, getBaseBranch);
 
     for (const { repoName, status } of results) {
-      const message = StatusService.getStatusMessage(status, config.mainBranch);
+      const baseBranch = getBaseBranch(repoName);
+      const message = StatusService.getStatusMessage(status, baseBranch);
       if (StatusService.hasIssues(status)) {
         services.console.log(`${repoName}... ${chalk.red(message)}`);
       } else {
@@ -77,7 +84,6 @@ export async function runRemove(
     workspacePath,
     branchName: branchNameForDisplay,
     sourcePath,
-    mainBranch: config.mainBranch,
     tmux: config.tmux,
   });
 

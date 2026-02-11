@@ -8,6 +8,7 @@ import { ConfigService } from '../lib/config.js';
 import { GitService } from '../lib/git.js';
 import { RepoService } from '../lib/repos.js';
 import { WorkspaceDirectoryService } from '../lib/workspaceDirectory.js';
+import { WorkspaceConfigService } from '../lib/workspaceConfig.js';
 import { WorktreeService } from '../lib/worktree.js';
 import { PostCheckoutService } from '../lib/postCheckout.js';
 import { FetchService } from '../lib/fetch.js';
@@ -92,6 +93,7 @@ export function createIntegrationServices(sourcePath: string, destPath: string):
 
   // Focused workspace services
   const workspaceDir = new WorkspaceDirectoryService(nodeFs);
+  const workspaceConfig = new WorkspaceConfigService(nodeFs);
   const worktree = new WorktreeService(nodeFs, gitService);
 
   // Stub fetch to be a no-op (no remote to fetch from)
@@ -104,7 +106,6 @@ export function createIntegrationServices(sourcePath: string, destPath: string):
       destPath,
       copyFiles: '.env',
       tmux: false,
-      mainBranch: 'master',
     }),
     getRequired: sinon.stub().returns({ sourcePath, destPath }),
     loadRaw: sinon.stub(),
@@ -117,6 +118,7 @@ export function createIntegrationServices(sourcePath: string, destPath: string):
     git: gitService,
     repos,
     workspaceDir,
+    workspaceConfig,
     worktree,
     postCheckout,
     fetch,

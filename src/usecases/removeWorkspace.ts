@@ -1,5 +1,6 @@
 import path from 'node:path';
 import type { WorkspaceDirectoryService } from '../lib/workspaceDirectory.js';
+import type { WorkspaceConfigService } from '../lib/workspaceConfig.js';
 import type { WorktreeService } from '../lib/worktree.js';
 import type { RepoService } from '../lib/repos.js';
 import type { StatusService } from '../lib/status.js';
@@ -11,7 +12,6 @@ export type RemoveWorkspaceParams = {
   workspacePath: string;
   branchName: string;
   sourcePath: string;
-  mainBranch: string;
   tmux: boolean;
 };
 
@@ -31,6 +31,7 @@ export type RemoveWorkspaceResult = {
 export class RemoveWorkspaceUseCase {
   constructor(
     private workspaceDir: WorkspaceDirectoryService,
+    private workspaceConfig: WorkspaceConfigService,
     private worktree: WorktreeService,
     private repos: RepoService,
     private status: StatusService,
@@ -43,16 +44,22 @@ export class RemoveWorkspaceUseCase {
 
     // 1. Check status if worktrees exist
     if (worktreeDirs.length > 0) {
+      // Load workspace config to get per-repo base branches
+      const config = this.workspaceConfig.load(params.workspacePath);
+      const getBaseBranch = (repoName: string) =>
+        config.baseBranches[repoName] || 'master';
+
       const results = await this.status.checkAllWorktrees(
         worktreeDirs,
-        params.mainBranch
+        getBaseBranch
       );
 
       for (const { repoName, status } of results) {
         if (StatusServiceClass.hasIssues(status)) {
+          const baseBranch = getBaseBranch(repoName);
           issuesFound.push({
             repoName,
-            issue: StatusServiceClass.getStatusMessage(status, params.mainBranch),
+            issue: StatusServiceClass.getStatusMessage(status, baseBranch),
           });
         }
       }

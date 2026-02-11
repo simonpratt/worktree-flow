@@ -10,7 +10,6 @@ const RawConfigSchema = z.object({
   'dest-path': z.string().optional(),
   'copy-files': z.string().optional(),
   'tmux': z.enum(['true', 'false']).optional(),
-  'main-branch': z.string().optional(),
   'post-checkout': z.string().optional(),
   'fetch-cache-ttl-seconds': z.string().optional(),
   'per-repo-post-checkout': z.record(z.string(), z.string()).optional(),
@@ -22,7 +21,6 @@ const ParsedConfigSchema = z.object({
   destPath: z.string().optional(),
   copyFiles: z.string().default('.env'),
   tmux: z.boolean().default(false),
-  mainBranch: z.string().default('master'),
   postCheckout: z.string().optional(),
   fetchCacheTtlSeconds: z.number().default(300),
   perRepoPostCheckout: z.record(z.string(), z.string()).default({}),
@@ -40,7 +38,6 @@ const ConfigValueSchemas = {
   'dest-path': z.string().transform((val) => path.resolve(val)),
   'copy-files': z.string(),
   'tmux': z.enum(['true', 'false']),
-  'main-branch': z.string(),
   'post-checkout': z.string(),
   'fetch-cache-ttl-seconds': z.string().refine(
     (val) => {
@@ -55,7 +52,7 @@ export type RawConfig = z.infer<typeof RawConfigSchema>;
 export type ParsedConfig = z.infer<typeof ParsedConfigSchema>;
 export type RequiredConfig = z.infer<typeof RequiredConfigSchema>;
 
-export const CONFIG_KEYS = ['source-path', 'dest-path', 'copy-files', 'tmux', 'main-branch', 'post-checkout', 'fetch-cache-ttl-seconds'] as const;
+export const CONFIG_KEYS = ['source-path', 'dest-path', 'copy-files', 'tmux', 'post-checkout', 'fetch-cache-ttl-seconds'] as const;
 export type ConfigKey = (typeof CONFIG_KEYS)[number];
 
 /**
@@ -107,7 +104,6 @@ export class ConfigService {
       destPath: raw['dest-path'],
       copyFiles: raw['copy-files'],
       tmux: raw.tmux === 'true',
-      mainBranch: raw['main-branch'],
       postCheckout: raw['post-checkout'],
       fetchCacheTtlSeconds: raw['fetch-cache-ttl-seconds']
         ? parseInt(raw['fetch-cache-ttl-seconds'], 10)
@@ -160,10 +156,6 @@ export class ConfigService {
       'tmux': {
         value: raw.tmux ?? `${config.tmux} (default)`,
         isDefault: !raw.tmux,
-      },
-      'main-branch': {
-        value: raw['main-branch'] ?? `${config.mainBranch} (default)`,
-        isDefault: !raw['main-branch'],
       },
       'post-checkout': {
         value: raw['post-checkout'] ?? '(not set)',

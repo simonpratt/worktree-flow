@@ -68,7 +68,6 @@ export async function runList(useCases: UseCases, services: Services): Promise<v
   const result = await useCases.listWorkspacesWithStatus.execute({
     destPath,
     sourcePath,
-    mainBranch: config.mainBranch,
     cwd,
   });
 

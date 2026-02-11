@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import sinon from 'sinon';
 import { DiscoverPrunableWorkspacesUseCase } from '../discoverPrunableWorkspaces.js';
 import type { WorkspaceDirectoryService } from '../../lib/workspaceDirectory.js';
+import type { WorkspaceConfigService } from '../../lib/workspaceConfig.js';
 import type { StatusService } from '../../lib/status.js';
 import type { GitService } from '../../lib/git.js';
 import type { WorktreeStatus } from '../../lib/status.js';
@@ -9,6 +10,7 @@ import type { WorktreeStatus } from '../../lib/status.js';
 describe('DiscoverPrunableWorkspacesUseCase', () => {
   let useCase: DiscoverPrunableWorkspacesUseCase;
   let workspaceDirStub: sinon.SinonStubbedInstance<WorkspaceDirectoryService>;
+  let workspaceConfigStub: sinon.SinonStubbedInstance<WorkspaceConfigService>;
   let statusStub: sinon.SinonStubbedInstance<StatusService>;
   let gitStub: sinon.SinonStubbedInstance<GitService>;
 
@@ -16,6 +18,10 @@ describe('DiscoverPrunableWorkspacesUseCase', () => {
     workspaceDirStub = {
       listWorkspaces: sinon.stub(),
       getWorktreeDirs: sinon.stub(),
+    } as any;
+
+    workspaceConfigStub = {
+      load: sinon.stub().returns({ baseBranches: {} }),
     } as any;
 
     statusStub = {
@@ -28,6 +34,7 @@ describe('DiscoverPrunableWorkspacesUseCase', () => {
 
     useCase = new DiscoverPrunableWorkspacesUseCase(
       workspaceDirStub as any,
+      workspaceConfigStub as any,
       statusStub as any,
       gitStub as any
     );
@@ -43,7 +50,6 @@ describe('DiscoverPrunableWorkspacesUseCase', () => {
     const result = await useCase.execute({
       destPath: '/dest',
       sourcePath: '/source',
-      mainBranch: 'master',
       daysOld: 7,
     });
 
@@ -60,7 +66,6 @@ describe('DiscoverPrunableWorkspacesUseCase', () => {
     const result = await useCase.execute({
       destPath: '/dest',
       sourcePath: '/source',
-      mainBranch: 'master',
       daysOld: 7,
     });
 
@@ -96,7 +101,6 @@ describe('DiscoverPrunableWorkspacesUseCase', () => {
     const result = await useCase.execute({
       destPath: '/dest',
       sourcePath: '/source',
-      mainBranch: 'master',
       daysOld: 7,
     });
 
@@ -131,7 +135,6 @@ describe('DiscoverPrunableWorkspacesUseCase', () => {
     const result = await useCase.execute({
       destPath: '/dest',
       sourcePath: '/source',
-      mainBranch: 'master',
       daysOld: 7,
     });
 
@@ -155,7 +158,6 @@ describe('DiscoverPrunableWorkspacesUseCase', () => {
     const result = await useCase.execute({
       destPath: '/dest',
       sourcePath: '/source',
-      mainBranch: 'master',
       daysOld: 7,
     });
 
@@ -179,7 +181,6 @@ describe('DiscoverPrunableWorkspacesUseCase', () => {
     const result = await useCase.execute({
       destPath: '/dest',
       sourcePath: '/source',
-      mainBranch: 'master',
       daysOld: 7,
     });
 
@@ -214,7 +215,6 @@ describe('DiscoverPrunableWorkspacesUseCase', () => {
     const result = await useCase.execute({
       destPath: '/dest',
       sourcePath: '/source',
-      mainBranch: 'master',
       daysOld: 7,
     });
 
@@ -249,7 +249,6 @@ describe('DiscoverPrunableWorkspacesUseCase', () => {
     const result = await useCase.execute({
       destPath: '/dest',
       sourcePath: '/source',
-      mainBranch: 'master',
       daysOld: 7,
     });
 
@@ -288,7 +287,6 @@ describe('DiscoverPrunableWorkspacesUseCase', () => {
     const result = await useCase.execute({
       destPath: '/dest',
       sourcePath: '/source',
-      mainBranch: 'master',
       daysOld: 7,
     });
 
@@ -313,7 +311,6 @@ describe('DiscoverPrunableWorkspacesUseCase', () => {
     await useCase.execute({
       destPath: '/dest',
       sourcePath: '/source',
-      mainBranch: 'master',
       daysOld: 7,
     });
   });
@@ -342,7 +339,6 @@ describe('DiscoverPrunableWorkspacesUseCase', () => {
     const result = await useCase.execute({
       destPath: '/dest',
       sourcePath: '/source',
-      mainBranch: 'master',
       daysOld: 7,
     });
 

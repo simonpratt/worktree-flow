@@ -38,18 +38,23 @@ export async function runStatus(
   });
 
   services.console.log('');
-  services.console.log(`\nStatus (comparing against ${chalk.cyan(config.mainBranch)}):\n`);
+  services.console.log(`\nStatus:\n`);
 
   const result = await useCases.checkWorkspaceStatus.execute({
     workspacePath,
-    mainBranch: config.mainBranch,
   });
+
+  // Load workspace config to get per-repo base branches
+  const workspaceConfig = services.workspaceConfig.load(workspacePath);
+  const getBaseBranch = (repoName: string) =>
+    workspaceConfig.baseBranches[repoName] || 'master';
 
   let cleanCount = 0;
   let issuesCount = 0;
 
   for (const { repoName, status } of result.statuses) {
-    const message = StatusService.getStatusMessage(status, config.mainBranch);
+    const baseBranch = getBaseBranch(repoName);
+    const message = StatusService.getStatusMessage(status, baseBranch);
 
     if (StatusService.hasIssues(status)) {
       services.console.log(`  ${chalk.red('✗')} ${repoName}: ${chalk.red(message)}`);

@@ -7,6 +7,7 @@ import { ConfigService } from './config.js';
 import { GitService } from './git.js';
 import { RepoService } from './repos.js';
 import { WorkspaceDirectoryService } from './workspaceDirectory.js';
+import { WorkspaceConfigService } from './workspaceConfig.js';
 import { WorktreeService } from './worktree.js';
 import { PostCheckoutService } from './postCheckout.js';
 import { FetchService } from './fetch.js';
@@ -35,6 +36,7 @@ export function createServices() {
 
   // Focused workspace services
   const workspaceDir = new WorkspaceDirectoryService(fs);
+  const workspaceConfig = new WorkspaceConfigService(fs);
   const worktree = new WorktreeService(fs, git);
 
   return {
@@ -42,6 +44,7 @@ export function createServices() {
     git,
     repos,
     workspaceDir,
+    workspaceConfig,
     worktree,
     postCheckout,
     fetch,

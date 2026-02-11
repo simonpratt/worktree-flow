@@ -85,6 +85,39 @@ describe('GitService', () => {
     });
   });
 
+  describe('findFirstExistingBranch', () => {
+    it('should return first existing branch from candidates', async () => {
+      shell.execFile.onFirstCall().rejects(new Error('not found'));
+      shell.execFile.onSecondCall().resolves({ stdout: 'abc123', stderr: '' });
+
+      const result = await service.findFirstExistingBranch('/repo', ['master', 'main', 'trunk']);
+
+      expect(result).toBe('main');
+    });
+
+    it('should return null when no candidates exist', async () => {
+      shell.execFile.rejects(new Error('not found'));
+
+      const result = await service.findFirstExistingBranch('/repo', ['master', 'main', 'trunk']);
+
+      expect(result).toBe(null);
+    });
+
+    it('should return first candidate if it exists', async () => {
+      shell.execFile.resolves({ stdout: 'abc123', stderr: '' });
+
+      const result = await service.findFirstExistingBranch('/repo', ['master', 'main']);
+
+      expect(result).toBe('master');
+    });
+
+    it('should handle empty candidates array', async () => {
+      const result = await service.findFirstExistingBranch('/repo', []);
+
+      expect(result).toBe(null);
+    });
+  });
+
   describe('addWorktreeNewBranch', () => {
     it('should execute worktree add with -b flag', async () => {
       shell.execFile.resolves({ stdout: '', stderr: '' });
