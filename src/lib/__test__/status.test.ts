@@ -30,71 +30,31 @@ describe('StatusService', () => {
       sinon.assert.calledOnceWithExactly(gitStub.hasUncommittedChanges, '/worktree');
       expect(status).toEqual({ type: 'uncommitted' });
       // Should not check other statuses
-      sinon.assert.notCalled(gitStub.originBranchExists);
+      sinon.assert.notCalled(gitStub.isAheadOfMain);
     });
 
-    it('should check origin branch existence when no uncommitted changes', async () => {
+    it('should compare against main using git cherry when no uncommitted changes', async () => {
       gitStub.hasUncommittedChanges.resolves(false);
-      gitStub.originBranchExists.resolves(true);
-      gitStub.isAheadOfOrigin.resolves(false);
-      gitStub.isBehindOrigin.resolves(false);
+      gitStub.isAheadOfMain.resolves(false);
 
       const status = await service.getWorktreeStatus('/worktree', 'master');
 
       sinon.assert.calledOnce(gitStub.hasUncommittedChanges);
-      sinon.assert.calledOnceWithExactly(gitStub.originBranchExists, '/worktree');
-      sinon.assert.calledOnce(gitStub.isAheadOfOrigin);
-      sinon.assert.calledOnce(gitStub.isBehindOrigin);
-      expect(status).toEqual({ type: 'clean', comparedTo: 'origin' });
+      sinon.assert.calledOnceWithExactly(gitStub.isAheadOfMain, '/worktree', 'master');
+      expect(status).toEqual({ type: 'clean', comparedTo: 'main' });
     });
 
-    it('should detect ahead of origin', async () => {
+    it('should detect ahead of main', async () => {
       gitStub.hasUncommittedChanges.resolves(false);
-      gitStub.originBranchExists.resolves(true);
-      gitStub.isAheadOfOrigin.resolves(true);
-      gitStub.isBehindOrigin.resolves(false);
-
-      const status = await service.getWorktreeStatus('/worktree', 'master');
-
-      expect(status).toEqual({ type: 'ahead', comparedTo: 'origin' });
-    });
-
-    it('should detect behind origin', async () => {
-      gitStub.hasUncommittedChanges.resolves(false);
-      gitStub.originBranchExists.resolves(true);
-      gitStub.isAheadOfOrigin.resolves(false);
-      gitStub.isBehindOrigin.resolves(true);
-
-      const status = await service.getWorktreeStatus('/worktree', 'master');
-
-      expect(status).toEqual({ type: 'behind', comparedTo: 'origin' });
-    });
-
-    it('should detect diverged from origin', async () => {
-      gitStub.hasUncommittedChanges.resolves(false);
-      gitStub.originBranchExists.resolves(true);
-      gitStub.isAheadOfOrigin.resolves(true);
-      gitStub.isBehindOrigin.resolves(true);
-
-      const status = await service.getWorktreeStatus('/worktree', 'master');
-
-      expect(status).toEqual({ type: 'diverged', comparedTo: 'origin' });
-    });
-
-    it('should compare against main when no origin branch', async () => {
-      gitStub.hasUncommittedChanges.resolves(false);
-      gitStub.originBranchExists.resolves(false);
       gitStub.isAheadOfMain.resolves(true);
 
       const status = await service.getWorktreeStatus('/worktree', 'master');
 
-      sinon.assert.calledOnceWithExactly(gitStub.isAheadOfMain, '/worktree', 'master');
       expect(status).toEqual({ type: 'ahead', comparedTo: 'main' });
     });
 
     it('should return clean when synced with main', async () => {
       gitStub.hasUncommittedChanges.resolves(false);
-      gitStub.originBranchExists.resolves(false);
       gitStub.isAheadOfMain.resolves(false);
 
       const status = await service.getWorktreeStatus('/worktree', 'master');
@@ -127,10 +87,7 @@ describe('StatusService', () => {
     it('should return correct message for each status type', () => {
       expect(StatusService.getStatusMessage({ type: 'clean' }, 'master')).toBe('up to date');
       expect(StatusService.getStatusMessage({ type: 'uncommitted' }, 'master')).toBe('uncommitted changes');
-      expect(StatusService.getStatusMessage({ type: 'ahead', comparedTo: 'origin' }, 'master')).toBe('ahead of origin');
       expect(StatusService.getStatusMessage({ type: 'ahead', comparedTo: 'main' }, 'master')).toBe('ahead of master');
-      expect(StatusService.getStatusMessage({ type: 'behind', comparedTo: 'origin' }, 'master')).toBe('behind origin');
-      expect(StatusService.getStatusMessage({ type: 'diverged', comparedTo: 'origin' }, 'master')).toBe('diverged from origin');
       expect(StatusService.getStatusMessage({ type: 'error', error: 'fatal' }, 'master')).toBe('error: fatal');
     });
   });
@@ -138,24 +95,20 @@ describe('StatusService', () => {
   describe('hasIssues', () => {
     it('should return true for problem statuses', () => {
       expect(StatusService.hasIssues({ type: 'uncommitted' })).toBe(true);
-      expect(StatusService.hasIssues({ type: 'ahead', comparedTo: 'origin' })).toBe(true);
-      expect(StatusService.hasIssues({ type: 'diverged', comparedTo: 'origin' })).toBe(true);
+      expect(StatusService.hasIssues({ type: 'ahead', comparedTo: 'main' })).toBe(true);
       expect(StatusService.hasIssues({ type: 'error', error: 'fatal' })).toBe(true);
     });
 
     it('should return false for clean statuses', () => {
-      expect(StatusService.hasIssues({ type: 'clean', comparedTo: 'origin' })).toBe(false);
-      expect(StatusService.hasIssues({ type: 'behind', comparedTo: 'origin' })).toBe(false);
+      expect(StatusService.hasIssues({ type: 'clean', comparedTo: 'main' })).toBe(false);
     });
   });
 
   describe('checkAllWorktrees', () => {
     it('should check status for all worktrees in parallel', async () => {
       gitStub.hasUncommittedChanges.resolves(false);
-      gitStub.originBranchExists.resolves(true);
-      gitStub.isAheadOfOrigin.onFirstCall().resolves(false);
-      gitStub.isAheadOfOrigin.onSecondCall().resolves(true);
-      gitStub.isBehindOrigin.resolves(false);
+      gitStub.isAheadOfMain.onFirstCall().resolves(false);
+      gitStub.isAheadOfMain.onSecondCall().resolves(true);
 
       const results = await service.checkAllWorktrees(
         ['/workspace/repo1', '/workspace/repo2'],
@@ -165,17 +118,16 @@ describe('StatusService', () => {
       expect(results).toHaveLength(2);
       expect(results[0]).toEqual({
         repoName: 'repo1',
-        status: { type: 'clean', comparedTo: 'origin' },
+        status: { type: 'clean', comparedTo: 'main' },
       });
       expect(results[1]).toEqual({
         repoName: 'repo2',
-        status: { type: 'ahead', comparedTo: 'origin' },
+        status: { type: 'ahead', comparedTo: 'main' },
       });
     });
 
     it('should extract repo names from paths', async () => {
       gitStub.hasUncommittedChanges.resolves(false);
-      gitStub.originBranchExists.resolves(false);
       gitStub.isAheadOfMain.resolves(false);
 
       const results = await service.checkAllWorktrees(
@@ -189,9 +141,7 @@ describe('StatusService', () => {
     it('should handle errors in individual worktrees', async () => {
       gitStub.hasUncommittedChanges.onFirstCall().resolves(false);
       gitStub.hasUncommittedChanges.onSecondCall().rejects(new Error('git error'));
-      gitStub.originBranchExists.resolves(true);
-      gitStub.isAheadOfOrigin.resolves(false);
-      gitStub.isBehindOrigin.resolves(false);
+      gitStub.isAheadOfMain.onFirstCall().resolves(false);
 
       const results = await service.checkAllWorktrees(
         ['/workspace/repo1', '/workspace/repo2'],
@@ -217,10 +167,8 @@ describe('StatusService', () => {
       gitStub.hasUncommittedChanges.onFirstCall().resolves(true);
       gitStub.hasUncommittedChanges.onSecondCall().resolves(false);
       gitStub.hasUncommittedChanges.onThirdCall().resolves(false);
-      gitStub.originBranchExists.resolves(true);
-      gitStub.isAheadOfOrigin.onFirstCall().resolves(true);
-      gitStub.isAheadOfOrigin.onSecondCall().resolves(false);
-      gitStub.isBehindOrigin.resolves(false);
+      gitStub.isAheadOfMain.onFirstCall().resolves(true);
+      gitStub.isAheadOfMain.onSecondCall().resolves(false);
 
       const reposWithIssues = await service.findReposWithIssues(
         ['/workspace/repo1', '/workspace/repo2', '/workspace/repo3'],
@@ -232,9 +180,7 @@ describe('StatusService', () => {
 
     it('should return empty array when all repos are clean', async () => {
       gitStub.hasUncommittedChanges.resolves(false);
-      gitStub.originBranchExists.resolves(true);
-      gitStub.isAheadOfOrigin.resolves(false);
-      gitStub.isBehindOrigin.resolves(false);
+      gitStub.isAheadOfMain.resolves(false);
 
       const reposWithIssues = await service.findReposWithIssues(
         ['/workspace/repo1', '/workspace/repo2'],
@@ -247,9 +193,7 @@ describe('StatusService', () => {
     it('should include repos with errors as having issues', async () => {
       gitStub.hasUncommittedChanges.onFirstCall().resolves(false);
       gitStub.hasUncommittedChanges.onSecondCall().rejects(new Error('fatal'));
-      gitStub.originBranchExists.onFirstCall().resolves(true);
-      gitStub.isAheadOfOrigin.onFirstCall().resolves(false);
-      gitStub.isBehindOrigin.onFirstCall().resolves(false);
+      gitStub.isAheadOfMain.onFirstCall().resolves(false);
 
       const reposWithIssues = await service.findReposWithIssues(
         ['/workspace/repo1', '/workspace/repo2'],
@@ -257,20 +201,6 @@ describe('StatusService', () => {
       );
 
       expect(reposWithIssues).toEqual(['repo2']);
-    });
-
-    it('should not include repos that are only behind', async () => {
-      gitStub.hasUncommittedChanges.resolves(false);
-      gitStub.originBranchExists.resolves(true);
-      gitStub.isAheadOfOrigin.resolves(false);
-      gitStub.isBehindOrigin.resolves(true);
-
-      const reposWithIssues = await service.findReposWithIssues(
-        ['/workspace/repo1'],
-        'master'
-      );
-
-      expect(reposWithIssues).toEqual([]);
     });
   });
 });

@@ -1,9 +1,9 @@
 import type { GitService } from './git.js';
 
 export type WorktreeStatus = {
-  type: 'clean' | 'uncommitted' | 'ahead' | 'behind' | 'diverged' | 'error';
+  type: 'clean' | 'uncommitted' | 'ahead' | 'error';
   error?: string;
-  comparedTo?: 'origin' | 'main';
+  comparedTo?: 'main';
 };
 
 /**
@@ -17,34 +17,13 @@ export class StatusService {
     mainBranch: string
   ): Promise<WorktreeStatus> {
     try {
-      // Always check for uncommitted changes first
+      // Check for uncommitted changes first
       const hasUncommitted = await this.git.hasUncommittedChanges(worktreePath);
       if (hasUncommitted) {
         return { type: 'uncommitted' };
       }
 
-      // Check if origin branch exists
-      const hasOriginBranch = await this.git.originBranchExists(worktreePath);
-
-      if (hasOriginBranch) {
-        // Compare against origin branch
-        const isAhead = await this.git.isAheadOfOrigin(worktreePath);
-        const isBehind = await this.git.isBehindOrigin(worktreePath);
-
-        if (isAhead && isBehind) {
-          return { type: 'diverged', comparedTo: 'origin' };
-        }
-        if (isAhead) {
-          return { type: 'ahead', comparedTo: 'origin' };
-        }
-        if (isBehind) {
-          return { type: 'behind', comparedTo: 'origin' };
-        }
-
-        return { type: 'clean', comparedTo: 'origin' };
-      }
-
-      // No origin branch, compare against main
+      // Compare against main using git cherry (handles squash merges)
       const isAhead = await this.git.isAheadOfMain(worktreePath, mainBranch);
       if (isAhead) {
         return { type: 'ahead', comparedTo: 'main' };
@@ -66,13 +45,7 @@ export class StatusService {
       case 'uncommitted':
         return 'uncommitted changes';
       case 'ahead':
-        return status.comparedTo === 'origin'
-          ? 'ahead of origin'
-          : `ahead of ${mainBranch}`;
-      case 'behind':
-        return 'behind origin';
-      case 'diverged':
-        return 'diverged from origin';
+        return `ahead of ${mainBranch}`;
       case 'error':
         return `error: ${status.error}`;
     }
@@ -82,7 +55,6 @@ export class StatusService {
     return (
       status.type === 'uncommitted' ||
       status.type === 'ahead' ||
-      status.type === 'diverged' ||
       status.type === 'error'
     );
   }

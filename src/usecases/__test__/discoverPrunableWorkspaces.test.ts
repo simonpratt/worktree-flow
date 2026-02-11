@@ -162,7 +162,7 @@ describe('DiscoverPrunableWorkspacesUseCase', () => {
     expect(result.prunable).toEqual([]);
   });
 
-  it('should include workspace if worktree is behind origin (safe to remove)', async () => {
+  it('should include workspace if worktree is clean (safe to remove)', async () => {
     const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
 
     workspaceDirStub.listWorkspaces.returns([
@@ -171,7 +171,7 @@ describe('DiscoverPrunableWorkspacesUseCase', () => {
     workspaceDirStub.getWorktreeDirs.returns(['/dest/feature/repo1']);
 
     statusStub.checkAllWorktrees.resolves([
-      { repoName: 'repo1', status: { type: 'behind', comparedTo: 'origin' } },
+      { repoName: 'repo1', status: { type: 'clean', comparedTo: 'main' } },
     ]);
 
     gitStub.getLastCommitDate.resolves(tenDaysAgo);

@@ -311,26 +311,48 @@ describe('GitService', () => {
   });
 
   describe('isAheadOfMain', () => {
-    it('should execute git diff against main branch', async () => {
-      shell.execFile.resolves({ stdout: 'diff --git a/file.txt', stderr: '' });
+    it('should execute git cherry against main branch', async () => {
+      shell.execFile.resolves({ stdout: '+ abc1234 commit message\n', stderr: '' });
 
       const result = await service.isAheadOfMain('/repo', 'master');
 
       sinon.assert.calledOnceWithExactly(
         shell.execFile,
         'git',
-        ['-C', '/repo', 'diff', 'origin/master...HEAD'],
+        ['-C', '/repo', 'cherry', 'origin/master', 'HEAD'],
         { encoding: 'utf-8' }
       );
       expect(result).toBe(true);
     });
 
-    it('should return false when no diff exists', async () => {
+    it('should return false when no unmerged commits (empty output)', async () => {
       shell.execFile.resolves({ stdout: '', stderr: '' });
 
       const result = await service.isAheadOfMain('/repo', 'main');
 
       expect(result).toBe(false);
+    });
+
+    it('should return false when all commits are merged (only - lines)', async () => {
+      shell.execFile.resolves({
+        stdout: '- abc1234 commit message\n- def5678 another commit\n',
+        stderr: ''
+      });
+
+      const result = await service.isAheadOfMain('/repo', 'master');
+
+      expect(result).toBe(false);
+    });
+
+    it('should return true when mixed output has unmerged commits', async () => {
+      shell.execFile.resolves({
+        stdout: '- abc1234 merged commit\n+ def5678 unmerged commit\n',
+        stderr: ''
+      });
+
+      const result = await service.isAheadOfMain('/repo', 'main');
+
+      expect(result).toBe(true);
     });
 
     it('should return true on error (safe default)', async () => {

@@ -48,8 +48,8 @@ describe('ListWorkspacesWithStatusUseCase', () => {
     workspaceDir.detectWorkspace.returns(null);
 
     status.checkAllWorktrees.resolves([
-      { repoName: 'repo1', status: { type: 'clean', comparedTo: 'origin' } },
-      { repoName: 'repo2', status: { type: 'clean', comparedTo: 'origin' } },
+      { repoName: 'repo1', status: { type: 'clean', comparedTo: 'main' } },
+      { repoName: 'repo2', status: { type: 'clean', comparedTo: 'main' } },
     ]);
 
     const result = await useCase.execute({
@@ -85,7 +85,7 @@ describe('ListWorkspacesWithStatusUseCase', () => {
       .returns('/dest/feature-a');
 
     status.checkAllWorktrees.resolves([
-      { repoName: 'repo1', status: { type: 'clean', comparedTo: 'origin' } },
+      { repoName: 'repo1', status: { type: 'clean', comparedTo: 'main' } },
     ]);
 
     const result = await useCase.execute({
@@ -115,7 +115,7 @@ describe('ListWorkspacesWithStatusUseCase', () => {
     workspaceDir.detectWorkspace.returns(null);
 
     status.checkAllWorktrees.resolves([
-      { repoName: 'repo1', status: { type: 'clean', comparedTo: 'origin' } },
+      { repoName: 'repo1', status: { type: 'clean', comparedTo: 'main' } },
     ]);
 
     const result = await useCase.execute({
@@ -165,7 +165,7 @@ describe('ListWorkspacesWithStatusUseCase', () => {
 
     status.checkAllWorktrees
       .withArgs(['/dest/clean-workspace/repo1'], 'main')
-      .resolves([{ repoName: 'repo1', status: { type: 'clean', comparedTo: 'origin' } }]);
+      .resolves([{ repoName: 'repo1', status: { type: 'clean', comparedTo: 'main' } }]);
 
     status.checkAllWorktrees
       .withArgs(['/dest/dirty-workspace/repo2'], 'main')

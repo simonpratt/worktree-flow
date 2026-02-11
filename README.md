@@ -73,10 +73,10 @@ Check the status of all repos in a workspace. Shows uncommitted changes, commits
 
 List all workspaces with status indicators. Shows:
 - Active workspace (marked with `*`) based on current directory
-- Overall status: `clean`, `uncommitted`, `ahead`, `behind`, `diverged`, or `mixed`
+- Overall status: `clean`, `uncommitted`, `ahead`, or `mixed`
 - Repo count for each workspace
 
-Fetches all repos before checking status to ensure accurate information.
+Fetches all repos before checking status to ensure accurate information. The status check uses git's patch-id comparison, which correctly handles squash-merged branches.
 
 ### `flow remove <name>`
 

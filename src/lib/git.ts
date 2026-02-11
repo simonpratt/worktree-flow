@@ -106,9 +106,17 @@ export class GitService {
 
   async isAheadOfMain(repoPath: string, mainBranch: string): Promise<boolean> {
     try {
-      // Check if there's a diff between current branch and main
-      const output = await this.exec(repoPath, ['diff', `origin/${mainBranch}...HEAD`]);
-      return output.length > 0;
+      // Use git cherry to detect if commits exist in main via patch equivalence
+      // cherry outputs nothing if all commits are equivalent to main
+      // Format: "+ hash message" for unmerged, "- hash message" for already merged
+      const output = await this.exec(repoPath, ['cherry', `origin/${mainBranch}`, 'HEAD']);
+
+      // Filter to only unmerged commits (those starting with +)
+      const unmergedCommits = output
+        .split('\n')
+        .filter(line => line.trim().startsWith('+'));
+
+      return unmergedCommits.length > 0;
     } catch {
       // If we can't determine, assume there are changes to be safe
       return true;
