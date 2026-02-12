@@ -80,11 +80,11 @@ Fetches all repos before checking status to ensure accurate information. The sta
 
 ### `flow remove <name>`
 
-Remove a workspace and all its worktrees. Fetches latest, checks for uncommitted changes and unpushed commits, and prompts for confirmation before removing.
+Remove a workspace and all its worktrees. Fetches latest, checks for uncommitted changes, and prompts for confirmation before removing. Committed changes are safe to remove since they're preserved in git history.
 
 ### `flow prune` (alias: `clean`)
 
-Remove stale workspaces in bulk. Finds workspaces where all worktrees are clean, fully merged, and haven't been committed to in over 7 days.
+Remove stale workspaces in bulk. Finds workspaces where all worktrees have no uncommitted changes and haven't been committed to in over 7 days. Committed changes ahead of the base branch are safe to remove.
 
 ### `flow tmux resume`
 

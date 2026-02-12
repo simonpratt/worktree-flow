@@ -66,7 +66,7 @@ export class RemoveWorkspaceUseCase {
 
       if (issuesFound.length > 0) {
         throw new WorkspaceHasIssuesError(
-          `${issuesFound.length} repo(s) have uncommitted or unmerged changes.`
+          `${issuesFound.length} repo(s) have uncommitted changes or errors.`
         );
       }
     }

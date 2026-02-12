@@ -60,6 +60,14 @@ export async function createRemoteBranchRef(repoPath: string, branchName: string
   // won't auto-create a local branch from origin/<branch> via DWIM
 }
 
+// Custom error to simulate process.exit() in tests
+export class ProcessExitError extends Error {
+  constructor(public code: number) {
+    super(`Process exit with code ${code}`);
+    this.name = 'ProcessExitError';
+  }
+}
+
 export type IntegrationServices = {
   services: Services;
   useCases: UseCases;
@@ -80,7 +88,9 @@ export function createIntegrationServices(sourcePath: string, destPath: string):
   };
 
   const processStub: sinon.SinonStubbedInstance<IProcess> = {
-    exit: sinon.stub() as any,
+    exit: sinon.stub().callsFake((code: number) => {
+      throw new ProcessExitError(code);
+    }) as any,
     cwd: sinon.stub().returns(process.cwd()) as any,
   };
 

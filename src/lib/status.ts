@@ -54,7 +54,6 @@ export class StatusService {
   static hasIssues(status: WorktreeStatus): boolean {
     return (
       status.type === 'uncommitted' ||
-      status.type === 'ahead' ||
       status.type === 'error'
     );
   }

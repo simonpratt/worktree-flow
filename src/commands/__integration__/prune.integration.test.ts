@@ -7,6 +7,7 @@ import {
   createTempDir,
   initGitRepo,
   createIntegrationServices,
+  ProcessExitError,
   type IntegrationServices,
 } from '../../test/integration-test-utils.js';
 
@@ -34,7 +35,13 @@ describe('prune integration', () => {
   it('should show message when no workspaces exist', async () => {
     integration = createIntegrationServices(sourcePath, destPath);
 
-    await runPrune(integration.useCases, integration.services, { confirm: confirmStub });
+    // Process.exit throws ProcessExitError in tests
+    try {
+      await runPrune(integration.useCases, integration.services, { confirm: confirmStub });
+      expect.fail('Should have thrown ProcessExitError');
+    } catch (error) {
+      expect(error).toBeInstanceOf(ProcessExitError);
+    }
 
     // Should have logged "No workspaces to prune"
     const logs = (integration.stubs.console.log as sinon.SinonStub).getCalls().map((call) => call.args[0]);
@@ -57,7 +64,13 @@ describe('prune integration', () => {
       tmux: false,
     });
 
-    await runPrune(integration.useCases, integration.services, { confirm: confirmStub });
+    // Process.exit throws ProcessExitError in tests
+    try {
+      await runPrune(integration.useCases, integration.services, { confirm: confirmStub });
+      expect.fail('Should have thrown ProcessExitError');
+    } catch (error) {
+      expect(error).toBeInstanceOf(ProcessExitError);
+    }
 
     const logs = (integration.stubs.console.log as sinon.SinonStub).getCalls().map((call) => call.args[0]);
     expect(logs.some((log) => log.includes('No workspaces to prune'))).toBe(true);
@@ -164,7 +177,13 @@ describe('prune integration', () => {
     // Add uncommitted changes
     fs.writeFileSync(path.join(worktreePath, 'dirty.txt'), 'uncommitted\n');
 
-    await runPrune(integration.useCases, integration.services, { confirm: confirmStub });
+    // Process.exit throws ProcessExitError in tests
+    try {
+      await runPrune(integration.useCases, integration.services, { confirm: confirmStub });
+      expect.fail('Should have thrown ProcessExitError');
+    } catch (error) {
+      expect(error).toBeInstanceOf(ProcessExitError);
+    }
 
     // Workspace should NOT be removed
     expect(fs.existsSync(workspacePath)).toBe(true);
@@ -216,11 +235,19 @@ describe('prune integration', () => {
       gitDate,
     ]);
 
-    await runPrune(integration.useCases, integration.services, { confirm: confirmStub });
+    // Process.exit throws ProcessExitError in tests to simulate stopping execution
+    try {
+      await runPrune(integration.useCases, integration.services, { confirm: confirmStub });
+      expect.fail('Should have thrown ProcessExitError');
+    } catch (error) {
+      expect(error).toBeInstanceOf(ProcessExitError);
+      expect((error as ProcessExitError).code).toBe(0);
+    }
 
     // Workspace should NOT be removed
     expect(fs.existsSync(workspacePath)).toBe(true);
 
+    // Should log "Cancelled"
     const logs = (integration.stubs.console.log as sinon.SinonStub).getCalls().map((call) => call.args[0]);
     expect(logs.some((log) => log.includes('Cancelled'))).toBe(true);
   });

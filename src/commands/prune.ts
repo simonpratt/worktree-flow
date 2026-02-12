@@ -34,7 +34,6 @@ export async function runPrune(
     services.console.log('No workspaces to prune.');
     services.console.log(`\nWorkspaces are prunable when:`);
     services.console.log(`  - All worktrees have no uncommitted changes`);
-    services.console.log(`  - All worktrees are not ahead of their base branch`);
     services.console.log(`  - Last commit is more than 7 days old`);
     services.process.exit(0);
   }

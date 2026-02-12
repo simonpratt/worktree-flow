@@ -8,6 +8,7 @@ import {
   createTempDir,
   initGitRepo,
   createIntegrationServices,
+  ProcessExitError,
   type IntegrationServices,
 } from '../../test/integration-test-utils.js';
 
@@ -153,5 +154,70 @@ describe('remove integration', () => {
 
     // Workspace directory should be gone
     expect(fs.existsSync(result.workspacePath)).toBe(false);
+  });
+
+  it('should allow removal when worktree has commits ahead of base branch (but no uncommitted changes)', async () => {
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+    const result = await integration.useCases.createBranchWorkspace.execute({
+      repos: [repo1],
+      branchName: 'feature',
+      sourceBranch: 'master',
+      sourcePath,
+      destPath,
+      copyFiles: '.env',
+      tmux: false,
+    });
+
+    const worktreePath = path.join(result.workspacePath, 'repo1');
+
+    // Add a committed change in the worktree (ahead of master)
+    fs.writeFileSync(path.join(worktreePath, 'new-feature.txt'), 'committed change\n');
+    const { NodeShell } = await import('../../adapters/node.js');
+    const shell = new NodeShell();
+    await shell.execFile('git', ['-C', worktreePath, 'add', 'new-feature.txt']);
+    await shell.execFile('git', ['-C', worktreePath, 'commit', '-m', 'Add new feature']);
+
+    // Should NOT throw - committed changes are safe
+    await runRemove('feature', integration.useCases, integration.services, { confirm: confirmStub });
+
+    // Workspace should be removed
+    expect(fs.existsSync(result.workspacePath)).toBe(false);
+  });
+
+  it('should not remove workspace when user declines confirmation', async () => {
+    confirmStub.resolves(false);
+
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+    const result = await integration.useCases.createBranchWorkspace.execute({
+      repos: [repo1],
+      branchName: 'feature',
+      sourceBranch: 'master',
+      sourcePath,
+      destPath,
+      copyFiles: '.env',
+      tmux: false,
+    });
+
+    const workspacePath = result.workspacePath;
+
+    // Process.exit throws ProcessExitError in tests to simulate stopping execution
+    try {
+      await runRemove('feature', integration.useCases, integration.services, { confirm: confirmStub });
+      expect.fail('Should have thrown ProcessExitError');
+    } catch (error) {
+      expect(error).toBeInstanceOf(ProcessExitError);
+      expect((error as ProcessExitError).code).toBe(0);
+    }
+
+    // Workspace should NOT be removed
+    expect(fs.existsSync(workspacePath)).toBe(true);
+
+    // Should log "Cancelled"
+    const logs = (integration.stubs.console.log as sinon.SinonStub).getCalls().map((call) => call.args[0]);
+    expect(logs.some((log) => log.includes('Cancelled'))).toBe(true);
   });
 });

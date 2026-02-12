@@ -36,7 +36,7 @@ export async function runRemove(
       fetchCacheTtlSeconds: config.fetchCacheTtlSeconds,
     });
 
-    services.console.log(`\nChecking for uncommitted changes and commits ahead of base branch...`);
+    services.console.log(`\nChecking for uncommitted changes...`);
 
     // Load workspace config to get per-repo base branches
     const workspaceConfig = services.workspaceConfig.load(workspacePath);

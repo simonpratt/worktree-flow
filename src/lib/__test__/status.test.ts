@@ -93,14 +93,14 @@ describe('StatusService', () => {
   });
 
   describe('hasIssues', () => {
-    it('should return true for problem statuses', () => {
+    it('should return true for uncommitted changes and errors', () => {
       expect(StatusService.hasIssues({ type: 'uncommitted' })).toBe(true);
-      expect(StatusService.hasIssues({ type: 'ahead', comparedTo: 'main' })).toBe(true);
       expect(StatusService.hasIssues({ type: 'error', error: 'fatal' })).toBe(true);
     });
 
-    it('should return false for clean statuses', () => {
+    it('should return false for clean and ahead statuses', () => {
       expect(StatusService.hasIssues({ type: 'clean', comparedTo: 'main' })).toBe(false);
+      expect(StatusService.hasIssues({ type: 'ahead', comparedTo: 'main' })).toBe(false);
     });
   });
 
@@ -195,7 +195,8 @@ describe('StatusService', () => {
         () => 'master'
       );
 
-      expect(reposWithIssues).toEqual(['repo1', 'repo2']);
+      // Only repo1 has uncommitted changes (repo2 is just ahead, which is safe)
+      expect(reposWithIssues).toEqual(['repo1']);
     });
 
     it('should return empty array when all repos are clean', async () => {

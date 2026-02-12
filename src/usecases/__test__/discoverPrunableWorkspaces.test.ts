@@ -141,7 +141,7 @@ describe('DiscoverPrunableWorkspacesUseCase', () => {
     expect(result.prunable).toEqual([]);
   });
 
-  it('should exclude workspace if any worktree is ahead of main', async () => {
+  it('should include workspace if worktree is ahead of main (committed changes are safe)', async () => {
     const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
 
     workspaceDirStub.listWorkspaces.returns([
@@ -161,7 +161,18 @@ describe('DiscoverPrunableWorkspacesUseCase', () => {
       daysOld: 7,
     });
 
-    expect(result.prunable).toEqual([]);
+    // Workspace should be prunable since commits are safe in git history
+    expect(result.prunable).toEqual([
+      {
+        name: 'feature',
+        path: '/dest/feature',
+        repoCount: 1,
+        oldestCommitDate: tenDaysAgo,
+        statuses: [
+          { repoName: 'repo1', status: { type: 'ahead', comparedTo: 'main' } },
+        ],
+      },
+    ]);
   });
 
   it('should include workspace if worktree is clean (safe to remove)', async () => {
