@@ -88,7 +88,7 @@ Remove workspaces interactively. Shows all workspaces with their status (similar
 
 ### `flow tmux resume`
 
-Create tmux sessions for all workspaces that don't already have one. Each session is created with split panes (one for the workspace root and one for each worktree) using a tiled layout. Skips workspaces that already have active sessions.
+Create tmux sessions for all workspaces that don't already have one. Each session is created with split panes (one for the workspace root and one for each worktree that matches a repo from source-path) using a tiled layout. Skips workspaces that already have active sessions.
 
 Requires `tmux` to be installed and the `tmux` config option to be enabled.
 

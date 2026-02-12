@@ -83,7 +83,9 @@ export function createUseCases(services: Services) {
     ),
     resumeTmuxSessions: new ResumeTmuxSessionsUseCase(
       services.workspaceDir,
-      services.tmux
+      services.tmux,
+      services.repos,
+      services.config
     ),
   };
 }
