@@ -84,7 +84,7 @@ Remove a workspace and all its worktrees. Fetches latest, checks for uncommitted
 
 ### `flow prune` (alias: `clean`)
 
-Remove stale workspaces in bulk. Finds workspaces where all worktrees have no uncommitted changes and haven't been committed to in over 7 days. Committed changes ahead of the base branch are safe to remove.
+Remove workspaces interactively. Shows all workspaces with their status (similar to `flow list`) and lets you select which ones to prune. Only workspaces with no uncommitted changes can be successfully removed.
 
 ### `flow tmux resume`
 

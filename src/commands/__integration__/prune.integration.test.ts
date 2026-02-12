@@ -17,6 +17,7 @@ describe('prune integration', () => {
   let destPath: string;
   let integration: IntegrationServices;
   let confirmStub: sinon.SinonStub;
+  let checkboxStub: sinon.SinonStub;
 
   beforeEach(async () => {
     tempDir = createTempDir();
@@ -25,6 +26,7 @@ describe('prune integration', () => {
     fs.mkdirSync(sourcePath, { recursive: true });
     fs.mkdirSync(destPath, { recursive: true });
     confirmStub = sinon.stub().resolves(true);
+    checkboxStub = sinon.stub();
   });
 
   afterEach(() => {
@@ -37,23 +39,23 @@ describe('prune integration', () => {
 
     // Process.exit throws ProcessExitError in tests
     try {
-      await runPrune(integration.useCases, integration.services, { confirm: confirmStub });
+      await runPrune(integration.useCases, integration.services, { checkbox: checkboxStub, confirm: confirmStub });
       expect.fail('Should have thrown ProcessExitError');
     } catch (error) {
       expect(error).toBeInstanceOf(ProcessExitError);
     }
 
-    // Should have logged "No workspaces to prune"
+    // Should have logged "No workspaces found"
     const logs = (integration.stubs.console.log as sinon.SinonStub).getCalls().map((call) => call.args[0]);
-    expect(logs.some((log) => log.includes('No workspaces to prune'))).toBe(true);
+    expect(logs.some((log) => log.includes('No workspaces found'))).toBe(true);
   });
 
-  it('should show message when no workspaces are prunable', async () => {
+  it('should show message when no workspaces are selected', async () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    // Create a workspace with a recent commit
+    // Create a workspace
     await integration.useCases.createBranchWorkspace.execute({
       repos: [repo1],
       branchName: 'feature',
@@ -64,16 +66,19 @@ describe('prune integration', () => {
       tmux: false,
     });
 
+    // User selects nothing
+    checkboxStub.resolves([]);
+
     // Process.exit throws ProcessExitError in tests
     try {
-      await runPrune(integration.useCases, integration.services, { confirm: confirmStub });
+      await runPrune(integration.useCases, integration.services, { checkbox: checkboxStub, confirm: confirmStub });
       expect.fail('Should have thrown ProcessExitError');
     } catch (error) {
       expect(error).toBeInstanceOf(ProcessExitError);
     }
 
     const logs = (integration.stubs.console.log as sinon.SinonStub).getCalls().map((call) => call.args[0]);
-    expect(logs.some((log) => log.includes('No workspaces to prune'))).toBe(true);
+    expect(logs.some((log) => log.includes('No workspaces selected'))).toBe(true);
   });
 
   it('should prune old workspaces with clean status', async () => {
@@ -126,14 +131,17 @@ describe('prune integration', () => {
 
     expect(fs.existsSync(workspacePath)).toBe(true);
 
+    // User selects the workspace to prune
+    checkboxStub.resolves(['old-feature']);
+
     // Run prune
-    await runPrune(integration.useCases, integration.services, { confirm: confirmStub });
+    await runPrune(integration.useCases, integration.services, { checkbox: checkboxStub, confirm: confirmStub });
 
     // Workspace should be removed
     expect(fs.existsSync(workspacePath)).toBe(false);
   });
 
-  it('should not prune workspace with uncommitted changes', async () => {
+  it('should fail to prune workspace with uncommitted changes', async () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
 
     integration = createIntegrationServices(sourcePath, destPath);
@@ -177,19 +185,17 @@ describe('prune integration', () => {
     // Add uncommitted changes
     fs.writeFileSync(path.join(worktreePath, 'dirty.txt'), 'uncommitted\n');
 
-    // Process.exit throws ProcessExitError in tests
-    try {
-      await runPrune(integration.useCases, integration.services, { confirm: confirmStub });
-      expect.fail('Should have thrown ProcessExitError');
-    } catch (error) {
-      expect(error).toBeInstanceOf(ProcessExitError);
-    }
+    // User selects the workspace with uncommitted changes
+    checkboxStub.resolves(['old-feature']);
 
-    // Workspace should NOT be removed
+    await runPrune(integration.useCases, integration.services, { checkbox: checkboxStub, confirm: confirmStub });
+
+    // Workspace should NOT be removed due to uncommitted changes
     expect(fs.existsSync(workspacePath)).toBe(true);
 
+    // Should log failure message
     const logs = (integration.stubs.console.log as sinon.SinonStub).getCalls().map((call) => call.args[0]);
-    expect(logs.some((log) => log.includes('No workspaces to prune'))).toBe(true);
+    expect(logs.some((log) => log.includes('Failed to remove'))).toBe(true);
   });
 
   it('should not prune workspace when user declines confirmation', async () => {
@@ -235,9 +241,12 @@ describe('prune integration', () => {
       gitDate,
     ]);
 
+    // User selects the workspace but declines confirmation
+    checkboxStub.resolves(['old-feature']);
+
     // Process.exit throws ProcessExitError in tests to simulate stopping execution
     try {
-      await runPrune(integration.useCases, integration.services, { confirm: confirmStub });
+      await runPrune(integration.useCases, integration.services, { checkbox: checkboxStub, confirm: confirmStub });
       expect.fail('Should have thrown ProcessExitError');
     } catch (error) {
       expect(error).toBeInstanceOf(ProcessExitError);
@@ -309,7 +318,10 @@ describe('prune integration', () => {
       await shell.execFile('git', ['-C', repo1, 'update-ref', 'refs/remotes/origin/master', sha]);
     }
 
-    await runPrune(integration.useCases, integration.services, { confirm: confirmStub });
+    // User selects both workspaces to prune
+    checkboxStub.resolves(['old-feature-1', 'old-feature-2']);
+
+    await runPrune(integration.useCases, integration.services, { checkbox: checkboxStub, confirm: confirmStub });
 
     // Both workspaces should be removed
     expect(fs.existsSync(result1.workspacePath)).toBe(false);

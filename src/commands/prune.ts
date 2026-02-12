@@ -1,20 +1,32 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
+import checkbox from '@inquirer/checkbox';
 import confirm from '@inquirer/confirm';
 import { createServices } from '../lib/services.js';
 import { createUseCases } from '../usecases/usecases.js';
 import type { Services } from '../lib/services.js';
 import type { UseCases } from '../usecases/usecases.js';
+import { getStatusIndicator } from './helpers.js';
 
 export async function runPrune(
   useCases: UseCases,
   services: Services,
-  deps: { confirm: (opts: { message: string; default: boolean }) => Promise<boolean> }
+  deps: {
+    checkbox: (opts: any) => Promise<string[]>;
+    confirm: (opts: { message: string; default: boolean }) => Promise<boolean>;
+  }
 ): Promise<void> {
   const { sourcePath, destPath } = services.config.getRequired();
   const config = services.config.load();
+  const cwd = services.process.cwd();
 
-  services.console.log('Analyzing workspaces for pruning...\n');
+  // Check if workspaces exist
+  const basicWorkspaces = services.workspaceDir.listWorkspaces(destPath);
+
+  if (basicWorkspaces.length === 0) {
+    services.console.log('No workspaces found.');
+    services.process.exit(0);
+  }
 
   // Fetch repos used across all workspaces
   await useCases.fetchUsedRepos.execute({
@@ -23,38 +35,42 @@ export async function runPrune(
     fetchCacheTtlSeconds: config.fetchCacheTtlSeconds,
   });
 
-  // Analyze workspaces to find prunable ones
-  const result = await useCases.discoverPrunableWorkspaces.execute({
+  // Get full status for all workspaces
+  const result = await useCases.listWorkspacesWithStatus.execute({
     destPath,
     sourcePath,
-    daysOld: 7,
+    cwd,
   });
 
-  if (result.prunable.length === 0) {
-    services.console.log('No workspaces to prune.');
-    services.console.log(`\nWorkspaces are prunable when:`);
-    services.console.log(`  - All worktrees have no uncommitted changes`);
-    services.console.log(`  - Last commit is more than 7 days old`);
+  // Format choices for checkbox prompt
+  const choices = result.workspaces.map(workspace => {
+    const statusIndicator = getStatusIndicator(workspace);
+    const repoCount = chalk.dim(`(${workspace.repoCount} repo${workspace.repoCount === 1 ? '' : 's'})`);
+
+    return {
+      name: `${chalk.cyan(workspace.name)} ${repoCount} ${statusIndicator}`,
+      value: workspace.name,
+    };
+  });
+
+  // Let user select workspaces to prune
+  const selected = await deps.checkbox({
+    message: 'Select workspaces to prune:',
+    choices,
+    pageSize: 20,
+  });
+
+  if (selected.length === 0) {
+    services.console.log('No workspaces selected.');
     services.process.exit(0);
   }
 
-  // Display prunable workspaces
-  services.console.log(`${chalk.yellow('Found')} ${chalk.cyan(result.prunable.length)} ${chalk.yellow('workspace(s) that can be pruned:')}\n`);
+  // Get full workspace objects for selected items
+  const selectedWorkspaces = result.workspaces.filter(w => selected.includes(w.name));
 
-  for (const workspace of result.prunable) {
-    const daysOld = Math.floor(
-      (Date.now() - workspace.oldestCommitDate.getTime()) / (1000 * 60 * 60 * 24)
-    );
-
-    services.console.log(`  ${chalk.cyan(workspace.name)}`);
-    services.console.log(`    Repos: ${workspace.repoCount}`);
-    services.console.log(`    Last commit: ${daysOld} days ago`);
-    services.console.log(`    Status: ${chalk.green('clean')}`);
-    services.console.log('');
-  }
-
+  // Confirm deletion
   const confirmed = await deps.confirm({
-    message: 'Are you sure you want to prune these workspaces?',
+    message: `Are you sure you want to prune ${selected.length} workspace(s)?`,
     default: false,
   });
 
@@ -69,7 +85,7 @@ export async function runPrune(
   let successCount = 0;
   let errorCount = 0;
 
-  for (const workspace of result.prunable) {
+  for (const workspace of selectedWorkspaces) {
     try {
       services.console.log(`Removing ${chalk.cyan(workspace.name)}...`);
 
@@ -102,13 +118,13 @@ export function registerPruneCommand(program: Command): void {
   program
     .command('prune')
     .alias('clean')
-    .description('Remove old workspaces with no uncommitted changes and commits older than 7 days')
+    .description('Select and remove workspaces')
     .action(async () => {
       const services = createServices();
       const useCases = createUseCases(services);
 
       try {
-        await runPrune(useCases, services, { confirm });
+        await runPrune(useCases, services, { checkbox, confirm });
       } catch (error: any) {
         services.console.error(error.message);
         services.process.exit(1);
