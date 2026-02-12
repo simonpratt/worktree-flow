@@ -86,7 +86,7 @@ export class CreateBranchWorkspaceUseCase {
           repoPath,
           worktreeDest,
           params.branchName,
-          actualBaseBranch
+          `origin/${actualBaseBranch}`
         );
 
         this.worktree.copyConfigFilesToWorktree(
