@@ -213,7 +213,7 @@ describe('tmux resume integration', () => {
     expect(sessionNames).toContain('feature-branch-2');
   });
 
-  it('should only create splits for directories that match repos from source-path', async () => {
+  it('should only create splits for directories with .git', async () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
     const repo2 = await initGitRepo(sourcePath, 'repo2');
 
@@ -230,7 +230,7 @@ describe('tmux resume integration', () => {
       tmux: false,
     });
 
-    // Add a non-repo directory to the workspace
+    // Add a non-git directory to the workspace (should be filtered by getWorktreeDirs)
     const workspacePath = path.join(destPath, 'feature-a');
     const nonRepoDir = path.join(workspacePath, 'other-stuff');
     fs.mkdirSync(nonRepoDir);
@@ -240,7 +240,7 @@ describe('tmux resume integration', () => {
 
     await runTmuxResume(integration.useCases, integration.services);
 
-    // Verify tmux.createSession was called with only repo1 and repo2, not other-stuff
+    // Verify tmux.createSession was called with only repo1 and repo2 (directories with .git)
     sinon.assert.calledOnce(tmuxStub.createSession);
     const call = tmuxStub.createSession.getCall(0);
     const worktreePaths = call.args[2];

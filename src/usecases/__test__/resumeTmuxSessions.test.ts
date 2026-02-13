@@ -3,14 +3,10 @@ import sinon from 'sinon';
 import { ResumeTmuxSessionsUseCase } from '../resumeTmuxSessions.js';
 import type { WorkspaceDirectoryService } from '../../lib/workspaceDirectory.js';
 import type { TmuxService } from '../../lib/tmux.js';
-import type { RepoService } from '../../lib/repos.js';
-import type { ConfigService } from '../../lib/config.js';
 
 describe('ResumeTmuxSessionsUseCase', () => {
   let workspaceDir: sinon.SinonStubbedInstance<WorkspaceDirectoryService>;
   let tmux: sinon.SinonStubbedInstance<TmuxService>;
-  let repos: sinon.SinonStubbedInstance<RepoService>;
-  let config: sinon.SinonStubbedInstance<ConfigService>;
   let useCase: ResumeTmuxSessionsUseCase;
 
   beforeEach(() => {
@@ -23,19 +19,10 @@ describe('ResumeTmuxSessionsUseCase', () => {
       createSession: sinon.stub(),
     } as any;
 
-    repos = {
-      discoverRepos: sinon.stub(),
-    } as any;
-
-    config = {
-      getRequired: sinon.stub(),
-    } as any;
-
-    useCase = new ResumeTmuxSessionsUseCase(workspaceDir, tmux, repos, config);
+    useCase = new ResumeTmuxSessionsUseCase(workspaceDir, tmux);
   });
 
   it('should return zero counts when no workspaces exist', async () => {
-    config.getRequired.returns({ sourcePath: '/source', destPath: '/dest' });
     workspaceDir.listWorkspaces.returns([]);
 
     const result = await useCase.execute({ destPath: '/dest' });
@@ -47,13 +34,9 @@ describe('ResumeTmuxSessionsUseCase', () => {
       errors: [],
     });
     sinon.assert.notCalled(tmux.createSession);
-    sinon.assert.notCalled(repos.discoverRepos);
   });
 
   it('should create tmux sessions for all workspaces', async () => {
-    config.getRequired.returns({ sourcePath: '/source', destPath: '/dest' });
-    repos.discoverRepos.withArgs('/source').returns(['/source/repo1', '/source/repo2']);
-
     workspaceDir.listWorkspaces.returns([
       { name: 'feature-a', path: '/dest/feature-a', repoCount: 2 },
       { name: 'feature-b', path: '/dest/feature-b', repoCount: 1 },
@@ -94,9 +77,6 @@ describe('ResumeTmuxSessionsUseCase', () => {
   });
 
   it('should skip workspaces with existing tmux sessions', async () => {
-    config.getRequired.returns({ sourcePath: '/source', destPath: '/dest' });
-    repos.discoverRepos.withArgs('/source').returns(['/source/repo1']);
-
     workspaceDir.listWorkspaces.returns([
       { name: 'feature-a', path: '/dest/feature-a', repoCount: 1 },
       { name: 'feature-b', path: '/dest/feature-b', repoCount: 1 },
@@ -125,9 +105,6 @@ describe('ResumeTmuxSessionsUseCase', () => {
   });
 
   it('should handle errors during session creation', async () => {
-    config.getRequired.returns({ sourcePath: '/source', destPath: '/dest' });
-    repos.discoverRepos.withArgs('/source').returns(['/source/repo1']);
-
     workspaceDir.listWorkspaces.returns([
       { name: 'feature-a', path: '/dest/feature-a', repoCount: 1 },
       { name: 'feature-b', path: '/dest/feature-b', repoCount: 1 },
@@ -149,9 +126,6 @@ describe('ResumeTmuxSessionsUseCase', () => {
   });
 
   it('should handle mix of created, skipped, and errors', async () => {
-    config.getRequired.returns({ sourcePath: '/source', destPath: '/dest' });
-    repos.discoverRepos.withArgs('/source').returns(['/source/repo']);
-
     workspaceDir.listWorkspaces.returns([
       { name: 'new-session', path: '/dest/new-session', repoCount: 1 },
       { name: 'existing-session', path: '/dest/existing-session', repoCount: 1 },
@@ -175,9 +149,6 @@ describe('ResumeTmuxSessionsUseCase', () => {
   });
 
   it('should pass workspace name as tmux session name', async () => {
-    config.getRequired.returns({ sourcePath: '/source', destPath: '/dest' });
-    repos.discoverRepos.withArgs('/source').returns(['/source/repo1']);
-
     workspaceDir.listWorkspaces.returns([
       { name: 'my-feature-branch', path: '/dest/my-feature-branch', repoCount: 1 },
     ]);
@@ -197,21 +168,18 @@ describe('ResumeTmuxSessionsUseCase', () => {
     );
   });
 
-  it('should filter out non-repo directories from worktree paths', async () => {
-    config.getRequired.returns({ sourcePath: '/source', destPath: '/dest' });
-    repos.discoverRepos.withArgs('/source').returns(['/source/repo1', '/source/repo2']);
-
+  it('should include all git directories returned by getWorktreeDirs', async () => {
     workspaceDir.listWorkspaces.returns([
       { name: 'feature-a', path: '/dest/feature-a', repoCount: 3 },
     ]);
 
-    // Workspace has repo1, repo2, and a non-repo directory "other-dir"
+    // getWorktreeDirs now only returns directories with .git, so all returned dirs are valid
     workspaceDir.getWorktreeDirs
       .withArgs('/dest/feature-a')
       .returns([
         '/dest/feature-a/repo1',
         '/dest/feature-a/repo2',
-        '/dest/feature-a/other-dir',
+        '/dest/feature-a/repo3',
       ]);
 
     tmux.createSession.resolves();
@@ -219,12 +187,12 @@ describe('ResumeTmuxSessionsUseCase', () => {
     await useCase.execute({ destPath: '/dest' });
 
     sinon.assert.calledOnce(tmux.createSession);
-    // Should only include repo1 and repo2, filtering out other-dir
+    // Should include all directories returned by getWorktreeDirs
     sinon.assert.calledWith(
       tmux.createSession,
       '/dest/feature-a',
       'feature-a',
-      ['/dest/feature-a/repo1', '/dest/feature-a/repo2']
+      ['/dest/feature-a/repo1', '/dest/feature-a/repo2', '/dest/feature-a/repo3']
     );
   });
 });

@@ -1,8 +1,5 @@
-import path from 'node:path';
 import type { WorkspaceDirectoryService } from '../lib/workspaceDirectory.js';
 import type { TmuxService } from '../lib/tmux.js';
-import type { RepoService } from '../lib/repos.js';
-import type { ConfigService } from '../lib/config.js';
 
 export type ResumeTmuxSessionsParams = {
   destPath: string;
@@ -18,14 +15,12 @@ export type ResumeTmuxSessionsResult = {
 /**
  * Use case for resuming tmux sessions across all workspaces.
  * Creates sessions for workspaces that don't already have one.
- * Only creates splits for directories that match repos from source-path.
+ * Creates splits for all git directories (directories with .git).
  */
 export class ResumeTmuxSessionsUseCase {
   constructor(
     private workspaceDir: WorkspaceDirectoryService,
-    private tmux: TmuxService,
-    private repos: RepoService,
-    private config: ConfigService
+    private tmux: TmuxService
   ) {}
 
   async execute(params: ResumeTmuxSessionsParams): Promise<ResumeTmuxSessionsResult> {
@@ -42,28 +37,18 @@ export class ResumeTmuxSessionsUseCase {
       };
     }
 
-    // 2. Get valid repo names from source-path
-    const { sourcePath } = this.config.getRequired();
-    const repoPaths = this.repos.discoverRepos(sourcePath);
-    const validRepoNames = new Set(repoPaths.map(repoPath => path.basename(repoPath)));
-
     let sessionsCreated = 0;
     let sessionsSkipped = 0;
     const errors: Array<{ workspace: string; error: string }> = [];
 
-    // 3. Try to create tmux session for each workspace
+    // 2. Try to create tmux session for each workspace
     for (const workspace of workspaces) {
       try {
-        const allWorktreeDirs = this.workspaceDir.getWorktreeDirs(workspace.path);
-
-        // Filter to only include directories that match repo names from source-path
-        const filteredWorktreeDirs = allWorktreeDirs.filter(worktreeDir => {
-          const dirName = path.basename(worktreeDir);
-          return validRepoNames.has(dirName);
-        });
+        // Get all git directories (getWorktreeDirs now filters to only include dirs with .git)
+        const worktreeDirs = this.workspaceDir.getWorktreeDirs(workspace.path);
 
         // Try to create session - will throw on duplicate session
-        await this.tmux.createSession(workspace.path, workspace.name, filteredWorktreeDirs);
+        await this.tmux.createSession(workspace.path, workspace.name, worktreeDirs);
         sessionsCreated++;
       } catch (error: any) {
         // Check if session already exists
