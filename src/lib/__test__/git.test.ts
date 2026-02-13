@@ -62,7 +62,7 @@ describe('GitService', () => {
   });
 
   describe('localRemoteBranchExists', () => {
-    it('should execute rev-parse and return true when branch exists', async () => {
+    it('should return true when local branch exists', async () => {
       shell.execFile.resolves({ stdout: 'abc123', stderr: '' });
 
       const result = await service.localRemoteBranchExists('/repo', 'feature');
@@ -70,25 +70,58 @@ describe('GitService', () => {
       sinon.assert.calledOnceWithExactly(
         shell.execFile,
         'git',
-        ['-C', '/repo', 'rev-parse', '--verify', 'origin/feature'],
+        ['-C', '/repo', 'rev-parse', '--verify', 'feature'],
         { encoding: 'utf-8' }
       );
       expect(result).toBe(true);
     });
 
-    it('should return false when rev-parse fails', async () => {
+    it('should check remote branch when local branch does not exist', async () => {
+      shell.execFile.onFirstCall().rejects(new Error('fatal: needed a single revision'));
+      shell.execFile.onSecondCall().resolves({ stdout: 'abc123', stderr: '' });
+
+      const result = await service.localRemoteBranchExists('/repo', 'feature');
+
+      expect(shell.execFile.callCount).toBe(2);
+      sinon.assert.calledWith(
+        shell.execFile.firstCall,
+        'git',
+        ['-C', '/repo', 'rev-parse', '--verify', 'feature']
+      );
+      sinon.assert.calledWith(
+        shell.execFile.secondCall,
+        'git',
+        ['-C', '/repo', 'rev-parse', '--verify', 'origin/feature']
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should return false when both local and remote branch do not exist', async () => {
       shell.execFile.rejects(new Error('fatal: needed a single revision'));
 
       const result = await service.localRemoteBranchExists('/repo', 'feature');
 
       expect(result).toBe(false);
     });
+
+    it('should return true for local branch even if remote exists', async () => {
+      shell.execFile.resolves({ stdout: 'abc123', stderr: '' });
+
+      const result = await service.localRemoteBranchExists('/repo', 'feature');
+
+      // Should only check local branch and return immediately
+      sinon.assert.calledOnce(shell.execFile);
+      expect(result).toBe(true);
+    });
   });
 
   describe('findFirstExistingBranch', () => {
     it('should return first existing branch from candidates', async () => {
-      shell.execFile.onFirstCall().rejects(new Error('not found'));
-      shell.execFile.onSecondCall().resolves({ stdout: 'abc123', stderr: '' });
+      // master: local fails, origin/master fails
+      shell.execFile.onCall(0).rejects(new Error('not found'));
+      shell.execFile.onCall(1).rejects(new Error('not found'));
+      // main: local succeeds
+      shell.execFile.onCall(2).resolves({ stdout: 'abc123', stderr: '' });
 
       const result = await service.findFirstExistingBranch('/repo', ['master', 'main', 'trunk']);
 

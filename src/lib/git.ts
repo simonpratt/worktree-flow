@@ -23,11 +23,18 @@ export class GitService {
   }
 
   async localRemoteBranchExists(repoPath: string, branch: string): Promise<boolean> {
+    // Check for local branch first
     try {
-      await this.exec(repoPath, ['rev-parse', '--verify', `origin/${branch}`]);
+      await this.exec(repoPath, ['rev-parse', '--verify', branch]);
       return true;
     } catch {
-      return false;
+      // Fall back to checking remote-tracking branch
+      try {
+        await this.exec(repoPath, ['rev-parse', '--verify', `origin/${branch}`]);
+        return true;
+      } catch {
+        return false;
+      }
     }
   }
 

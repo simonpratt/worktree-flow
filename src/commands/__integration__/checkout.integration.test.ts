@@ -147,4 +147,32 @@ describe('checkout integration', () => {
     expect(content2).toBe('global'); // Global fallback
     expect(content3).toBe('repo3-custom'); // Per-repo override
   });
+
+  it('should checkout local branches that have not been pushed to origin', async () => {
+    const { NodeShell } = await import('../../adapters/node.js');
+    const shell = new NodeShell();
+
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+    const repo2 = await initGitRepo(sourcePath, 'repo2');
+    const repo3 = await initGitRepo(sourcePath, 'repo3');
+
+    // Create local branches without remote tracking refs (simulating unpushed branches)
+    await shell.execFile('git', ['-C', repo1, 'branch', 'local-feature']);
+    await shell.execFile('git', ['-C', repo2, 'branch', 'local-feature']);
+    // repo3 does not have the branch
+
+    integration = createIntegrationServices(sourcePath, destPath);
+    await runCheckout('local-feature', integration.useCases, integration.services, { confirm: confirmStub });
+
+    // Both repos with local branches should have worktrees created
+    for (const name of ['repo1', 'repo2']) {
+      const wt = path.join(destPath, 'local-feature', name);
+      expect(fs.existsSync(wt)).toBe(true);
+      const { stdout } = await shell.execFile('git', ['-C', wt, 'branch', '--show-current']);
+      expect(stdout.trim()).toBe('local-feature');
+    }
+
+    // repo3 has no branch — should be excluded
+    expect(fs.existsSync(path.join(destPath, 'local-feature', 'repo3'))).toBe(false);
+  });
 });
