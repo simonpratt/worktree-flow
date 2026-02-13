@@ -113,8 +113,7 @@ describe('TmuxService', () => {
         service.createSession('/workspace/feature', 'feature-branch', ['/workspace/feature/repo1'])
       ).rejects.toThrow('split failed');
     });
-
-});
+  });
 
   describe('killSession', () => {
     it('should execute tmux kill-session with correct arguments', async () => {
@@ -144,6 +143,27 @@ describe('TmuxService', () => {
 
       await expect(service.killSession('feature-branch')).rejects.toThrow('tmux server not running');
     });
+  });
 
-});
+  describe('sendKeysToPane', () => {
+    it('should send command to specified pane', async () => {
+      shell.execFile.resolves({ stdout: '', stderr: '' });
+
+      await service.sendKeysToPane('feature-branch', 1, 'npm install');
+
+      sinon.assert.calledOnceWithExactly(
+        shell.execFile,
+        'tmux',
+        ['send-keys', '-t', 'feature-branch:0.1', 'npm install', 'Enter']
+      );
+    });
+
+    it('should handle command failures', async () => {
+      shell.execFile.rejects(new Error('tmux error'));
+
+      await expect(
+        service.sendKeysToPane('feature-branch', 1, 'npm install')
+      ).rejects.toThrow('tmux error');
+    });
+  });
 });

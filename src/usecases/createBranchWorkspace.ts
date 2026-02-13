@@ -6,7 +6,7 @@ import { RepoService } from '../lib/repos.js';
 import type { GitService } from '../lib/git.js';
 import type { ParallelService } from '../lib/parallel.js';
 import type { TmuxService } from '../lib/tmux.js';
-import type { PostCheckoutService } from '../lib/postCheckout.js';
+import type { RunPostCheckoutUseCase } from './runPostCheckout.js';
 
 export type CreateBranchWorkspaceParams = {
   repos: string[];
@@ -42,7 +42,7 @@ export class CreateBranchWorkspaceUseCase {
     private git: GitService,
     private parallel: ParallelService,
     private tmux: TmuxService,
-    private postCheckout: PostCheckoutService
+    private runPostCheckout: RunPostCheckoutUseCase
   ) {}
 
   async execute(params: CreateBranchWorkspaceParams): Promise<CreateBranchWorkspaceResult> {
@@ -118,15 +118,13 @@ export class CreateBranchWorkspaceUseCase {
     }
 
     // 6. Run post-checkout command if configured
-    let postCheckoutResult;
-    if (params.postCheckout || params.perRepoPostCheckout) {
-      const worktreeDirs = this.workspaceDir.getWorktreeDirs(workspacePath);
-      postCheckoutResult = await this.postCheckout.runCommand(
-        worktreeDirs,
-        params.postCheckout,
-        params.perRepoPostCheckout ?? {}
-      );
-    }
+    const postCheckoutResult = await this.runPostCheckout.execute({
+      workspacePath,
+      sessionName: tmuxCreated ? params.branchName : undefined,
+      tmuxEnabled: tmuxCreated,
+      postCheckout: params.postCheckout,
+      perRepoPostCheckout: params.perRepoPostCheckout,
+    });
 
     return {
       workspacePath,

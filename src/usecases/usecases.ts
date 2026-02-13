@@ -11,12 +11,20 @@ import { FetchAllReposUseCase } from './fetchAllRepos.js';
 import { FetchWorkspaceReposUseCase } from './fetchWorkspaceRepos.js';
 import { FetchUsedReposUseCase } from './fetchUsedRepos.js';
 import { ResumeTmuxSessionsUseCase } from './resumeTmuxSessions.js';
+import { RunPostCheckoutUseCase } from './runPostCheckout.js';
 
 /**
  * Factory function for creating all use cases with their service dependencies.
  * Use cases orchestrate workflows by coordinating multiple services.
  */
 export function createUseCases(services: Services) {
+  // Create use cases that are dependencies first
+  const runPostCheckout = new RunPostCheckoutUseCase(
+    services.workspaceDir,
+    services.postCheckout,
+    services.tmux
+  );
+
   return {
     fetchAllRepos: new FetchAllReposUseCase(services.fetch, services.repos),
     fetchWorkspaceRepos: new FetchWorkspaceReposUseCase(
@@ -35,7 +43,7 @@ export function createUseCases(services: Services) {
       services.git,
       services.parallel,
       services.tmux,
-      services.postCheckout
+      runPostCheckout
     ),
     checkoutWorkspace: new CheckoutWorkspaceUseCase(
       services.workspaceDir,
@@ -45,7 +53,7 @@ export function createUseCases(services: Services) {
       services.git,
       services.parallel,
       services.tmux,
-      services.postCheckout
+      runPostCheckout
     ),
     removeWorkspace: new RemoveWorkspaceUseCase(
       services.workspaceDir,
@@ -85,6 +93,7 @@ export function createUseCases(services: Services) {
       services.workspaceDir,
       services.tmux
     ),
+    runPostCheckout,
   };
 }
 

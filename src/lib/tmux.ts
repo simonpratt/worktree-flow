@@ -46,6 +46,16 @@ export class TmuxService {
     }
   }
 
+  async sendKeysToPane(sessionName: string, paneIndex: number, command: string): Promise<void> {
+    await this.shell.execFile('tmux', [
+      'send-keys',
+      '-t',
+      `${sessionName}:0.${paneIndex}`,
+      command,
+      'Enter',
+    ]);
+  }
+
   async killSession(sessionName: string): Promise<void> {
     try {
       await this.shell.execFile('tmux', ['kill-session', '-t', sessionName]);
