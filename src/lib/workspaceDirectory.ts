@@ -54,7 +54,14 @@ export class WorkspaceDirectoryService {
   getWorktreeDirs(workspacePath: string): string[] {
     const entries = this.fs.readdirSync(workspacePath, { withFileTypes: true });
     return entries
-      .filter((entry: any) => entry.isDirectory())
+      .filter((entry: any) => {
+        if (!entry.isDirectory()) {
+          return false;
+        }
+        // Only include directories that have a .git file or directory (git repos/worktrees)
+        const gitPath = path.join(workspacePath, entry.name, '.git');
+        return this.fs.existsSync(gitPath);
+      })
       .map((entry: any) => path.join(workspacePath, entry.name));
   }
 

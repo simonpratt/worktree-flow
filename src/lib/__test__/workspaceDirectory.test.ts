@@ -186,10 +186,12 @@ describe('WorkspaceDirectoryService', () => {
       expect(dirs).toContain(path.join(workspacePath, 'repo2'));
     });
 
-    it('should filter out files and only return directories', () => {
+    it('should filter out files and only return git directories', () => {
       const workspacePath = '/workspaces/feature-123';
       const { fs } = createMemFs({
+        [path.join(workspacePath, 'repo1', '.git')]: '',
         [path.join(workspacePath, 'repo1', 'README.md')]: '',
+        [path.join(workspacePath, 'repo2', '.git')]: '',
         [path.join(workspacePath, 'repo2', 'package.json')]: '{}',
         [path.join(workspacePath, 'AGENTS.md')]: '',
         [path.join(workspacePath, '.gitignore')]: '',
@@ -201,6 +203,28 @@ describe('WorkspaceDirectoryService', () => {
       expect(dirs).toHaveLength(2);
       expect(dirs).toContain(path.join(workspacePath, 'repo1'));
       expect(dirs).toContain(path.join(workspacePath, 'repo2'));
+    });
+
+    it('should only return directories that are git repositories (have .git)', () => {
+      const workspacePath = '/workspaces/feature-123';
+      const { fs } = createMemFs({
+        [path.join(workspacePath, 'repo1', '.git')]: '',
+        [path.join(workspacePath, 'repo2', '.git')]: '',
+        [path.join(workspacePath, 'node_modules', 'package.json')]: '{}',
+        [path.join(workspacePath, '.vscode', 'settings.json')]: '{}',
+        [path.join(workspacePath, 'random-folder', 'file.txt')]: '',
+        [path.join(workspacePath, 'AGENTS.md')]: '',
+      });
+      const service = new WorkspaceDirectoryService(fs);
+
+      const dirs = service.getWorktreeDirs(workspacePath);
+
+      expect(dirs).toHaveLength(2);
+      expect(dirs).toContain(path.join(workspacePath, 'repo1'));
+      expect(dirs).toContain(path.join(workspacePath, 'repo2'));
+      expect(dirs).not.toContain(path.join(workspacePath, 'node_modules'));
+      expect(dirs).not.toContain(path.join(workspacePath, '.vscode'));
+      expect(dirs).not.toContain(path.join(workspacePath, 'random-folder'));
     });
   });
 
