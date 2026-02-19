@@ -4,6 +4,8 @@ export type WorktreeStatus = {
   type: 'clean' | 'uncommitted' | 'ahead' | 'error';
   error?: string;
   comparedTo?: 'main';
+  currentBranch?: string;
+  upstreamBranch?: string | null;
 };
 
 /**
@@ -17,19 +19,23 @@ export class StatusService {
     baseBranch: string
   ): Promise<WorktreeStatus> {
     try {
+      // Get branch information
+      const currentBranch = await this.git.getCurrentBranch(worktreePath);
+      const upstreamBranch = await this.git.getUpstreamBranch(worktreePath);
+
       // Check for uncommitted changes first
       const hasUncommitted = await this.git.hasUncommittedChanges(worktreePath);
       if (hasUncommitted) {
-        return { type: 'uncommitted' };
+        return { type: 'uncommitted', currentBranch, upstreamBranch };
       }
 
       // Compare against base branch using git cherry (handles squash merges)
       const isAhead = await this.git.isAheadOfMain(worktreePath, baseBranch);
       if (isAhead) {
-        return { type: 'ahead', comparedTo: 'main' };
+        return { type: 'ahead', comparedTo: 'main', currentBranch, upstreamBranch };
       }
 
-      return { type: 'clean', comparedTo: 'main' };
+      return { type: 'clean', comparedTo: 'main', currentBranch, upstreamBranch };
     } catch (err: any) {
       return {
         type: 'error',

@@ -255,6 +255,30 @@ describe('GitService', () => {
     });
   });
 
+  describe('getUpstreamBranch', () => {
+    it('should execute rev-parse to get upstream branch', async () => {
+      shell.execFile.resolves({ stdout: 'origin/feature\n', stderr: '' });
+
+      const upstream = await service.getUpstreamBranch('/worktree');
+
+      sinon.assert.calledOnceWithExactly(
+        shell.execFile,
+        'git',
+        ['-C', '/worktree', 'rev-parse', '--abbrev-ref', '@{u}'],
+        { encoding: 'utf-8' }
+      );
+      expect(upstream).toBe('origin/feature');
+    });
+
+    it('should return null when no upstream is configured', async () => {
+      shell.execFile.rejects(new Error('fatal: no upstream configured'));
+
+      const upstream = await service.getUpstreamBranch('/worktree');
+
+      expect(upstream).toBe(null);
+    });
+  });
+
   describe('hasUncommittedChanges', () => {
     it('should execute git status --porcelain', async () => {
       shell.execFile.resolves({ stdout: 'M file.txt\n', stderr: '' });

@@ -61,13 +61,35 @@ export async function runList(useCases: UseCases, services: Services): Promise<v
   // Re-print with full status information
   services.console.log(chalk.bold('\nWorkspaces:'));
   for (const workspace of result.workspaces) {
-    const statusIndicator = getStatusIndicator(workspace);
     const activeIndicator = workspace.isActive ? chalk.green('* ') : '  ';
     const repoCount = chalk.dim(`(${workspace.repoCount} repo${workspace.repoCount === 1 ? '' : 's'})`);
 
     services.console.log(
-      `${activeIndicator}${chalk.cyan(workspace.name)} ${repoCount} ${statusIndicator}`,
+      `${activeIndicator}${chalk.cyan(workspace.name)} ${repoCount}`,
     );
+
+    // Load workspace config to get per-repo base branches
+    const workspaceConfig = services.workspaceConfig.load(workspace.path);
+    const getBaseBranch = (repoName: string) =>
+      workspaceConfig.baseBranches[repoName] || 'master';
+
+    // Display each repo with its status and tracking branch
+    for (const { repoName, status } of workspace.statuses) {
+      const baseBranch = getBaseBranch(repoName);
+      const statusMessage = StatusService.getStatusMessage(status, baseBranch);
+      const hasIssues = StatusService.hasIssues(status);
+
+      const indicator = hasIssues ? chalk.red('✗') : chalk.green('✓');
+      const message = hasIssues ? chalk.red(statusMessage) : chalk.green(statusMessage);
+      const trackingInfo = status.upstreamBranch
+        ? chalk.dim(` → ${status.upstreamBranch}`)
+        : chalk.dim(' (no upstream)');
+
+      services.console.log(
+        `    ${indicator} ${chalk.yellow(repoName)}: ${message}${trackingInfo}`,
+      );
+    }
+    services.console.log(''); // Blank line between workspaces
   }
 }
 

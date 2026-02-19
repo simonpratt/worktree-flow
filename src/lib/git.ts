@@ -87,6 +87,15 @@ export class GitService {
     return output.trim();
   }
 
+  async getUpstreamBranch(worktreePath: string): Promise<string | null> {
+    try {
+      const output = await this.exec(worktreePath, ['rev-parse', '--abbrev-ref', '@{u}']);
+      return output.trim();
+    } catch {
+      return null;
+    }
+  }
+
   async hasUncommittedChanges(repoPath: string): Promise<boolean> {
     const output = await this.exec(repoPath, ['status', '--porcelain']);
     return output.length > 0;

@@ -1,6 +1,10 @@
 # Changelog
 
-## [Unreleased]
+## [0.0.14] - 2026-02-19
+
+### Added
+
+- `flow list` now shows a per-repo breakdown with status and remote tracking branch for each worktree
 
 ### Fixed
 

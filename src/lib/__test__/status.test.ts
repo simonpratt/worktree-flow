@@ -23,17 +23,25 @@ describe('StatusService', () => {
 
   describe('getWorktreeStatus', () => {
     it('should check for uncommitted changes first', async () => {
+      gitStub.getCurrentBranch.resolves('feature');
+      gitStub.getUpstreamBranch.resolves('origin/feature');
       gitStub.hasUncommittedChanges.resolves(true);
 
       const status = await service.getWorktreeStatus('/worktree', 'master');
 
       sinon.assert.calledOnceWithExactly(gitStub.hasUncommittedChanges, '/worktree');
-      expect(status).toEqual({ type: 'uncommitted' });
+      expect(status).toEqual({
+        type: 'uncommitted',
+        currentBranch: 'feature',
+        upstreamBranch: 'origin/feature'
+      });
       // Should not check other statuses
       sinon.assert.notCalled(gitStub.isAheadOfMain);
     });
 
     it('should compare against main using git cherry when no uncommitted changes', async () => {
+      gitStub.getCurrentBranch.resolves('feature');
+      gitStub.getUpstreamBranch.resolves('origin/feature');
       gitStub.hasUncommittedChanges.resolves(false);
       gitStub.isAheadOfMain.resolves(false);
 
@@ -41,25 +49,60 @@ describe('StatusService', () => {
 
       sinon.assert.calledOnce(gitStub.hasUncommittedChanges);
       sinon.assert.calledOnceWithExactly(gitStub.isAheadOfMain, '/worktree', 'master');
-      expect(status).toEqual({ type: 'clean', comparedTo: 'main' });
+      expect(status).toEqual({
+        type: 'clean',
+        comparedTo: 'main',
+        currentBranch: 'feature',
+        upstreamBranch: 'origin/feature'
+      });
     });
 
     it('should detect ahead of main', async () => {
+      gitStub.getCurrentBranch.resolves('feature');
+      gitStub.getUpstreamBranch.resolves('origin/feature');
       gitStub.hasUncommittedChanges.resolves(false);
       gitStub.isAheadOfMain.resolves(true);
 
       const status = await service.getWorktreeStatus('/worktree', 'master');
 
-      expect(status).toEqual({ type: 'ahead', comparedTo: 'main' });
+      expect(status).toEqual({
+        type: 'ahead',
+        comparedTo: 'main',
+        currentBranch: 'feature',
+        upstreamBranch: 'origin/feature'
+      });
     });
 
     it('should return clean when synced with main', async () => {
+      gitStub.getCurrentBranch.resolves('feature');
+      gitStub.getUpstreamBranch.resolves('origin/feature');
       gitStub.hasUncommittedChanges.resolves(false);
       gitStub.isAheadOfMain.resolves(false);
 
       const status = await service.getWorktreeStatus('/worktree', 'master');
 
-      expect(status).toEqual({ type: 'clean', comparedTo: 'main' });
+      expect(status).toEqual({
+        type: 'clean',
+        comparedTo: 'main',
+        currentBranch: 'feature',
+        upstreamBranch: 'origin/feature'
+      });
+    });
+
+    it('should handle branches with no upstream', async () => {
+      gitStub.getCurrentBranch.resolves('feature');
+      gitStub.getUpstreamBranch.resolves(null);
+      gitStub.hasUncommittedChanges.resolves(false);
+      gitStub.isAheadOfMain.resolves(false);
+
+      const status = await service.getWorktreeStatus('/worktree', 'master');
+
+      expect(status).toEqual({
+        type: 'clean',
+        comparedTo: 'main',
+        currentBranch: 'feature',
+        upstreamBranch: null
+      });
     });
 
     it('should catch errors and return error status', async () => {

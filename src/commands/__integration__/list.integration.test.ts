@@ -63,7 +63,11 @@ describe('list integration', () => {
     );
     expect(workspaceLine).toBeDefined();
     expect(workspaceLine).toContain('2 repos');
-    expect(workspaceLine).toMatch(/clean|up to date/i);
+
+    // Check repo lines for status
+    const repoLines = logCalls.filter((line: string) => line.includes('repo1') || line.includes('repo2'));
+    expect(repoLines.length).toBeGreaterThan(0);
+    expect(repoLines.some((line: string) => line.includes('✓'))).toBe(true);
   });
 
   it('should show dirty status for workspace with uncommitted changes', async () => {
@@ -90,12 +94,13 @@ describe('list integration', () => {
     const logCalls = (integration.stubs.console.log as sinon.SinonStub).args.map(
       (a: any[]) => a[0]
     );
-    // Filter out intermediate "fetching..." lines
-    const workspaceLine = logCalls.find(
-      (line: string) => line.includes('feature-a') && !line.includes('fetching...')
+
+    // Check repo lines for uncommitted status (lines that start with spaces and contain repo1)
+    const repoLine = logCalls.find((line: string) =>
+      typeof line === 'string' && line.startsWith('    ') && line.includes('repo1')
     );
-    expect(workspaceLine).toBeDefined();
-    expect(workspaceLine).toMatch(/uncommitted|dirty/i);
+    expect(repoLine).toBeDefined();
+    expect(repoLine).toMatch(/uncommitted|✗/i);
   });
 
   it('should show active indicator for workspace containing current directory', async () => {
@@ -164,7 +169,8 @@ describe('list integration', () => {
     const logCalls = (integration.stubs.console.log as sinon.SinonStub).args.map(
       (a: any[]) => a[0]
     );
-    // Filter out intermediate "fetching..." lines
+
+    // Check that both workspaces are shown
     const featureA = logCalls.find(
       (line: string) => line.includes('feature-a') && !line.includes('fetching...')
     );
@@ -173,7 +179,15 @@ describe('list integration', () => {
     );
     expect(featureA).toBeDefined();
     expect(featureB).toBeDefined();
-    expect(featureA).toMatch(/uncommitted|dirty/i);
-    expect(featureB).toMatch(/clean|up to date/i);
+
+    // Check repo status lines (lines that start with spaces)
+    const repo1Line = logCalls.find((line: string) =>
+      typeof line === 'string' && line.startsWith('    ') && line.includes('repo1')
+    );
+    const repo2Line = logCalls.find((line: string) =>
+      typeof line === 'string' && line.startsWith('    ') && line.includes('repo2')
+    );
+    expect(repo1Line).toMatch(/uncommitted|✗/i);
+    expect(repo2Line).toMatch(/✓/);
   });
 });
