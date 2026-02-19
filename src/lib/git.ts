@@ -55,7 +55,7 @@ export class GitService {
     branch: string,
     sourceBranch?: string
   ): Promise<void> {
-    const args = ['worktree', 'add', '-b', branch, worktreePath];
+    const args = ['worktree', 'add', '--no-track', '-b', branch, worktreePath];
     if (sourceBranch) {
       args.push(sourceBranch);
     }

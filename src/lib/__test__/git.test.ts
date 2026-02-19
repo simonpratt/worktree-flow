@@ -152,7 +152,7 @@ describe('GitService', () => {
   });
 
   describe('addWorktreeNewBranch', () => {
-    it('should execute worktree add with -b flag', async () => {
+    it('should execute worktree add with --no-track and -b flags', async () => {
       shell.execFile.resolves({ stdout: '', stderr: '' });
 
       await service.addWorktreeNewBranch('/repo', '/worktree', 'feature');
@@ -160,7 +160,7 @@ describe('GitService', () => {
       sinon.assert.calledOnceWithExactly(
         shell.execFile,
         'git',
-        ['-C', '/repo', 'worktree', 'add', '-b', 'feature', '/worktree'],
+        ['-C', '/repo', 'worktree', 'add', '--no-track', '-b', 'feature', '/worktree'],
         { encoding: 'utf-8' }
       );
     });
@@ -173,7 +173,7 @@ describe('GitService', () => {
       sinon.assert.calledOnceWithExactly(
         shell.execFile,
         'git',
-        ['-C', '/repo', 'worktree', 'add', '-b', 'feature', '/worktree', 'main'],
+        ['-C', '/repo', 'worktree', 'add', '--no-track', '-b', 'feature', '/worktree', 'main'],
         { encoding: 'utf-8' }
       );
     });

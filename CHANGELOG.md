@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- Fixed incorrect upstream tracking when creating new branches - new feature branches no longer track the source branch (e.g., `origin/trunk`), preventing accidental pushes to the wrong remote branch
+
 ## [0.0.13] - 2026-02-14
 
 ### Changed
