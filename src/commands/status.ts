@@ -6,6 +6,7 @@ import type { Services } from '../lib/services.js';
 import type { UseCases } from '../usecases/usecases.js';
 import { StatusService } from '../lib/status.js';
 import { resolveWorkspace } from '../lib/workspaceResolver.js';
+import { formatRepoStatusLine } from './helpers.js';
 
 export async function runStatus(
   branchName: string | undefined,
@@ -54,13 +55,10 @@ export async function runStatus(
 
   for (const { repoName, status } of result.statuses) {
     const baseBranch = getBaseBranch(repoName);
-    const message = StatusService.getStatusMessage(status, baseBranch);
-
+    services.console.log(formatRepoStatusLine(repoName, status, baseBranch));
     if (StatusService.hasIssues(status)) {
-      services.console.log(`  ${chalk.red('✗')} ${repoName}: ${chalk.red(message)}`);
       issuesCount++;
     } else {
-      services.console.log(`  ${chalk.green('✓')} ${repoName}: ${chalk.green(message)}`);
       cleanCount++;
     }
   }

@@ -69,6 +69,16 @@ describe('status integration', () => {
     expect(summaryLine).toBeDefined();
     expect(summaryLine).toContain('1 up to date');
     expect(summaryLine).toContain('0 with issues');
+
+    // Repo line should match list command format: indicator, repo name, status, tracking info
+    // formatRepoStatusLine produces lines starting with 4 spaces
+    const repoLine = logCalls.find(
+      (line: string) => typeof line === 'string' && line.startsWith('    ') && line.includes('repo1')
+    );
+    expect(repoLine).toBeDefined();
+    expect(repoLine).toMatch(/✓/);
+    expect(repoLine).toContain('up to date');
+    expect(repoLine).toMatch(/→|no upstream/);
   });
 
   it('should show issues for repos with uncommitted changes', async () => {
@@ -98,6 +108,15 @@ describe('status integration', () => {
     const summaryLine = logCalls.find((line: string) => line.includes('Summary:'));
     expect(summaryLine).toBeDefined();
     expect(summaryLine).toContain('1 with issues');
+
+    // Repo line should match list command format with error indicator
+    // formatRepoStatusLine produces lines starting with 4 spaces
+    const repoLine = logCalls.find(
+      (line: string) => typeof line === 'string' && line.startsWith('    ') && line.includes('repo1')
+    );
+    expect(repoLine).toBeDefined();
+    expect(repoLine).toMatch(/✗/);
+    expect(repoLine).toContain('uncommitted');
   });
 
   it('should show multiple repos with mixed status', async () => {

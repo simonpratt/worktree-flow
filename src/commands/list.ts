@@ -4,8 +4,7 @@ import { createServices } from '../lib/services.js';
 import { createUseCases } from '../usecases/usecases.js';
 import type { Services } from '../lib/services.js';
 import type { UseCases } from '../usecases/usecases.js';
-import { StatusService } from '../lib/status.js';
-import { getStatusIndicator } from './helpers.js';
+import { getStatusIndicator, formatRepoStatusLine } from './helpers.js';
 
 export async function runList(useCases: UseCases, services: Services): Promise<void> {
   const { destPath, sourcePath } = services.config.getRequired();
@@ -76,18 +75,7 @@ export async function runList(useCases: UseCases, services: Services): Promise<v
     // Display each repo with its status and tracking branch
     for (const { repoName, status } of workspace.statuses) {
       const baseBranch = getBaseBranch(repoName);
-      const statusMessage = StatusService.getStatusMessage(status, baseBranch);
-      const hasIssues = StatusService.hasIssues(status);
-
-      const indicator = hasIssues ? chalk.red('✗') : chalk.green('✓');
-      const message = hasIssues ? chalk.red(statusMessage) : chalk.green(statusMessage);
-      const trackingInfo = status.upstreamBranch
-        ? chalk.dim(` → ${status.upstreamBranch}`)
-        : chalk.dim(' (no upstream)');
-
-      services.console.log(
-        `    ${indicator} ${chalk.yellow(repoName)}: ${message}${trackingInfo}`,
-      );
+      services.console.log(formatRepoStatusLine(repoName, status, baseBranch));
     }
     services.console.log(''); // Blank line between workspaces
   }

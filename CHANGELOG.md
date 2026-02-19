@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- `flow status` per-repo output now matches `flow list` format — includes tracking branch and consistent styling
+
 ## [0.0.14] - 2026-02-19
 
 ### Added
