@@ -89,6 +89,7 @@ describe('ConfigService', () => {
         fetchCacheTtlSeconds: 300,
         postCheckout: undefined,
         perRepoPostCheckout: {},
+        branchAutoSelectRepos: [],
       });
     });
 
@@ -111,6 +112,7 @@ describe('ConfigService', () => {
         fetchCacheTtlSeconds: 300,
         postCheckout: undefined,
         perRepoPostCheckout: {},
+        branchAutoSelectRepos: [],
       });
     });
 
@@ -179,6 +181,41 @@ describe('ConfigService', () => {
       const config = service.load();
 
       expect(config.perRepoPostCheckout).toEqual({});
+    });
+
+    it('should parse branch-auto-select-repos as array from comma-separated string', () => {
+      const { fs } = createMemFs({
+        [configPath]: JSON.stringify({
+          'branch-auto-select-repos': 'repo1,repo2,repo3',
+        }),
+      });
+      const service = new ConfigService(fs);
+
+      const config = service.load();
+
+      expect(config.branchAutoSelectRepos).toEqual(['repo1', 'repo2', 'repo3']);
+    });
+
+    it('should default to empty array for branch-auto-select-repos when not set', () => {
+      const { fs } = createMemFs();
+      const service = new ConfigService(fs);
+
+      const config = service.load();
+
+      expect(config.branchAutoSelectRepos).toEqual([]);
+    });
+
+    it('should trim whitespace from branch-auto-select-repos entries', () => {
+      const { fs } = createMemFs({
+        [configPath]: JSON.stringify({
+          'branch-auto-select-repos': 'repo1, repo2 , repo3',
+        }),
+      });
+      const service = new ConfigService(fs);
+
+      const config = service.load();
+
+      expect(config.branchAutoSelectRepos).toEqual(['repo1', 'repo2', 'repo3']);
     });
   });
 
@@ -360,6 +397,34 @@ describe('ConfigService', () => {
 
       expect(displayConfig.perRepoPostCheckout).toEqual({});
     });
+
+    it('should show branch-auto-select-repos value when set', () => {
+      const { fs } = createMemFs({
+        [configPath]: JSON.stringify({
+          'branch-auto-select-repos': 'repo1,repo2',
+        }),
+      });
+      const service = new ConfigService(fs);
+
+      const displayConfig = service.getDisplayConfig();
+
+      expect(displayConfig['branch-auto-select-repos']).toEqual({
+        value: 'repo1,repo2',
+        isDefault: false,
+      });
+    });
+
+    it('should show (not set) for branch-auto-select-repos when not configured', () => {
+      const { fs } = createMemFs();
+      const service = new ConfigService(fs);
+
+      const displayConfig = service.getDisplayConfig();
+
+      expect(displayConfig['branch-auto-select-repos']).toEqual({
+        value: '(not set)',
+        isDefault: true,
+      });
+    });
   });
 });
 
@@ -383,6 +448,7 @@ describe('validateAndTransformConfigValue', () => {
   it('should accept valid string values', () => {
     expect(validateAndTransformConfigValue('copy-files', '.env')).toBe('.env');
     expect(validateAndTransformConfigValue('post-checkout', 'npm install')).toBe('npm install');
+    expect(validateAndTransformConfigValue('branch-auto-select-repos', 'repo1,repo2')).toBe('repo1,repo2');
   });
 
   it('should validate fetch-cache-ttl-seconds as non-negative integer', () => {
@@ -401,6 +467,7 @@ describe('isValidKey', () => {
     expect(isValidKey('tmux')).toBe(true);
     expect(isValidKey('post-checkout')).toBe(true);
     expect(isValidKey('fetch-cache-ttl-seconds')).toBe(true);
+    expect(isValidKey('branch-auto-select-repos')).toBe(true);
   });
 
   it('should return false for invalid keys', () => {

@@ -47,6 +47,7 @@ export function registerConfigCommand(program: Command): void {
 
   configCmd
     .command('list')
+    .alias('ls')
     .description('List all config options and their current values')
     .action(() => {
       const services = createServices();

@@ -28,9 +28,13 @@ export async function runBranch(
   }
 
   // User prompts
+  const choices = services.repos.formatRepoChoices(repos).map((choice) => ({
+    ...choice,
+    checked: config.branchAutoSelectRepos.includes(choice.name),
+  }));
   const selected = await deps.checkbox({
     message: `Select repos for branch "${branchName}":`,
-    choices: services.repos.formatRepoChoices(repos),
+    choices,
     pageSize: 20,
   });
 

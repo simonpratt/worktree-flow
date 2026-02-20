@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- New `branch-auto-select-repos` config option — a comma-separated list of repo names that are pre-checked in the `flow branch` interactive prompt
+
 ### Changed
 
 - `flow status` per-repo output now matches `flow list` format — includes tracking branch and consistent styling

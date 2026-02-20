@@ -82,6 +82,38 @@ describe('branch integration', () => {
     ).rejects.toThrow(WorkspaceAlreadyExistsError);
   });
 
+  it('should pre-check repos configured in branch-repos', async () => {
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+    const repo2 = await initGitRepo(sourcePath, 'repo2');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+
+    integration.services.config.load = sinon.stub().returns({
+      sourcePath,
+      destPath,
+      copyFiles: '.env',
+      tmux: false,
+      postCheckout: undefined,
+      perRepoPostCheckout: {},
+      fetchCacheTtlSeconds: 300,
+      branchAutoSelectRepos: ['repo1'],
+    });
+
+    const checkboxStub = sinon.stub().resolves([repo1]);
+
+    await runBranch('feature', integration.useCases, integration.services, {
+      checkbox: checkboxStub,
+      input: inputStub,
+      confirm: confirmStub,
+    });
+
+    const choices = checkboxStub.firstCall.args[0].choices;
+    const repo1Choice = choices.find((c: any) => c.name === 'repo1');
+    const repo2Choice = choices.find((c: any) => c.name === 'repo2');
+    expect(repo1Choice.checked).toBe(true);
+    expect(repo2Choice.checked).toBe(false);
+  });
+
   it('should run per-repo post-checkout commands, falling back to global', async () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
     const repo2 = await initGitRepo(sourcePath, 'repo2');
@@ -102,6 +134,7 @@ describe('branch integration', () => {
         repo2: 'echo "repo2-custom" > postcheckout.txt',
       },
       fetchCacheTtlSeconds: 300,
+      branchAutoSelectRepos: [],
     });
 
     const checkboxStub = sinon.stub().resolves([repo1, repo2, repo3]);
