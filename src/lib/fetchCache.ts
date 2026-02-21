@@ -1,8 +1,14 @@
 import path from 'path';
 import { IFileSystem } from '../adapters/types.js';
 
+interface BranchRepoEvent {
+  repo: string;
+  date: string;
+}
+
 interface FetchCacheData {
-  [repoPath: string]: number; // timestamp in milliseconds
+  fetchTimestamps: { [repoPath: string]: number };
+  branchRepoUsage: BranchRepoEvent[];
 }
 
 export class FetchCacheService {
@@ -20,7 +26,7 @@ export class FetchCacheService {
     }
 
     const cache = this.loadCache();
-    const cachedTimestamp = cache[repoPath];
+    const cachedTimestamp = cache.fetchTimestamps[repoPath];
 
     if (!cachedTimestamp) {
       return true; // Cache miss
@@ -40,7 +46,7 @@ export class FetchCacheService {
   markFetched(repoPath: string): void {
     try {
       const cache = this.loadCache();
-      cache[repoPath] = Date.now();
+      cache.fetchTimestamps[repoPath] = Date.now();
       this.saveCache(cache);
     } catch (error) {
       // Don't block operations on cache write errors
@@ -59,19 +65,61 @@ export class FetchCacheService {
   }
 
   /**
+   * Record that a branch was created from these repos (appends raw events)
+   * @param repoNames Array of repository names (basenames)
+   */
+  trackBranchUsage(repoNames: string[]): void {
+    try {
+      const cache = this.loadCache();
+      const date = new Date().toISOString();
+      for (const repo of repoNames) {
+        cache.branchRepoUsage.push({ repo, date });
+      }
+      this.saveCache(cache);
+    } catch (error) {
+      // Don't block operations on cache write errors
+      console.warn('Warning: Failed to update branch usage cache:', error);
+    }
+  }
+
+  /**
+   * Get the most recently used repo names, derived from raw events
+   * @param limit Maximum number of repos to return
+   * @returns Repo names sorted by most recent usage, descending
+   */
+  getRecentlyUsedRepos(limit: number): string[] {
+    const events = this.loadCache().branchRepoUsage;
+    const latestByRepo = new Map<string, string>();
+    for (const event of events) {
+      const existing = latestByRepo.get(event.repo);
+      if (!existing || event.date > existing) {
+        latestByRepo.set(event.repo, event.date);
+      }
+    }
+    return [...latestByRepo.entries()]
+      .sort((a, b) => b[1].localeCompare(a[1]))
+      .slice(0, limit)
+      .map(([repo]) => repo);
+  }
+
+  /**
    * Load cache from disk
-   * @returns Cache data object
    */
   private loadCache(): FetchCacheData {
     const cachePath = this.getFetchCachePath();
 
     try {
       if (!this.fs.existsSync(cachePath)) {
-        return {};
+        return { fetchTimestamps: {}, branchRepoUsage: [] };
       }
 
       const content = this.fs.readFileSync(cachePath, 'utf-8');
-      return JSON.parse(content);
+      const parsed = JSON.parse(content);
+
+      return {
+        fetchTimestamps: parsed.fetchTimestamps ?? {},
+        branchRepoUsage: parsed.branchRepoUsage ?? [],
+      };
     } catch (error) {
       // Corrupted cache - delete and start fresh
       console.warn('Warning: Corrupted fetch cache, resetting:', error);
@@ -80,13 +128,12 @@ export class FetchCacheService {
       } catch {
         // Ignore errors deleting corrupted cache
       }
-      return {};
+      return { fetchTimestamps: {}, branchRepoUsage: [] };
     }
   }
 
   /**
    * Save cache to disk
-   * @param cache Cache data to save
    */
   private saveCache(cache: FetchCacheData): void {
     const cachePath = this.getFetchCachePath();
@@ -102,10 +149,9 @@ export class FetchCacheService {
 
   /**
    * Get path to fetch cache file
-   * @returns Absolute path to ~/.config/flow/fetch-cache.json
    */
   private getFetchCachePath(): string {
     const home = process.env.HOME || process.env.USERPROFILE || '';
-    return path.join(home, '.config', 'flow', 'fetch-cache.json');
+    return path.join(home, '.config', 'flow', 'flow-cache.json');
   }
 }

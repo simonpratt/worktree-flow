@@ -5,10 +5,12 @@
 ### Added
 
 - New `branch-auto-select-repos` config option — a comma-separated list of repo names that are pre-checked in the `flow branch` interactive prompt
+- `flow branch` now tracks how often each repo is selected and surfaces the most-used repos (up to 8) in a "Recently Used" group at the top of the selection list, in alphabetical order
 
 ### Changed
 
 - `flow status` per-repo output now matches `flow list` format — includes tracking branch and consistent styling
+- Fetch cache file renamed from `fetch-cache.json` to `flow-cache.json` and now also stores branch repo usage counts
 
 ## [0.0.14] - 2026-02-19
 

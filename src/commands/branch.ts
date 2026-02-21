@@ -1,5 +1,6 @@
+import path from 'node:path';
 import { Command } from 'commander';
-import checkbox from '@inquirer/checkbox';
+import checkbox, { Separator } from '@inquirer/checkbox';
 import input from '@inquirer/input';
 import confirm from '@inquirer/confirm';
 import chalk from 'chalk';
@@ -32,10 +33,28 @@ export async function runBranch(
     ...choice,
     checked: config.branchAutoSelectRepos.includes(choice.name),
   }));
+
+  const recentlyUsed = new Set(services.fetchCache.getRecentlyUsedRepos(8));
+  const commonlyUsed = choices.filter((c) => recentlyUsed.has(c.name));
+
+  let checkboxChoices: any[];
+  if (commonlyUsed.length > 0) {
+    const commonlyUsedNames = new Set(commonlyUsed.map((c) => c.name));
+    const remaining = choices.filter((c) => !commonlyUsedNames.has(c.name));
+    checkboxChoices = [
+      new Separator('Recently Used'),
+      ...commonlyUsed,
+      ...(remaining.length > 0 ? [new Separator(), ...remaining] : []),
+    ];
+  } else {
+    checkboxChoices = choices;
+  }
+
   const selected = await deps.checkbox({
     message: `Select repos for branch "${branchName}":`,
-    choices,
+    choices: checkboxChoices,
     pageSize: 20,
+    loop: false,
   });
 
   if (selected.length === 0) {
@@ -75,6 +94,9 @@ export async function runBranch(
     postCheckout: shouldRunPostCheckout ? config.postCheckout : undefined,
     perRepoPostCheckout: shouldRunPostCheckout ? config.perRepoPostCheckout: {},
   });
+
+  // Track which repos were branched from
+  services.fetchCache.trackBranchUsage(selected.map((r) => path.basename(r)));
 
   // Display results
   services.console.log(

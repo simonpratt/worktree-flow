@@ -109,6 +109,15 @@ export function createIntegrationServices(sourcePath: string, destPath: string):
   // Stub fetch to be a no-op (no remote to fetch from)
   const fetch = { fetchRepos: sinon.stub().resolves() } as any;
 
+  // Stub fetchCache with no usage history by default
+  const fetchCache = {
+    getRecentlyUsedRepos: sinon.stub().returns([]),
+    trackBranchUsage: sinon.stub(),
+    shouldFetch: sinon.stub().returns(true),
+    markFetched: sinon.stub(),
+    filterReposToFetch: sinon.stub().callsFake((repos: string[]) => repos),
+  } as any;
+
   // Stub config to return hardcoded paths
   const config = {
     load: sinon.stub().returns({
@@ -120,6 +129,7 @@ export function createIntegrationServices(sourcePath: string, destPath: string):
       perRepoPostCheckout: {},
       fetchCacheTtlSeconds: 300,
       branchAutoSelectRepos: [],
+      branchRepoUsage: {},
     }),
     getRequired: sinon.stub().returns({ sourcePath, destPath }),
     loadRaw: sinon.stub(),
@@ -136,6 +146,7 @@ export function createIntegrationServices(sourcePath: string, destPath: string):
     worktree,
     postCheckout,
     fetch,
+    fetchCache,
     parallel,
     status,
     tmux: tmuxStub,

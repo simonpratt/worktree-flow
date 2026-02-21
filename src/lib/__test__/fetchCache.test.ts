@@ -5,12 +5,16 @@ import path from 'node:path';
 
 describe('FetchCacheService', () => {
   const home = process.env.HOME || process.env.USERPROFILE || '';
-  const cachePath = path.join(home, '.config', 'flow', 'fetch-cache.json');
+  const cachePath = path.join(home, '.config', 'flow', 'flow-cache.json');
 
   function createService() {
     const { fs, vol } = createMemFs();
     const service = new FetchCacheService(fs);
     return { fs, vol, service };
+  }
+
+  function cacheWithTimestamps(timestamps: Record<string, number>): string {
+    return JSON.stringify({ fetchTimestamps: timestamps, branchRepoUsage: [] });
   }
 
   describe('shouldFetch', () => {
@@ -23,9 +27,7 @@ describe('FetchCacheService', () => {
     it('should return true when repo not in cache', () => {
       const { service, vol } = createService();
       vol.fromJSON({
-        [cachePath]: JSON.stringify({
-          '/other/repo': Date.now()
-        })
+        [cachePath]: cacheWithTimestamps({ '/other/repo': Date.now() })
       });
 
       const result = service.shouldFetch('/path/to/repo', 300);
@@ -36,9 +38,7 @@ describe('FetchCacheService', () => {
       const { service, vol } = createService();
       const now = Date.now();
       vol.fromJSON({
-        [cachePath]: JSON.stringify({
-          '/path/to/repo': now - 60000 // 1 minute ago
-        })
+        [cachePath]: cacheWithTimestamps({ '/path/to/repo': now - 60000 }) // 1 minute ago
       });
 
       const result = service.shouldFetch('/path/to/repo', 300); // 5 minute TTL
@@ -49,9 +49,7 @@ describe('FetchCacheService', () => {
       const { service, vol } = createService();
       const now = Date.now();
       vol.fromJSON({
-        [cachePath]: JSON.stringify({
-          '/path/to/repo': now - 360000 // 6 minutes ago
-        })
+        [cachePath]: cacheWithTimestamps({ '/path/to/repo': now - 360000 }) // 6 minutes ago
       });
 
       const result = service.shouldFetch('/path/to/repo', 300); // 5 minute TTL
@@ -61,9 +59,7 @@ describe('FetchCacheService', () => {
     it('should return true when TTL is 0 (caching disabled)', () => {
       const { service, vol } = createService();
       vol.fromJSON({
-        [cachePath]: JSON.stringify({
-          '/path/to/repo': Date.now()
-        })
+        [cachePath]: cacheWithTimestamps({ '/path/to/repo': Date.now() })
       });
 
       const result = service.shouldFetch('/path/to/repo', 0);
@@ -86,6 +82,7 @@ describe('FetchCacheService', () => {
 
       consoleWarnSpy.mockRestore();
     });
+
   });
 
   describe('markFetched', () => {
@@ -98,15 +95,15 @@ describe('FetchCacheService', () => {
       expect(fs.existsSync(cachePath)).toBe(true);
 
       const cache = JSON.parse(fs.readFileSync(cachePath, 'utf-8') as string);
-      expect(cache['/path/to/repo']).toBeGreaterThanOrEqual(before);
-      expect(cache['/path/to/repo']).toBeLessThanOrEqual(after);
+      expect(cache.fetchTimestamps['/path/to/repo']).toBeGreaterThanOrEqual(before);
+      expect(cache.fetchTimestamps['/path/to/repo']).toBeLessThanOrEqual(after);
     });
 
     it('should update existing cache entry', () => {
       const { service, fs, vol } = createService();
       const oldTimestamp = Date.now() - 300000; // 5 minutes ago
       vol.fromJSON({
-        [cachePath]: JSON.stringify({
+        [cachePath]: cacheWithTimestamps({
           '/path/to/repo': oldTimestamp,
           '/other/repo': oldTimestamp
         })
@@ -119,11 +116,11 @@ describe('FetchCacheService', () => {
       const cache = JSON.parse(fs.readFileSync(cachePath, 'utf-8') as string);
 
       // Updated repo should have new timestamp
-      expect(cache['/path/to/repo']).toBeGreaterThanOrEqual(before);
-      expect(cache['/path/to/repo']).toBeLessThanOrEqual(after);
+      expect(cache.fetchTimestamps['/path/to/repo']).toBeGreaterThanOrEqual(before);
+      expect(cache.fetchTimestamps['/path/to/repo']).toBeLessThanOrEqual(after);
 
       // Other repo should remain unchanged
-      expect(cache['/other/repo']).toBe(oldTimestamp);
+      expect(cache.fetchTimestamps['/other/repo']).toBe(oldTimestamp);
     });
 
     it('should create cache directory if missing', () => {
@@ -173,8 +170,8 @@ describe('FetchCacheService', () => {
       const { service, vol } = createService();
       const now = Date.now();
       vol.fromJSON({
-        [cachePath]: JSON.stringify({
-          '/repo1': now - 60000, // 1 minute ago - cached
+        [cachePath]: cacheWithTimestamps({
+          '/repo1': now - 60000,  // 1 minute ago - cached
           '/repo2': now - 360000, // 6 minutes ago - expired
           // /repo3 not in cache
         })
@@ -189,10 +186,7 @@ describe('FetchCacheService', () => {
     it('should return all repos when TTL is 0', () => {
       const { service, vol } = createService();
       vol.fromJSON({
-        [cachePath]: JSON.stringify({
-          '/repo1': Date.now(),
-          '/repo2': Date.now()
-        })
+        [cachePath]: cacheWithTimestamps({ '/repo1': Date.now(), '/repo2': Date.now() })
       });
 
       const repos = ['/repo1', '/repo2', '/repo3'];
@@ -205,7 +199,7 @@ describe('FetchCacheService', () => {
       const { service, vol } = createService();
       const now = Date.now();
       vol.fromJSON({
-        [cachePath]: JSON.stringify({
+        [cachePath]: cacheWithTimestamps({
           '/repo1': now - 60000,
           '/repo2': now - 120000,
           '/repo3': now - 180000
@@ -222,7 +216,7 @@ describe('FetchCacheService', () => {
       const { service, vol } = createService();
       const now = Date.now();
       vol.fromJSON({
-        [cachePath]: JSON.stringify({
+        [cachePath]: cacheWithTimestamps({
           '/repo1': now - 60000,   // cached
           '/repo3': now - 360000,  // expired
           '/repo5': now - 120000   // cached
@@ -234,6 +228,120 @@ describe('FetchCacheService', () => {
 
       // Should fetch: repo2 (not cached), repo3 (expired), repo4 (not cached)
       expect(result).toEqual(['/repo2', '/repo3', '/repo4']);
+    });
+  });
+
+  describe('trackBranchUsage', () => {
+    it('should append event objects for each repo', () => {
+      const { service, fs } = createService();
+      const before = new Date().toISOString();
+      service.trackBranchUsage(['repo1', 'repo2']);
+      const after = new Date().toISOString();
+
+      const cache = JSON.parse(fs.readFileSync(cachePath, 'utf-8') as string);
+      expect(cache.branchRepoUsage).toHaveLength(2);
+      expect(cache.branchRepoUsage[0].repo).toBe('repo1');
+      expect(cache.branchRepoUsage[0].date >= before).toBe(true);
+      expect(cache.branchRepoUsage[0].date <= after).toBe(true);
+      expect(cache.branchRepoUsage[1].repo).toBe('repo2');
+    });
+
+    it('should accumulate events across multiple calls', () => {
+      const { service, fs } = createService();
+      service.trackBranchUsage(['repo1']);
+      service.trackBranchUsage(['repo1', 'repo2']);
+
+      const cache = JSON.parse(fs.readFileSync(cachePath, 'utf-8') as string);
+      expect(cache.branchRepoUsage).toHaveLength(3);
+    });
+
+    it('should preserve fetch timestamps when tracking usage', () => {
+      const { service, fs, vol } = createService();
+      const now = Date.now();
+      vol.fromJSON({
+        [cachePath]: cacheWithTimestamps({ '/path/to/repo': now })
+      });
+
+      service.trackBranchUsage(['repo1']);
+
+      const cache = JSON.parse(fs.readFileSync(cachePath, 'utf-8') as string);
+      expect(cache.fetchTimestamps['/path/to/repo']).toBe(now);
+      expect(cache.branchRepoUsage).toHaveLength(1);
+      expect(cache.branchRepoUsage[0].repo).toBe('repo1');
+    });
+
+    it('should not throw on write errors', () => {
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const mockFs = {
+        existsSync: () => false,
+        mkdirSync: () => { throw new Error('Permission denied'); },
+        readFileSync: () => '',
+        writeFileSync: () => { throw new Error('Permission denied'); },
+        rmSync: () => {},
+      } as any;
+      const service = new FetchCacheService(mockFs);
+
+      expect(() => service.trackBranchUsage(['repo1'])).not.toThrow();
+
+      consoleWarnSpy.mockRestore();
+    });
+  });
+
+  describe('getRecentlyUsedRepos', () => {
+    it('should return empty array when no events exist', () => {
+      const { service } = createService();
+      expect(service.getRecentlyUsedRepos(8)).toEqual([]);
+    });
+
+    it('should return repos sorted by most recent usage', () => {
+      const { service, vol } = createService();
+      vol.fromJSON({
+        [cachePath]: JSON.stringify({
+          fetchTimestamps: {},
+          branchRepoUsage: [
+            { repo: 'repo1', date: '2026-01-01T10:00:00.000Z' },
+            { repo: 'repo2', date: '2026-01-03T10:00:00.000Z' },
+            { repo: 'repo3', date: '2026-01-02T10:00:00.000Z' },
+          ],
+        })
+      });
+
+      expect(service.getRecentlyUsedRepos(8)).toEqual(['repo2', 'repo3', 'repo1']);
+    });
+
+    it('should use the most recent event when a repo appears multiple times', () => {
+      const { service, vol } = createService();
+      vol.fromJSON({
+        [cachePath]: JSON.stringify({
+          fetchTimestamps: {},
+          branchRepoUsage: [
+            { repo: 'repo1', date: '2026-01-01T10:00:00.000Z' },
+            { repo: 'repo2', date: '2026-01-03T10:00:00.000Z' },
+            { repo: 'repo1', date: '2026-01-04T10:00:00.000Z' },
+          ],
+        })
+      });
+
+      // repo1's most recent usage (Jan 4) beats repo2 (Jan 3)
+      expect(service.getRecentlyUsedRepos(8)).toEqual(['repo1', 'repo2']);
+    });
+
+    it('should respect the limit parameter', () => {
+      const { service, vol } = createService();
+      vol.fromJSON({
+        [cachePath]: JSON.stringify({
+          fetchTimestamps: {},
+          branchRepoUsage: [
+            { repo: 'repo1', date: '2026-01-01T10:00:00.000Z' },
+            { repo: 'repo2', date: '2026-01-02T10:00:00.000Z' },
+            { repo: 'repo3', date: '2026-01-03T10:00:00.000Z' },
+            { repo: 'repo4', date: '2026-01-04T10:00:00.000Z' },
+          ],
+        })
+      });
+
+      expect(service.getRecentlyUsedRepos(2)).toEqual(['repo4', 'repo3']);
     });
   });
 });

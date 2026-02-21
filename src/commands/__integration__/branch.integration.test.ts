@@ -114,6 +114,58 @@ describe('branch integration', () => {
     expect(repo2Choice.checked).toBe(false);
   });
 
+  it('should list commonly used repos at the top of checkbox choices with a heading', async () => {
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+    const repo2 = await initGitRepo(sourcePath, 'repo2');
+    const repo3 = await initGitRepo(sourcePath, 'repo3');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+
+    // repo1 and repo3 have been branched from before, repo2 has not
+    integration.services.fetchCache.getRecentlyUsedRepos = sinon.stub().returns(['repo1', 'repo3']);
+
+    const checkboxStub = sinon.stub().resolves([repo1]);
+
+    await runBranch('feature', integration.useCases, integration.services, {
+      checkbox: checkboxStub,
+      input: inputStub,
+      confirm: confirmStub,
+    });
+
+    const choices = checkboxStub.firstCall.args[0].choices;
+
+    // First item should be a separator with "Recently Used" heading
+    expect(choices[0].separator).toBeDefined();
+    expect(choices[0].separator).toMatch(/recently used/i);
+
+    // Commonly used repos (alphabetical: repo1, repo3) should come before repo2
+    const repoChoices = choices.filter((c: any) => c.name !== undefined);
+    const commonlyUsedChoices = repoChoices.slice(0, 2);
+    const remainingChoices = repoChoices.slice(2);
+
+    expect(commonlyUsedChoices.map((c: any) => c.name)).toEqual(['repo1', 'repo3']);
+    expect(remainingChoices.map((c: any) => c.name)).toEqual(['repo2']);
+  });
+
+  it('should track branch usage for selected repos after creation', async () => {
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+    const repo2 = await initGitRepo(sourcePath, 'repo2');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+
+    const checkboxStub = sinon.stub().resolves([repo1, repo2]);
+
+    await runBranch('feature', integration.useCases, integration.services, {
+      checkbox: checkboxStub,
+      input: inputStub,
+      confirm: confirmStub,
+    });
+
+    const trackStub = integration.services.fetchCache.trackBranchUsage as sinon.SinonStub;
+    expect(trackStub.calledOnce).toBe(true);
+    expect(trackStub.firstCall.args[0]).toEqual(expect.arrayContaining(['repo1', 'repo2']));
+  });
+
   it('should run per-repo post-checkout commands, falling back to global', async () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
     const repo2 = await initGitRepo(sourcePath, 'repo2');
