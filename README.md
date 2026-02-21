@@ -22,9 +22,8 @@ Stop juggling branches across repos. `flow` creates isolated workspaces with git
 ```bash
 npm install -g worktree-flow
 
-# Point flow at your repos and workspace directory
-flow config set source-path ~/repos
-flow config set dest-path ~/workspaces
+# Guided setup wizard
+flow quickstart
 
 # Create a workspace with new branches
 flow branch TICKET-123

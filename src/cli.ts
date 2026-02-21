@@ -11,6 +11,7 @@ import { registerStatusCommand } from './commands/status.js';
 import { registerPruneCommand } from './commands/prune.js';
 import { registerFetchCommand } from './commands/fetch.js';
 import { registerTmuxCommand } from './commands/tmux.js';
+import { registerQuickstartCommand } from './commands/quickstart.js';
 
 const program = new Command();
 
@@ -30,5 +31,6 @@ registerStatusCommand(program);
 registerPruneCommand(program);
 registerFetchCommand(program);
 registerTmuxCommand(program);
+registerQuickstartCommand(program);
 
 program.parse();

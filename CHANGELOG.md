@@ -6,6 +6,7 @@
 
 - New `branch-auto-select-repos` config option — a comma-separated list of repo names that are pre-checked in the `flow branch` interactive prompt
 - `flow branch` now tracks how often each repo is selected and surfaces the most-used repos (up to 8) in a "Recently Used" group at the top of the selection list, in alphabetical order
+- `flow quickstart` — interactive setup wizard that walks through required (`source-path`, `dest-path`) and optional (`post-checkout`, `tmux`) configuration, with existing values pre-filled as editable text
 
 ### Changed
 
