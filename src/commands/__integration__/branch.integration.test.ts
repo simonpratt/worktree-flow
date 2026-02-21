@@ -179,7 +179,6 @@ describe('branch integration', () => {
       destPath,
       copyFiles: '.env',
       tmux: false,
-      mainBranch: 'master',
       postCheckout: 'echo "global" > postcheckout.txt',
       perRepoPostCheckout: {
         repo1: 'echo "repo1-custom" > postcheckout.txt',

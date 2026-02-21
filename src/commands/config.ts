@@ -16,7 +16,7 @@ export function registerConfigCommand(program: Command): void {
 
   configCmd
     .command('set <key> <value>')
-    .description('Set a config value (source-path, dest-path, copy-files, tmux, main-branch, post-checkout)')
+    .description('Set a config value (source-path, dest-path, copy-files, tmux, post-checkout)')
     .action((key: string, value: string) => {
       const services = createServices();
 
