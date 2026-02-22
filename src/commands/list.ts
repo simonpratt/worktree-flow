@@ -1,10 +1,9 @@
 import { Command } from 'commander';
-import chalk from 'chalk';
 import { createServices } from '../lib/services.js';
 import { createUseCases } from '../usecases/usecases.js';
 import type { Services } from '../lib/services.js';
 import type { UseCases } from '../usecases/usecases.js';
-import { getStatusIndicator, formatRepoStatusLine } from './helpers.js';
+import { logStatusFetching, logStatus } from './helpers.js';
 
 export async function runList(useCases: UseCases, services: Services): Promise<void> {
   const { destPath, sourcePath } = services.config.getRequired();
@@ -20,15 +19,7 @@ export async function runList(useCases: UseCases, services: Services): Promise<v
   }
 
   // Phase 1: Show basic list immediately
-  services.console.log(chalk.bold('\nWorkspaces:'));
-
-  for (const workspace of basicWorkspaces) {
-    const repoCount = chalk.dim(`(${workspace.repoCount} repo${workspace.repoCount === 1 ? '' : 's'})`);
-    services.console.log(
-      `  ${chalk.cyan(workspace.name)} ${repoCount} ${chalk.dim('fetching...')}`,
-    );
-  }
-  services.console.log('');
+  const loadingLines = logStatusFetching('Workspaces:', basicWorkspaces, services.console);
 
   // Phase 2: Fetch repos used across all workspaces
   await useCases.fetchUsedRepos.execute({
@@ -45,40 +36,14 @@ export async function runList(useCases: UseCases, services: Services): Promise<v
     cwd,
   });
 
-  // Phase 4: Clear previous output and re-print with status
-  // Lines to clear:
-  // - 2 lines from '\nWorkspaces:' (blank line + header)
-  // - N workspace lines
-  // - 1 empty line after workspaces
-  const linesToClear = 2 + basicWorkspaces.length + 1;
-
-  for (let i = 0; i < linesToClear; i++) {
-    services.console.write('\x1b[1A'); // Move cursor up one line
-    services.console.write('\x1b[2K'); // Clear entire line
-  }
-
-  // Re-print with full status information
-  services.console.log(chalk.bold('\nWorkspaces:'));
-  for (const workspace of result.workspaces) {
-    const activeIndicator = workspace.isActive ? chalk.green('* ') : '  ';
-    const repoCount = chalk.dim(`(${workspace.repoCount} repo${workspace.repoCount === 1 ? '' : 's'})`);
-
-    services.console.log(
-      `${activeIndicator}${chalk.cyan(workspace.name)} ${repoCount}`,
-    );
-
-    // Load workspace config to get per-repo base branches
-    const workspaceConfig = services.workspaceConfig.load(workspace.path);
-    const getBaseBranch = (repoName: string) =>
-      workspaceConfig.baseBranches[repoName] || 'master';
-
-    // Display each repo with its status and tracking branch
-    for (const { repoName, status } of workspace.statuses) {
-      const baseBranch = getBaseBranch(repoName);
-      services.console.log(formatRepoStatusLine(repoName, status, baseBranch));
-    }
-    services.console.log(''); // Blank line between workspaces
-  }
+  // Phase 4: Clear previous output and re-print with full status
+  logStatus(
+    'Workspaces:',
+    result.workspaces,
+    loadingLines,
+    (wsPath, repoName) => services.workspaceConfig.load(wsPath).baseBranches[repoName] || 'master',
+    services.console,
+  );
 }
 
 export function registerListCommand(program: Command): void {

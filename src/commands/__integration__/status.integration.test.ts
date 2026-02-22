@@ -65,10 +65,12 @@ describe('status integration', () => {
     const logCalls = (integration.stubs.console.log as sinon.SinonStub).args.map(
       (a: any[]) => a[0]
     );
-    const summaryLine = logCalls.find((line: string) => line.includes('Summary:'));
-    expect(summaryLine).toBeDefined();
-    expect(summaryLine).toContain('1 up to date');
-    expect(summaryLine).toContain('0 with issues');
+
+    const workspaceHeader = logCalls.find((line: string) => line.includes('Workspace:'));
+    expect(workspaceHeader).toBeDefined();
+
+    const workspaceLine = logCalls.find((line: string) => line.includes('feature'));
+    expect(workspaceLine).toBeDefined();
 
     // Repo line should match list command format: indicator, repo name, status, tracking info
     // formatRepoStatusLine produces lines starting with 4 spaces
@@ -105,9 +107,6 @@ describe('status integration', () => {
     const logCalls = (integration.stubs.console.log as sinon.SinonStub).args.map(
       (a: any[]) => a[0]
     );
-    const summaryLine = logCalls.find((line: string) => line.includes('Summary:'));
-    expect(summaryLine).toBeDefined();
-    expect(summaryLine).toContain('1 with issues');
 
     // Repo line should match list command format with error indicator
     // formatRepoStatusLine produces lines starting with 4 spaces
@@ -144,10 +143,16 @@ describe('status integration', () => {
     const logCalls = (integration.stubs.console.log as sinon.SinonStub).args.map(
       (a: any[]) => a[0]
     );
-    const summaryLine = logCalls.find((line: string) => line.includes('Summary:'));
-    expect(summaryLine).toBeDefined();
-    expect(summaryLine).toContain('1 up to date');
-    expect(summaryLine).toContain('1 with issues');
+
+    const cleanRepoLine = logCalls.find(
+      (line: string) => typeof line === 'string' && line.startsWith('    ') && line.includes('repo2')
+    );
+    expect(cleanRepoLine).toMatch(/✓/);
+
+    const dirtyRepoLine = logCalls.find(
+      (line: string) => typeof line === 'string' && line.startsWith('    ') && line.includes('repo1')
+    );
+    expect(dirtyRepoLine).toMatch(/✗/);
   });
 
   it('should auto-detect workspace when no branch provided and cwd is inside workspace', async () => {
@@ -173,9 +178,13 @@ describe('status integration', () => {
     const logCalls = (integration.stubs.console.log as sinon.SinonStub).args.map(
       (a: any[]) => a[0]
     );
-    const summaryLine = logCalls.find((line: string) => line.includes('Summary:'));
-    expect(summaryLine).toBeDefined();
-    expect(summaryLine).toContain('1 up to date');
+    const workspaceLine = logCalls.find((line: string) => line.includes('feature'));
+    expect(workspaceLine).toBeDefined();
+
+    const repoLine = logCalls.find(
+      (line: string) => typeof line === 'string' && line.startsWith('    ') && line.includes('repo1')
+    );
+    expect(repoLine).toMatch(/✓/);
   });
 
   it('should auto-detect workspace when no branch provided and cwd is inside a repo subdirectory', async () => {
@@ -202,8 +211,12 @@ describe('status integration', () => {
     const logCalls = (integration.stubs.console.log as sinon.SinonStub).args.map(
       (a: any[]) => a[0]
     );
-    const summaryLine = logCalls.find((line: string) => line.includes('Summary:'));
-    expect(summaryLine).toBeDefined();
-    expect(summaryLine).toContain('1 up to date');
+    const workspaceLine = logCalls.find((line: string) => line.includes('feature'));
+    expect(workspaceLine).toBeDefined();
+
+    const repoLine = logCalls.find(
+      (line: string) => typeof line === 'string' && line.startsWith('    ') && line.includes('repo1')
+    );
+    expect(repoLine).toMatch(/✓/);
   });
 });

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.16] - 2026-02-22
+
+### Changed
+
+- `flow status` output now matches `flow list` format — shows workspace name and repo count as a header, displays a `fetching...` indicator while loading, and removes the separate `Summary:` line
+- Extracted shared `logStatusFetching` and `logStatus` display helpers used by both `flow status` and `flow list`
+
 ## [0.0.15] - 2026-02-22
 
 ### Added

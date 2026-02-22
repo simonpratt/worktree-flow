@@ -1,12 +1,11 @@
+import path from 'node:path';
 import { Command } from 'commander';
-import chalk from 'chalk';
 import { createServices } from '../lib/services.js';
 import { createUseCases } from '../usecases/usecases.js';
 import type { Services } from '../lib/services.js';
 import type { UseCases } from '../usecases/usecases.js';
-import { StatusService } from '../lib/status.js';
 import { resolveWorkspace } from '../lib/workspaceResolver.js';
-import { formatRepoStatusLine } from './helpers.js';
+import { logStatusFetching, logStatus } from './helpers.js';
 
 export async function runStatus(
   branchName: string | undefined,
@@ -22,8 +21,6 @@ export async function runStatus(
     services.process
   );
 
-  services.console.log(`Workspace: ${chalk.cyan(workspacePath)}`);
-
   const worktreeDirs = services.workspaceDir.getWorktreeDirs(workspacePath);
 
   if (worktreeDirs.length === 0) {
@@ -31,15 +28,19 @@ export async function runStatus(
     return;
   }
 
+  const workspaceName = path.basename(workspacePath);
+  const repoCount = worktreeDirs.length;
+
+  // Phase 1: Show header with fetching indicator
+  const loadingLines = logStatusFetching('Workspace:', [{ name: workspaceName, repoCount }], services.console);
+
   // Fetch workspace repos
   await useCases.fetchWorkspaceRepos.execute({
     workspacePath,
     sourcePath,
     fetchCacheTtlSeconds: config.fetchCacheTtlSeconds,
+    silent: true,
   });
-
-  services.console.log('');
-  services.console.log(`\nStatus:\n`);
 
   const result = await useCases.checkWorkspaceStatus.execute({
     workspacePath,
@@ -47,24 +48,15 @@ export async function runStatus(
 
   // Load workspace config to get per-repo base branches
   const workspaceConfig = services.workspaceConfig.load(workspacePath);
-  const getBaseBranch = (repoName: string) =>
-    workspaceConfig.baseBranches[repoName] || 'master';
 
-  let cleanCount = 0;
-  let issuesCount = 0;
-
-  for (const { repoName, status } of result.statuses) {
-    const baseBranch = getBaseBranch(repoName);
-    services.console.log(formatRepoStatusLine(repoName, status, baseBranch));
-    if (StatusService.hasIssues(status)) {
-      issuesCount++;
-    } else {
-      cleanCount++;
-    }
-  }
-
-  services.console.log('');
-  services.console.log(`Summary: ${chalk.green(`${cleanCount} up to date`)}, ${issuesCount > 0 ? chalk.red(`${issuesCount} with issues`) : chalk.green('0 with issues')}`);
+  // Phase 2: Clear Phase 1 lines and re-render with full status
+  logStatus(
+    'Workspace:',
+    [{ name: workspaceName, path: workspacePath, repoCount, isActive: false, statuses: result.statuses }],
+    loadingLines,
+    (_, repoName) => workspaceConfig.baseBranches[repoName] || 'master',
+    services.console,
+  );
 }
 
 export function registerStatusCommand(program: Command): void {
