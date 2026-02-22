@@ -12,6 +12,7 @@
 
 - `flow status` per-repo output now matches `flow list` format — includes tracking branch and consistent styling
 - Fetch cache file renamed from `fetch-cache.json` to `flow-cache.json` and now also stores branch repo usage counts
+- Workspace directories are now identified by the presence of `flow-config.json` rather than by containing git worktrees, making workspace detection more explicit and reliable
 
 ## [0.0.14] - 2026-02-19
 

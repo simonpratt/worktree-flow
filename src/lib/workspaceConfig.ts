@@ -35,10 +35,19 @@ export class WorkspaceConfigService {
     return WorkspaceConfigSchema.parse(parsed);
   }
 
+  savePlaceholder(workspacePath: string): void {
+    const configPath = this.getConfigPath(workspacePath);
+    this.fs.writeFileSync(configPath, JSON.stringify({ baseBranches: {} }, null, 2) + '\n');
+  }
+
   save(workspacePath: string, config: WorkspaceConfig): void {
     const configPath = this.getConfigPath(workspacePath);
     const validated = WorkspaceConfigSchema.parse(config);
-    this.fs.writeFileSync(configPath, JSON.stringify(validated, null, 2) + '\n');
+    const existing = this.load(workspacePath);
+    const merged: WorkspaceConfig = {
+      baseBranches: { ...existing.baseBranches, ...validated.baseBranches },
+    };
+    this.fs.writeFileSync(configPath, JSON.stringify(merged, null, 2) + '\n');
   }
 
   getBaseBranch(workspacePath: string, repoName: string): string {

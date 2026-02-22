@@ -68,6 +68,7 @@ export class CheckoutWorkspaceUseCase {
       params.destPath,
       params.branchName
     );
+    this.workspaceConfig.savePlaceholder(workspacePath);
 
     // 4. Create worktrees in parallel
     const successCount = await this.parallel.processInParallel(

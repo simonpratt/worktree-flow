@@ -51,6 +51,7 @@ export class CreateBranchWorkspaceUseCase {
       params.destPath,
       params.branchName
     );
+    this.workspaceConfig.savePlaceholder(workspacePath);
 
     // Track base branches for each repo
     const baseBranches: Record<string, string> = {};

@@ -21,6 +21,7 @@ describe('resolveWorkspace', () => {
           'source-path': '/source',
           'dest-path': destPath,
         }),
+        [path.join(workspacePath, 'flow-config.json')]: JSON.stringify({ baseBranches: {} }),
         [path.join(workspacePath, 'repo1', '.git')]: '',
       });
 
@@ -91,6 +92,7 @@ describe('resolveWorkspace', () => {
           'source-path': '/source',
           'dest-path': destPath,
         }),
+        [path.join(workspacePath, 'flow-config.json')]: JSON.stringify({ baseBranches: {} }),
         [path.join(workspacePath, 'repo1', '.git')]: '',
       });
 
@@ -117,6 +119,7 @@ describe('resolveWorkspace', () => {
           'source-path': '/source',
           'dest-path': destPath,
         }),
+        [path.join(workspacePath, 'flow-config.json')]: JSON.stringify({ baseBranches: {} }),
         [path.join(workspacePath, 'repo1', '.git')]: '',
       });
 
@@ -144,6 +147,7 @@ describe('resolveWorkspace', () => {
           'source-path': '/source',
           'dest-path': destPath,
         }),
+        [path.join(workspacePath, 'flow-config.json')]: JSON.stringify({ baseBranches: {} }),
         [path.join(workspacePath, 'repo1', '.git')]: '',
       });
 
@@ -235,6 +239,7 @@ describe('resolveWorkspace', () => {
           'source-path': '/source',
           'dest-path': destPath,
         }),
+        [path.join(workspacePath, 'flow-config.json')]: JSON.stringify({ baseBranches: {} }),
         [path.join(workspacePath, 'repo1', '.git')]: '',
       });
 
@@ -261,6 +266,7 @@ describe('resolveWorkspace', () => {
           'source-path': '/source',
           'dest-path': destPath,
         }),
+        [path.join(workspacePath, 'flow-config.json')]: JSON.stringify({ baseBranches: {} }),
         [path.join(workspacePath, 'repo1', '.git')]: '',
       });
 

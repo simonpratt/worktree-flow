@@ -69,6 +69,19 @@ describe('WorkspaceConfigService', () => {
     });
   });
 
+  describe('savePlaceholder', () => {
+    it('should create flow-config.json with empty baseBranches', () => {
+      const { vol, fs } = createMemFs();
+      const service = new WorkspaceConfigService(fs);
+
+      fs.mkdirSync(workspacePath, { recursive: true });
+      service.savePlaceholder(workspacePath);
+
+      const written = JSON.parse(vol.readFileSync(configPath, 'utf-8') as string);
+      expect(written).toEqual({ baseBranches: {} });
+    });
+  });
+
   describe('save', () => {
     it('should write config file with proper formatting', () => {
       const { vol, fs } = createMemFs();
@@ -103,6 +116,30 @@ describe('WorkspaceConfigService', () => {
 
       expect(() => service.save(workspacePath, invalidConfig)).toThrow();
       expect(vol.existsSync(configPath)).toBe(false);
+    });
+
+    it('should merge with existing config data rather than overwriting it', () => {
+      const { vol, fs } = createMemFs({
+        [configPath]: JSON.stringify({ baseBranches: { 'repo-1': 'master' } }),
+      });
+      const service = new WorkspaceConfigService(fs);
+
+      service.save(workspacePath, { baseBranches: { 'repo-2': 'main' } });
+
+      const written = JSON.parse(vol.readFileSync(configPath, 'utf-8') as string);
+      expect(written).toEqual({ baseBranches: { 'repo-1': 'master', 'repo-2': 'main' } });
+    });
+
+    it('should overwrite existing values for the same repo key', () => {
+      const { vol, fs } = createMemFs({
+        [configPath]: JSON.stringify({ baseBranches: { 'repo-1': 'master' } }),
+      });
+      const service = new WorkspaceConfigService(fs);
+
+      service.save(workspacePath, { baseBranches: { 'repo-1': 'develop' } });
+
+      const written = JSON.parse(vol.readFileSync(configPath, 'utf-8') as string);
+      expect(written).toEqual({ baseBranches: { 'repo-1': 'develop' } });
     });
   });
 

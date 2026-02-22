@@ -48,9 +48,18 @@ export class WorkspaceDirectoryService {
       return null;
     }
 
+    const configPath = path.join(workspacePath, 'flow-config.json');
+    if (!this.fs.existsSync(configPath)) {
+      return null;
+    }
+
     return workspacePath;
   }
 
+  /**
+   * Returns the paths of git worktrees (repos) inside a workspace directory.
+   * @example getWorktreeDirs('/workspaces/feature-123') → ['/workspaces/feature-123/repo-a', ...]
+   */
   getWorktreeDirs(workspacePath: string): string[] {
     const entries = this.fs.readdirSync(workspacePath, { withFileTypes: true });
     return entries
@@ -65,6 +74,10 @@ export class WorkspaceDirectoryService {
       .map((entry: any) => path.join(workspacePath, entry.name));
   }
 
+  /**
+   * Returns all workspaces under destPath, identified by the presence of flow-config.json.
+   * @example listWorkspaces('/workspaces') → [{ name: 'feature-123', path: '...', repoCount: 2 }, ...]
+   */
   listWorkspaces(destPath: string): Array<{ name: string; path: string; repoCount: number }> {
     if (!this.fs.existsSync(destPath)) {
       return [];
@@ -72,7 +85,11 @@ export class WorkspaceDirectoryService {
 
     const entries = this.fs.readdirSync(destPath, { withFileTypes: true });
     return entries
-      .filter((entry: any) => entry.isDirectory())
+      .filter((entry: any) => {
+        if (!entry.isDirectory()) return false;
+        const configPath = path.join(destPath, entry.name, 'flow-config.json');
+        return this.fs.existsSync(configPath);
+      })
       .map((entry: any) => {
         const workspacePath = path.join(destPath, entry.name);
         try {
@@ -86,7 +103,7 @@ export class WorkspaceDirectoryService {
           return null;
         }
       })
-      .filter((ws): ws is { name: string; path: string; repoCount: number } => ws !== null && ws.repoCount > 0);
+      .filter((ws): ws is { name: string; path: string; repoCount: number } => ws !== null);
   }
 
   removeWorkspaceDir(workspacePath: string): void {

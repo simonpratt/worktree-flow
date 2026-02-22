@@ -42,6 +42,7 @@ describe('WorkspaceDirectoryService', () => {
         WorkspaceAlreadyExistsError
       );
     });
+
   });
 
   describe('copyAgentsMd', () => {
@@ -83,7 +84,7 @@ describe('WorkspaceDirectoryService', () => {
       const workspaceName = 'feature-123';
       const cwd = path.join(destPath, workspaceName);
       const { fs } = createMemFs({
-        [path.join(cwd, '.gitkeep')]: '',
+        [path.join(cwd, 'flow-config.json')]: JSON.stringify({ baseBranches: {} }),
       });
       const service = new WorkspaceDirectoryService(fs);
 
@@ -98,7 +99,7 @@ describe('WorkspaceDirectoryService', () => {
       const workspacePath = path.join(destPath, workspaceName);
       const cwd = path.join(workspacePath, 'repo1', 'src');
       const { fs } = createMemFs({
-        [path.join(workspacePath, '.gitkeep')]: '',
+        [path.join(workspacePath, 'flow-config.json')]: JSON.stringify({ baseBranches: {} }),
       });
       const service = new WorkspaceDirectoryService(fs);
 
@@ -121,7 +122,7 @@ describe('WorkspaceDirectoryService', () => {
     it('should return null when cwd is the dest path itself', () => {
       const destPath = '/workspaces';
       const { fs } = createMemFs({
-        [path.join(destPath, '.gitkeep')]: '',
+        [path.join(destPath, 'flow-config.json')]: JSON.stringify({ baseBranches: {} }),
       });
       const service = new WorkspaceDirectoryService(fs);
 
@@ -141,13 +142,26 @@ describe('WorkspaceDirectoryService', () => {
       expect(detected).toBe(null);
     });
 
+    it('should return null when workspace directory exists but has no flow-config.json', () => {
+      const destPath = '/workspaces';
+      const workspacePath = path.join(destPath, 'feature-123');
+      const { fs } = createMemFs({
+        [path.join(workspacePath, '.gitkeep')]: '',
+      });
+      const service = new WorkspaceDirectoryService(fs);
+
+      const detected = service.detectWorkspace(path.join(workspacePath, 'repo1'), destPath);
+
+      expect(detected).toBe(null);
+    });
+
     it('should handle paths with trailing slashes correctly', () => {
       const destPath = '/workspaces';
       const workspaceName = 'feature-123';
       const workspacePath = path.join(destPath, workspaceName);
       const cwd = path.join(workspacePath, 'repo1');
       const { fs } = createMemFs({
-        [path.join(workspacePath, '.gitkeep')]: '',
+        [path.join(workspacePath, 'flow-config.json')]: JSON.stringify({ baseBranches: {} }),
       });
       const service = new WorkspaceDirectoryService(fs);
 
@@ -256,6 +270,7 @@ describe('WorkspaceDirectoryService', () => {
       const workspaceName = 'feature-123';
       const workspacePath = path.join(destPath, workspaceName);
       const { fs } = createMemFs({
+        [path.join(workspacePath, 'flow-config.json')]: JSON.stringify({ baseBranches: {} }),
         [path.join(workspacePath, 'repo1', '.git')]: '',
         [path.join(workspacePath, 'repo2', '.git')]: '',
       });
@@ -274,7 +289,9 @@ describe('WorkspaceDirectoryService', () => {
     it('should return multiple workspaces', () => {
       const destPath = '/workspaces';
       const { fs } = createMemFs({
+        [path.join(destPath, 'feature-123', 'flow-config.json')]: JSON.stringify({ baseBranches: {} }),
         [path.join(destPath, 'feature-123', 'repo1', '.git')]: '',
+        [path.join(destPath, 'feature-456', 'flow-config.json')]: JSON.stringify({ baseBranches: {} }),
         [path.join(destPath, 'feature-456', 'repo1', '.git')]: '',
         [path.join(destPath, 'feature-456', 'repo2', '.git')]: '',
       });
@@ -295,10 +312,10 @@ describe('WorkspaceDirectoryService', () => {
       });
     });
 
-    it('should filter out directories with no repos', () => {
+    it('should filter out directories without flow-config.json', () => {
       const destPath = '/workspaces';
       const { fs } = createMemFs({
-        [path.join(destPath, 'feature-123', 'repo1', '.git')]: '',
+        [path.join(destPath, 'feature-123', 'flow-config.json')]: JSON.stringify({ baseBranches: {} }),
         [path.join(destPath, 'empty-workspace', 'file.txt')]: '',
         [path.join(destPath, 'another-empty', '.gitkeep')]: '',
       });
@@ -310,9 +327,24 @@ describe('WorkspaceDirectoryService', () => {
       expect(workspaces[0].name).toBe('feature-123');
     });
 
+    it('should include workspace with flow-config.json even if it has zero repos', () => {
+      const destPath = '/workspaces';
+      const workspacePath = path.join(destPath, 'empty-but-valid');
+      const { fs } = createMemFs({
+        [path.join(workspacePath, 'flow-config.json')]: JSON.stringify({ baseBranches: {} }),
+      });
+      const service = new WorkspaceDirectoryService(fs);
+
+      const workspaces = service.listWorkspaces(destPath);
+
+      expect(workspaces).toHaveLength(1);
+      expect(workspaces[0]).toEqual({ name: 'empty-but-valid', path: workspacePath, repoCount: 0 });
+    });
+
     it('should handle errors when reading workspace directories', () => {
       const destPath = '/workspaces';
       const { fs } = createMemFs({
+        [path.join(destPath, 'valid-workspace', 'flow-config.json')]: JSON.stringify({ baseBranches: {} }),
         [path.join(destPath, 'valid-workspace', 'repo1', '.git')]: '',
         [path.join(destPath, 'invalid-file')]: 'not a directory',
       });
@@ -353,6 +385,7 @@ describe('WorkspaceDirectoryService', () => {
       const destPath = '/workspaces';
       const branchName = 'feature-123';
       const { fs } = createMemFs({
+        [path.join(destPath, branchName, 'flow-config.json')]: JSON.stringify({ baseBranches: {} }),
         [path.join(destPath, branchName, 'repo1', '.git')]: '',
       });
       const service = new WorkspaceDirectoryService(fs);
@@ -370,6 +403,7 @@ describe('WorkspaceDirectoryService', () => {
       const destPath = '/workspaces';
       const branchName = 'non-existent';
       const { fs } = createMemFs({
+        [path.join(destPath, 'other-branch', 'flow-config.json')]: JSON.stringify({ baseBranches: {} }),
         [path.join(destPath, 'other-branch', 'repo1', '.git')]: '',
       });
       const service = new WorkspaceDirectoryService(fs);
