@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- `flow add [branch-name]` command — add repos to an existing workspace interactively. Presents a repo picker (excluding repos already in the workspace), creates worktrees with new branches, copies config files, and runs post-checkout commands. Auto-detects the workspace from the current directory, or accepts an explicit branch name.
+
+### Changed
+
+- `CreateBranchWorkspaceUseCase` now delegates worktree creation to the new shared `AddReposToWorkspaceUseCase`, reducing duplication between `branch` and `add` workflows
+
 ## [0.0.16] - 2026-02-22
 
 ### Changed

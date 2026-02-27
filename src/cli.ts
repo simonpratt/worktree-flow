@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
 import { registerConfigCommand } from './commands/config.js';
+import { registerAddCommand } from './commands/add.js';
 import { registerBranchCommand } from './commands/branch.js';
 import { registerCheckoutCommand } from './commands/checkout.js';
 import { registerListCommand } from './commands/list.js';
@@ -21,6 +22,7 @@ program
   .version('0.1.0');
 
 registerConfigCommand(program);
+registerAddCommand(program);
 registerBranchCommand(program);
 registerCheckoutCommand(program);
 registerListCommand(program);

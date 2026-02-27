@@ -9,10 +9,11 @@ import { createUseCases } from '../usecases/usecases.js';
 import type { Services } from '../lib/services.js';
 import type { UseCases } from '../usecases/usecases.js';
 import { NoReposFoundError } from '../lib/errors.js';
+import { resolveWorkspace } from '../lib/workspaceResolver.js';
 import { buildRepoCheckboxChoices } from './helpers.js';
 
-export async function runBranch(
-  branchName: string,
+export async function runAdd(
+  branchName: string | undefined,
   useCases: UseCases,
   services: Services,
   deps: {
@@ -21,19 +22,43 @@ export async function runBranch(
     confirm: (opts: { message: string; default: boolean }) => Promise<boolean>;
   }
 ): Promise<void> {
-  const { sourcePath, destPath } = services.config.getRequired();
-  const config = services.config.load();
-  const repos = services.repos.discoverRepos(sourcePath);
+  // 1. Resolve workspace (from arg or cwd)
+  const { workspacePath, displayName } = resolveWorkspace(
+    branchName,
+    services.workspaceDir,
+    services.config,
+    services.process
+  );
 
+  const { sourcePath } = services.config.getRequired();
+  const config = services.config.load();
+
+  // 2. Discover all repos
+  const repos = services.repos.discoverRepos(sourcePath);
   if (repos.length === 0) {
     throw new NoReposFoundError(sourcePath);
   }
 
-  // User prompts
-  const checkboxChoices = buildRepoCheckboxChoices(repos, services, config, (label) => new Separator(label));
+  // 3. Filter out repos already in the workspace
+  const existingWorktrees = services.workspaceDir
+    .getWorktreeDirs(workspacePath)
+    .map((dir) => path.basename(dir));
+  const existingSet = new Set(existingWorktrees);
+
+  const availableRepos = repos.filter(
+    (repoPath) => !existingSet.has(path.basename(repoPath))
+  );
+
+  if (availableRepos.length === 0) {
+    services.console.log('All repos are already in this workspace.');
+    return;
+  }
+
+  // 4. Repo picker (same pattern as branch command)
+  const checkboxChoices = buildRepoCheckboxChoices(availableRepos, services, config, (label) => new Separator(label));
 
   const selected = await deps.checkbox({
-    message: `Select repos for branch "${branchName}":`,
+    message: `Select repos to add to "${displayName}":`,
     choices: checkboxChoices,
     pageSize: 20,
     loop: false,
@@ -44,71 +69,64 @@ export async function runBranch(
     return;
   }
 
+  // 5. Ask for source branch
   const sourceBranch = await deps.input({
     message: 'Branch from which branch?',
     default: 'master',
   });
 
+  // 6. Post-checkout confirmation
   let shouldRunPostCheckout = false;
   if (config.postCheckout) {
     shouldRunPostCheckout = await deps.confirm({
-      message: `Run "${config.postCheckout}" in all workspaces?`,
+      message: `Run "${config.postCheckout}" in new workspaces?`,
       default: true,
     });
   }
 
-  services.console.log('\nCreating workspace...');
+  services.console.log('\nAdding repos to workspace...');
 
-  // Fetch all selected repos
+  // 7. Fetch selected repos
   await services.fetch.fetchRepos(selected, {
     ttlSeconds: config.fetchCacheTtlSeconds,
   });
 
-  // Execute use case
-  const result = await useCases.createBranchWorkspace.execute({
+  // 8. Execute use case
+  const result = await useCases.addReposToWorkspace.execute({
     repos: selected,
-    branchName,
+    workspacePath,
+    branchName: displayName,
     sourceBranch,
-    sourcePath,
-    destPath,
     copyFiles: config.copyFiles,
-    tmux: config.tmux,
     postCheckout: shouldRunPostCheckout ? config.postCheckout : undefined,
-    perRepoPostCheckout: shouldRunPostCheckout ? config.perRepoPostCheckout: {},
+    perRepoPostCheckout: shouldRunPostCheckout ? config.perRepoPostCheckout : {},
   });
 
-  // Track which repos were branched from
+  // 9. Track usage
   services.fetchCache.trackBranchUsage(selected.map((r) => path.basename(r)));
 
-  // Display results
+  // 10. Display results
   services.console.log(
-    `\nCreated workspace at ${chalk.cyan(result.workspacePath)} with ${result.successCount}/${result.totalCount} repos.`
+    `\nAdded ${result.successCount}/${result.totalCount} repos to ${chalk.cyan(workspacePath)}.`
   );
-
-  if (result.tmuxCreated) {
-    services.console.log(`Created tmux session: ${chalk.cyan(branchName)}`);
-  }
 
   if (result.postCheckoutSuccess !== undefined) {
     services.console.log(
       `\nCompleted post-checkout in ${result.postCheckoutSuccess}/${result.postCheckoutTotal} workspace(s).`
     );
-  } else if (!config.postCheckout) {
-    services.console.log('\nTip: Configure a post-checkout command to run automatically after branching/checkout.');
-    services.console.log('  Example: flow config set post-checkout "npm ci"');
   }
 }
 
-export function registerBranchCommand(program: Command): void {
+export function registerAddCommand(program: Command): void {
   program
-    .command('branch <branch-name>')
-    .description('Create branches and worktrees for selected repos')
-    .action(async (branchName: string) => {
+    .command('add [branch-name]')
+    .description('Add repos to an existing workspace (auto-detects from current directory if branch not provided)')
+    .action(async (branchName?: string) => {
       const services = createServices();
       const useCases = createUseCases(services);
 
       try {
-        await runBranch(branchName, useCases, services, { checkbox, input, confirm });
+        await runAdd(branchName, useCases, services, { checkbox, input, confirm });
       } catch (error: any) {
         services.console.error(error.message);
         services.process.exit(1);

@@ -56,6 +56,10 @@ Create a new branch across selected repos. Interactively select which repos to i
 
 Checkout an existing branch. Fetches all repos, detects which have the branch, and creates worktrees.
 
+### `flow add [name]`
+
+Add repos to an existing workspace. Discovers available repos not yet in the workspace, presents an interactive picker, creates worktrees with new branches, copies config files, and runs post-checkout commands. Auto-detects the workspace from the current directory, or specify a branch name explicitly.
+
 ### `flow pull`
 
 Pull latest changes for all repos in the current workspace. Run from anywhere inside a workspace.

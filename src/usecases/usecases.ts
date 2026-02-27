@@ -12,6 +12,7 @@ import { FetchWorkspaceReposUseCase } from './fetchWorkspaceRepos.js';
 import { FetchUsedReposUseCase } from './fetchUsedRepos.js';
 import { ResumeTmuxSessionsUseCase } from './resumeTmuxSessions.js';
 import { RunPostCheckoutUseCase } from './runPostCheckout.js';
+import { AddReposToWorkspaceUseCase } from './addReposToWorkspace.js';
 
 /**
  * Factory function for creating all use cases with their service dependencies.
@@ -25,6 +26,14 @@ export function createUseCases(services: Services) {
     services.tmux
   );
 
+  const addReposToWorkspace = new AddReposToWorkspaceUseCase(
+    services.workspaceConfig,
+    services.worktree,
+    services.git,
+    services.parallel,
+    runPostCheckout
+  );
+
   return {
     fetchAllRepos: new FetchAllReposUseCase(services.fetch, services.repos),
     fetchWorkspaceRepos: new FetchWorkspaceReposUseCase(
@@ -35,15 +44,12 @@ export function createUseCases(services: Services) {
       services.workspaceDir,
       services.fetch
     ),
+    addReposToWorkspace,
     createBranchWorkspace: new CreateBranchWorkspaceUseCase(
       services.workspaceDir,
       services.workspaceConfig,
-      services.worktree,
-      services.repos,
-      services.git,
-      services.parallel,
       services.tmux,
-      runPostCheckout
+      addReposToWorkspace
     ),
     checkoutWorkspace: new CheckoutWorkspaceUseCase(
       services.workspaceDir,

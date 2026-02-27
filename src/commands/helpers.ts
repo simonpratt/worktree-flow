@@ -1,6 +1,8 @@
 import chalk from 'chalk';
 import { StatusService, type WorktreeStatus } from '../lib/status.js';
 import type { IConsole } from '../adapters/types.js';
+import type { Services } from '../lib/services.js';
+import type { ParsedConfig } from '../lib/config.js';
 
 type WorkspaceLoadingInfo = { name: string; repoCount: number };
 
@@ -76,6 +78,39 @@ export function logStatus(
     }
     console.log('');
   }
+}
+
+/**
+ * Build the ordered list of checkbox choices for a repo picker, grouping recently used
+ * repos under a "Recently Used" separator and placing the rest below.
+ *
+ * @param createSeparator - factory from the display layer (e.g. inquirer's Separator constructor)
+ */
+export function buildRepoCheckboxChoices(
+  repos: string[],
+  services: Pick<Services, 'repos' | 'fetchCache'>,
+  config: ParsedConfig,
+  createSeparator: (label?: string) => unknown
+): unknown[] {
+  const choices = services.repos.formatRepoChoices(repos).map((choice) => ({
+    ...choice,
+    checked: config.branchAutoSelectRepos.includes(choice.name),
+  }));
+
+  const recentlyUsed = new Set(services.fetchCache.getRecentlyUsedRepos(8));
+  const commonlyUsed = choices.filter((c) => recentlyUsed.has(c.name));
+
+  if (commonlyUsed.length > 0) {
+    const commonlyUsedNames = new Set(commonlyUsed.map((c) => c.name));
+    const remaining = choices.filter((c) => !commonlyUsedNames.has(c.name));
+    return [
+      createSeparator('Recently Used'),
+      ...commonlyUsed,
+      ...(remaining.length > 0 ? [createSeparator(), ...remaining] : []),
+    ];
+  }
+
+  return choices;
 }
 
 /**
