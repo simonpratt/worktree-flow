@@ -5,6 +5,7 @@ import { RepoService } from '../lib/repos.js';
 import type { GitService } from '../lib/git.js';
 import type { ParallelService } from '../lib/parallel.js';
 import type { RunPostCheckoutUseCase } from './runPostCheckout.js';
+import type { RepoConfigService } from '../lib/repoConfig.js';
 
 export type AddReposToWorkspaceParams = {
   repos: string[];
@@ -35,7 +36,8 @@ export class AddReposToWorkspaceUseCase {
     private worktree: WorktreeService,
     private git: GitService,
     private parallel: ParallelService,
-    private runPostCheckout: RunPostCheckoutUseCase
+    private runPostCheckout: RunPostCheckoutUseCase,
+    private repoConfig: RepoConfigService
   ) {}
 
   async execute(params: AddReposToWorkspaceParams): Promise<AddReposToWorkspaceResult> {
@@ -43,6 +45,27 @@ export class AddReposToWorkspaceUseCase {
 
     // Track base branches for each repo
     const baseBranches: Record<string, string> = {};
+
+    // Load repo configs and build resolved per-repo post-checkout commands
+    const repoConfigs = new Map<string, ReturnType<RepoConfigService['load']>>();
+    const resolvedPerRepoPostCheckout: Record<string, string> = {};
+
+    for (const repoPath of params.repos) {
+      const name = RepoService.getRepoName(repoPath);
+      const config = this.repoConfig.load(repoPath);
+      repoConfigs.set(repoPath, config);
+
+      // Resolve post-checkout command for this repo using 3-level precedence
+      const command = this.repoConfig.resolvePostCheckout(
+        name,
+        params.perRepoPostCheckout,
+        config,
+        params.postCheckout
+      );
+      if (command) {
+        resolvedPerRepoPostCheckout[name] = command;
+      }
+    }
 
     // Create worktrees in parallel
     const successCount = await this.parallel.processInParallel(
@@ -78,10 +101,14 @@ export class AddReposToWorkspaceUseCase {
           `origin/${actualBaseBranch}`
         );
 
+        // Resolve copy-files: repo-level overrides global
+        const repoConf = repoConfigs.get(repoPath);
+        const resolvedCopyFiles = this.repoConfig.resolveCopyFiles(repoConf, params.copyFiles);
+
         this.worktree.copyConfigFilesToWorktree(
           repoPath,
           worktreeDest,
-          params.copyFiles
+          resolvedCopyFiles
         );
 
         return 'created';
@@ -96,7 +123,7 @@ export class AddReposToWorkspaceUseCase {
       workspacePath: params.workspacePath,
       tmuxEnabled: false,
       postCheckout: params.postCheckout,
-      perRepoPostCheckout: params.perRepoPostCheckout,
+      perRepoPostCheckout: resolvedPerRepoPostCheckout,
     });
 
     return {

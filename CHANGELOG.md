@@ -5,6 +5,7 @@
 ### Added
 
 - `flow add [branch-name]` command — add repos to an existing workspace interactively. Presents a repo picker (excluding repos already in the workspace), creates worktrees with new branches, copies config files, and runs post-checkout commands. Auto-detects the workspace from the current directory, or accepts an explicit branch name.
+- Repo-level `flow-config.json` support — individual repos can now define `copy-files` and `post-checkout` settings at their root. Applies to `branch`, `checkout`, and `add` commands.
 
 ### Changed
 

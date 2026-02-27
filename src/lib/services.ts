@@ -15,6 +15,7 @@ import { FetchCacheService } from './fetchCache.js';
 import { ParallelService } from './parallel.js';
 import { StatusService } from './status.js';
 import { TmuxService } from './tmux.js';
+import { RepoConfigService } from './repoConfig.js';
 
 export function createServices() {
   // Create adapters
@@ -33,6 +34,7 @@ export function createServices() {
   const fetch = new FetchService(git, console, fetchCache);
   const repos = new RepoService(fs, git);
   const postCheckout = new PostCheckoutService(shell);
+  const repoConfig = new RepoConfigService(fs);
 
   // Focused workspace services
   const workspaceDir = new WorkspaceDirectoryService(fs);
@@ -47,6 +49,7 @@ export function createServices() {
     workspaceConfig,
     worktree,
     postCheckout,
+    repoConfig,
     fetch,
     fetchCache,
     parallel,

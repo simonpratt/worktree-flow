@@ -6,6 +6,7 @@ import type { WorktreeService } from '../../lib/worktree.js';
 import type { GitService } from '../../lib/git.js';
 import type { ParallelService } from '../../lib/parallel.js';
 import type { RunPostCheckoutUseCase } from '../runPostCheckout.js';
+import type { RepoConfigService } from '../../lib/repoConfig.js';
 
 describe('AddReposToWorkspaceUseCase', () => {
   let workspaceConfig: sinon.SinonStubbedInstance<WorkspaceConfigService>;
@@ -13,6 +14,7 @@ describe('AddReposToWorkspaceUseCase', () => {
   let git: sinon.SinonStubbedInstance<GitService>;
   let parallel: sinon.SinonStubbedInstance<ParallelService>;
   let runPostCheckout: sinon.SinonStubbedInstance<RunPostCheckoutUseCase>;
+  let repoConfig: sinon.SinonStubbedInstance<RepoConfigService>;
   let useCase: AddReposToWorkspaceUseCase;
 
   beforeEach(() => {
@@ -35,13 +37,19 @@ describe('AddReposToWorkspaceUseCase', () => {
     runPostCheckout = {
       execute: sinon.stub(),
     } as any;
+    repoConfig = {
+      load: sinon.stub(),
+      resolvePostCheckout: sinon.stub(),
+      resolveCopyFiles: sinon.stub(),
+    } as any;
 
     useCase = new AddReposToWorkspaceUseCase(
       workspaceConfig,
       worktree,
       git,
       parallel,
-      runPostCheckout
+      runPostCheckout,
+      repoConfig
     );
   });
 
@@ -124,6 +132,8 @@ describe('AddReposToWorkspaceUseCase', () => {
     git.localRemoteBranchExists.resolves(true);
     worktree.createWorktreeWithBranch.resolves();
     runPostCheckout.execute.resolves(undefined);
+    repoConfig.load.returns(undefined);
+    repoConfig.resolveCopyFiles.returns('.env,.eslintrc');
 
     await useCase.execute({
       repos: ['/source/repo1'],
@@ -145,6 +155,8 @@ describe('AddReposToWorkspaceUseCase', () => {
   it('should run post-checkout when configured', async () => {
     parallel.processInParallel.resolves(1);
     runPostCheckout.execute.resolves({ successCount: 1, totalCount: 1 });
+    repoConfig.load.returns(undefined);
+    repoConfig.resolvePostCheckout.returns('yarn install');
 
     const result = await useCase.execute({
       repos: ['/source/repo1'],
@@ -195,5 +207,105 @@ describe('AddReposToWorkspaceUseCase', () => {
 
     expect(result.totalCount).toBe(1);
     // branchName should be derived from workspace path basename
+  });
+
+  it('should use repo-level copy-files when flow-config.json specifies them', async () => {
+    parallel.processInParallel.callsFake(async (_items: any, _label: any, taskFn: any) => {
+      await taskFn('/source/repo1');
+      return 1;
+    });
+    git.localRemoteBranchExists.resolves(true);
+    worktree.createWorktreeWithBranch.resolves();
+    runPostCheckout.execute.resolves(undefined);
+    repoConfig.load.withArgs('/source/repo1').returns({ copyFiles: '.env,.env.local', postCheckout: undefined });
+    repoConfig.resolveCopyFiles.returns('.env,.env.local');
+
+    await useCase.execute({
+      repos: ['/source/repo1'],
+      workspacePath: '/dest/feature',
+      branchName: 'feature',
+      sourceBranch: 'master',
+      copyFiles: '.env',
+    });
+
+    sinon.assert.calledOnce(worktree.copyConfigFilesToWorktree);
+    sinon.assert.calledWith(
+      worktree.copyConfigFilesToWorktree,
+      '/source/repo1',
+      '/dest/feature/repo1',
+      '.env,.env.local'
+    );
+  });
+
+  it('should use global copy-files when repo has no flow-config.json', async () => {
+    parallel.processInParallel.callsFake(async (_items: any, _label: any, taskFn: any) => {
+      await taskFn('/source/repo1');
+      return 1;
+    });
+    git.localRemoteBranchExists.resolves(true);
+    worktree.createWorktreeWithBranch.resolves();
+    runPostCheckout.execute.resolves(undefined);
+    repoConfig.load.withArgs('/source/repo1').returns(undefined);
+    repoConfig.resolveCopyFiles.returns('.env');
+
+    await useCase.execute({
+      repos: ['/source/repo1'],
+      workspacePath: '/dest/feature',
+      branchName: 'feature',
+      sourceBranch: 'master',
+      copyFiles: '.env',
+    });
+
+    sinon.assert.calledOnce(worktree.copyConfigFilesToWorktree);
+    sinon.assert.calledWith(
+      worktree.copyConfigFilesToWorktree,
+      '/source/repo1',
+      '/dest/feature/repo1',
+      '.env'
+    );
+  });
+
+  it('should pass resolved per-repo post-checkout commands to RunPostCheckoutUseCase', async () => {
+    parallel.processInParallel.callsFake(async (_items: any, _label: any, taskFn: any) => {
+      await taskFn('/source/repo1');
+      await taskFn('/source/repo2');
+      await taskFn('/source/repo3');
+      return 3;
+    });
+    git.localRemoteBranchExists.resolves(true);
+    worktree.createWorktreeWithBranch.resolves();
+    runPostCheckout.execute.resolves({ successCount: 3, totalCount: 3 });
+
+    // repo1: has central per-repo override
+    // repo2: has repo-level flow-config.json post-checkout
+    // repo3: uses global fallback
+    repoConfig.load.withArgs('/source/repo1').returns(undefined);
+    repoConfig.load.withArgs('/source/repo2').returns({ copyFiles: undefined, postCheckout: 'yarn install' });
+    repoConfig.load.withArgs('/source/repo3').returns(undefined);
+
+    repoConfig.resolveCopyFiles.returns('.env');
+    repoConfig.resolvePostCheckout.withArgs('repo1', { repo1: 'custom-cmd' }, undefined, 'npm ci').returns('custom-cmd');
+    repoConfig.resolvePostCheckout.withArgs('repo2', { repo1: 'custom-cmd' }, { copyFiles: undefined, postCheckout: 'yarn install' }, 'npm ci').returns('yarn install');
+    repoConfig.resolvePostCheckout.withArgs('repo3', { repo1: 'custom-cmd' }, undefined, 'npm ci').returns('npm ci');
+
+    const result = await useCase.execute({
+      repos: ['/source/repo1', '/source/repo2', '/source/repo3'],
+      workspacePath: '/dest/feature',
+      branchName: 'feature',
+      sourceBranch: 'master',
+      copyFiles: '.env',
+      postCheckout: 'npm ci',
+      perRepoPostCheckout: { repo1: 'custom-cmd' },
+    });
+
+    sinon.assert.calledOnce(runPostCheckout.execute);
+    const postCheckoutArgs = runPostCheckout.execute.firstCall.args[0];
+    expect(postCheckoutArgs.perRepoPostCheckout).toEqual({
+      repo1: 'custom-cmd',
+      repo2: 'yarn install',
+      repo3: 'npm ci',
+    });
+    expect(postCheckoutArgs.postCheckout).toBe('npm ci');
+    expect(result.postCheckoutSuccess).toBe(3);
   });
 });

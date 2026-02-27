@@ -31,7 +31,8 @@ export function createUseCases(services: Services) {
     services.worktree,
     services.git,
     services.parallel,
-    runPostCheckout
+    runPostCheckout,
+    services.repoConfig
   );
 
   return {
@@ -59,7 +60,8 @@ export function createUseCases(services: Services) {
       services.git,
       services.parallel,
       services.tmux,
-      runPostCheckout
+      runPostCheckout,
+      services.repoConfig
     ),
     removeWorkspace: new RemoveWorkspaceUseCase(
       services.workspaceDir,

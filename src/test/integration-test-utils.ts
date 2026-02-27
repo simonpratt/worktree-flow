@@ -11,6 +11,7 @@ import { WorkspaceDirectoryService } from '../lib/workspaceDirectory.js';
 import { WorkspaceConfigService } from '../lib/workspaceConfig.js';
 import { WorktreeService } from '../lib/worktree.js';
 import { PostCheckoutService } from '../lib/postCheckout.js';
+import { RepoConfigService } from '../lib/repoConfig.js';
 import { FetchService } from '../lib/fetch.js';
 import { ParallelService } from '../lib/parallel.js';
 import { StatusService } from '../lib/status.js';
@@ -100,6 +101,7 @@ export function createIntegrationServices(sourcePath: string, destPath: string):
   const tmuxStub = { createSession: sinon.stub(), killSession: sinon.stub() } as any;
   const repos = new RepoService(nodeFs, gitService);
   const postCheckout = new PostCheckoutService(nodeShell);
+  const repoConfig = new RepoConfigService(nodeFs);
 
   // Focused workspace services
   const workspaceDir = new WorkspaceDirectoryService(nodeFs);
@@ -145,6 +147,7 @@ export function createIntegrationServices(sourcePath: string, destPath: string):
     workspaceConfig,
     worktree,
     postCheckout,
+    repoConfig,
     fetch,
     fetchCache,
     parallel,

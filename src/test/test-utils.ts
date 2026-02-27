@@ -117,5 +117,10 @@ export function createMockServices(): {
     } as any,
     console: createMockConsole() as any,
     process: createMockProcess() as any,
+    repoConfig: {
+      load: sinon.stub().returns(undefined),
+      resolvePostCheckout: sinon.stub(),
+      resolveCopyFiles: sinon.stub(),
+    } as any,
   } as any;
 }

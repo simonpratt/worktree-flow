@@ -130,6 +130,22 @@ Repos with per-repo commands use those; others fall back to the global `post-che
 
 When tmux is enabled, post-checkout commands run in the corresponding tmux panes instead of executing directly. This lets you see the output in real-time within your tmux session.
 
+### Repo-level configuration
+
+Individual repos can define a `flow-config.json` at their root to override global settings:
+
+```json
+{
+  "copy-files": ".env,.env.local",
+  "post-checkout": "yarn install"
+}
+```
+
+Both fields are optional. Precedence (highest to lowest):
+
+- **post-checkout**: repo's `flow-config.json` > global `post-checkout`
+- **copy-files**: repo's `flow-config.json` > global `copy-files`
+
 ## AGENTS.md
 
 If an `AGENTS.md` file exists at the root of your source-path, it will be copied into each workspace. This is useful for providing AI coding agents with context about your multi-repo setup.

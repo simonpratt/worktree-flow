@@ -7,6 +7,7 @@ import type { GitService } from '../lib/git.js';
 import type { ParallelService } from '../lib/parallel.js';
 import type { TmuxService } from '../lib/tmux.js';
 import type { RunPostCheckoutUseCase } from './runPostCheckout.js';
+import type { RepoConfigService } from '../lib/repoConfig.js';
 import { NoReposFoundError } from '../lib/errors.js';
 
 export type CheckoutWorkspaceParams = {
@@ -43,7 +44,8 @@ export class CheckoutWorkspaceUseCase {
     private git: GitService,
     private parallel: ParallelService,
     private tmux: TmuxService,
-    private runPostCheckout: RunPostCheckoutUseCase
+    private runPostCheckout: RunPostCheckoutUseCase,
+    private repoConfig: RepoConfigService
   ) {}
 
   async execute(params: CheckoutWorkspaceParams): Promise<CheckoutWorkspaceResult> {
@@ -70,7 +72,27 @@ export class CheckoutWorkspaceUseCase {
     );
     this.workspaceConfig.savePlaceholder(workspacePath);
 
-    // 4. Create worktrees in parallel
+    // 4. Load repo configs and build resolved per-repo post-checkout commands
+    const repoConfigs = new Map<string, ReturnType<RepoConfigService['load']>>();
+    const resolvedPerRepoPostCheckout: Record<string, string> = {};
+
+    for (const repoPath of matching) {
+      const name = RepoService.getRepoName(repoPath);
+      const config = this.repoConfig.load(repoPath);
+      repoConfigs.set(repoPath, config);
+
+      const command = this.repoConfig.resolvePostCheckout(
+        name,
+        params.perRepoPostCheckout,
+        config,
+        params.postCheckout
+      );
+      if (command) {
+        resolvedPerRepoPostCheckout[name] = command;
+      }
+    }
+
+    // 5. Create worktrees in parallel
     const successCount = await this.parallel.processInParallel(
       matching,
       (repoPath) => RepoService.getRepoName(repoPath),
@@ -84,20 +106,24 @@ export class CheckoutWorkspaceUseCase {
           params.branchName
         );
 
+        // Resolve copy-files: repo-level overrides global
+        const repoConf = repoConfigs.get(repoPath);
+        const resolvedCopyFiles = this.repoConfig.resolveCopyFiles(repoConf, params.copyFiles);
+
         this.worktree.copyConfigFilesToWorktree(
           repoPath,
           worktreeDest,
-          params.copyFiles
+          resolvedCopyFiles
         );
 
         return 'created';
       }
     );
 
-    // 5. Copy AGENTS.md
+    // 6. Copy AGENTS.md
     this.workspaceDir.copyAgentsMd(params.sourcePath, workspacePath);
 
-    // 6. Detect base branches for each repo
+    // 7. Detect base branches for each repo
     const baseBranches: Record<string, string> = {};
     for (const repoPath of matching) {
       const repoName = RepoService.getRepoName(repoPath);
@@ -108,10 +134,10 @@ export class CheckoutWorkspaceUseCase {
       baseBranches[repoName] = baseBranch || 'master';
     }
 
-    // 7. Save workspace config with base branches
+    // 8. Save workspace config with base branches
     this.workspaceConfig.save(workspacePath, { baseBranches });
 
-    // 8. Create tmux session if enabled
+    // 9. Create tmux session if enabled
     let tmuxCreated = false;
     if (params.tmux) {
       try {
@@ -123,13 +149,13 @@ export class CheckoutWorkspaceUseCase {
       }
     }
 
-    // 9. Run post-checkout if configured
+    // 10. Run post-checkout if configured
     const postCheckoutResult = await this.runPostCheckout.execute({
       workspacePath,
       sessionName: tmuxCreated ? params.branchName : undefined,
       tmuxEnabled: tmuxCreated,
       postCheckout: params.postCheckout,
-      perRepoPostCheckout: params.perRepoPostCheckout,
+      perRepoPostCheckout: resolvedPerRepoPostCheckout,
     });
 
     return {
