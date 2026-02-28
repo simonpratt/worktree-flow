@@ -166,6 +166,60 @@ describe('branch integration', () => {
     expect(trackStub.firstCall.args[0]).toEqual(expect.arrayContaining(['repo1', 'repo2']));
   });
 
+  it('should respect flow-config.json copy-files and post-checkout with correct priority ordering', async () => {
+    // repo1: no flow-config.json — uses global for both copy-files and post-checkout
+    // repo2: flow-config.json with copy-files and post-checkout — overrides global for both
+    // repo3: flow-config.json with post-checkout AND a central perRepoPostCheckout — central wins
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+    const repo2 = await initGitRepo(sourcePath, 'repo2');
+    const repo3 = await initGitRepo(sourcePath, 'repo3');
+
+    fs.writeFileSync(path.join(repo1, '.env'), 'REPO1=global\n');
+    fs.writeFileSync(path.join(repo2, 'flow-config.json'), JSON.stringify({ 'copy-files': '.env.local', 'post-checkout': 'echo "repo2-config" > postcheckout.txt' }));
+    fs.writeFileSync(path.join(repo2, '.env.local'), 'REPO2=local\n');
+    fs.writeFileSync(path.join(repo3, 'flow-config.json'), JSON.stringify({ 'post-checkout': 'echo "repo3-config" > postcheckout.txt' }));
+
+    integration = createIntegrationServices(sourcePath, destPath);
+
+    integration.services.config.load = sinon.stub().returns({
+      sourcePath,
+      destPath,
+      copyFiles: '.env',
+      tmux: false,
+      postCheckout: 'echo "global" > postcheckout.txt',
+      perRepoPostCheckout: {
+        repo3: 'echo "repo3-central" > postcheckout.txt',
+      },
+      fetchCacheTtlSeconds: 300,
+      branchAutoSelectRepos: [],
+    });
+
+    const checkboxStub = sinon.stub().resolves([repo1, repo2, repo3]);
+    confirmStub.resolves(true);
+
+    await runBranch('feature', integration.useCases, integration.services, {
+      checkbox: checkboxStub,
+      input: inputStub,
+      confirm: confirmStub,
+    });
+
+    const wt1 = path.join(destPath, 'feature', 'repo1');
+    const wt2 = path.join(destPath, 'feature', 'repo2');
+    const wt3 = path.join(destPath, 'feature', 'repo3');
+
+    // repo1: global copy-files (.env) and global post-checkout
+    expect(fs.existsSync(path.join(wt1, '.env'))).toBe(true);
+    expect(fs.readFileSync(path.join(wt1, 'postcheckout.txt'), 'utf-8').trim()).toBe('global');
+
+    // repo2: flow-config.json copy-files (.env.local) overrides global, flow-config.json post-checkout overrides global
+    expect(fs.existsSync(path.join(wt2, '.env.local'))).toBe(true);
+    expect(fs.existsSync(path.join(wt2, '.env'))).toBe(false);
+    expect(fs.readFileSync(path.join(wt2, 'postcheckout.txt'), 'utf-8').trim()).toBe('repo2-config');
+
+    // repo3: central perRepoPostCheckout takes priority over flow-config.json post-checkout
+    expect(fs.readFileSync(path.join(wt3, 'postcheckout.txt'), 'utf-8').trim()).toBe('repo3-central');
+  });
+
   it('should run per-repo post-checkout commands, falling back to global', async () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
     const repo2 = await initGitRepo(sourcePath, 'repo2');

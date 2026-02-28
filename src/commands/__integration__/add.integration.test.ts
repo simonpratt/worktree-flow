@@ -242,4 +242,70 @@ describe('add integration', () => {
     const content = fs.readFileSync(path.join(wt2, 'postcheckout.txt'), 'utf-8').trim();
     expect(content).toBe('installed');
   });
+
+  it('should respect flow-config.json copy-files and post-checkout with correct priority ordering', async () => {
+    // repo1: used to seed the workspace (no assertions on it)
+    // repo2: flow-config.json with copy-files and post-checkout — overrides global for both
+    // repo3: no flow-config.json — uses global for both copy-files and post-checkout
+    // repo4: flow-config.json with post-checkout AND a central perRepoPostCheckout — central wins
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+    const repo2 = await initGitRepo(sourcePath, 'repo2');
+    const repo3 = await initGitRepo(sourcePath, 'repo3');
+    const repo4 = await initGitRepo(sourcePath, 'repo4');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+
+    // Create workspace with repo1 first (no post-checkout)
+    const branchCheckboxStub = sinon.stub().resolves([repo1]);
+    const { runBranch } = await import('../branch.js');
+    await runBranch('feature', integration.useCases, integration.services, {
+      checkbox: branchCheckboxStub,
+      input: inputStub,
+      confirm: confirmStub,
+    });
+
+    fs.writeFileSync(path.join(repo2, 'flow-config.json'), JSON.stringify({ 'copy-files': '.env.local', 'post-checkout': 'echo "repo2-config" > postcheckout.txt' }));
+    fs.writeFileSync(path.join(repo2, '.env.local'), 'REPO2=local\n');
+    fs.writeFileSync(path.join(repo3, '.env'), 'REPO3=global\n');
+    fs.writeFileSync(path.join(repo4, 'flow-config.json'), JSON.stringify({ 'post-checkout': 'echo "repo4-config" > postcheckout.txt' }));
+
+    integration.services.config.load = sinon.stub().returns({
+      sourcePath,
+      destPath,
+      copyFiles: '.env',
+      tmux: false,
+      postCheckout: 'echo "global" > postcheckout.txt',
+      perRepoPostCheckout: {
+        repo4: 'echo "repo4-central" > postcheckout.txt',
+      },
+      fetchCacheTtlSeconds: 300,
+      branchAutoSelectRepos: [],
+    });
+
+    const addCheckboxStub = sinon.stub().resolves([repo2, repo3, repo4]);
+    const addConfirmStub = sinon.stub().resolves(true);
+    (integration.stubs.process.cwd as sinon.SinonStub).returns(path.join(destPath, 'feature'));
+
+    await runAdd(undefined, integration.useCases, integration.services, {
+      checkbox: addCheckboxStub,
+      input: inputStub,
+      confirm: addConfirmStub,
+    });
+
+    const wt2 = path.join(destPath, 'feature', 'repo2');
+    const wt3 = path.join(destPath, 'feature', 'repo3');
+    const wt4 = path.join(destPath, 'feature', 'repo4');
+
+    // repo2: flow-config.json copy-files (.env.local) overrides global, flow-config.json post-checkout overrides global
+    expect(fs.existsSync(path.join(wt2, '.env.local'))).toBe(true);
+    expect(fs.existsSync(path.join(wt2, '.env'))).toBe(false);
+    expect(fs.readFileSync(path.join(wt2, 'postcheckout.txt'), 'utf-8').trim()).toBe('repo2-config');
+
+    // repo3: global copy-files (.env) and global post-checkout
+    expect(fs.existsSync(path.join(wt3, '.env'))).toBe(true);
+    expect(fs.readFileSync(path.join(wt3, 'postcheckout.txt'), 'utf-8').trim()).toBe('global');
+
+    // repo4: central perRepoPostCheckout takes priority over flow-config.json post-checkout
+    expect(fs.readFileSync(path.join(wt4, 'postcheckout.txt'), 'utf-8').trim()).toBe('repo4-central');
+  });
 });
