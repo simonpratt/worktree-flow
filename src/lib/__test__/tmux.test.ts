@@ -145,6 +145,66 @@ describe('TmuxService', () => {
     });
   });
 
+  describe('addPane', () => {
+    it('should split window, return pane index, and apply tiled layout', async () => {
+      shell.execFile.onFirstCall().resolves({ stdout: '', stderr: '' }); // split-window
+      shell.execFile.onSecondCall().resolves({ stdout: '2\n', stderr: '' }); // display-message
+      shell.execFile.onThirdCall().resolves({ stdout: '', stderr: '' }); // select-layout
+
+      const paneIndex = await service.addPane('feature-branch', '/workspace/feature/repo1');
+
+      expect(paneIndex).toBe(2);
+
+      sinon.assert.calledWith(
+        shell.execFile,
+        'tmux',
+        ['split-window', '-t', 'feature-branch', '-c', '/workspace/feature/repo1']
+      );
+
+      sinon.assert.calledWith(
+        shell.execFile,
+        'tmux',
+        ['display-message', '-p', '-t', 'feature-branch', '#{pane_index}']
+      );
+
+      sinon.assert.calledWith(
+        shell.execFile,
+        'tmux',
+        ['select-layout', '-t', 'feature-branch', 'tiled']
+      );
+
+      expect(shell.execFile.callCount).toBe(3);
+    });
+
+    it('should return pane index as a number', async () => {
+      shell.execFile.onFirstCall().resolves({ stdout: '', stderr: '' });
+      shell.execFile.onSecondCall().resolves({ stdout: '5', stderr: '' });
+      shell.execFile.onThirdCall().resolves({ stdout: '', stderr: '' });
+
+      const paneIndex = await service.addPane('my-session', '/some/path');
+
+      expect(paneIndex).toBe(5);
+      expect(typeof paneIndex).toBe('number');
+    });
+
+    it('should throw when split-window fails', async () => {
+      shell.execFile.onFirstCall().rejects(new Error('no space for new pane'));
+
+      await expect(
+        service.addPane('feature-branch', '/workspace/feature/repo1')
+      ).rejects.toThrow('no space for new pane');
+    });
+
+    it('should throw when display-message fails', async () => {
+      shell.execFile.onFirstCall().resolves({ stdout: '', stderr: '' });
+      shell.execFile.onSecondCall().rejects(new Error('no such session'));
+
+      await expect(
+        service.addPane('feature-branch', '/workspace/feature/repo1')
+      ).rejects.toThrow('no such session');
+    });
+  });
+
   describe('sendKeysToPane', () => {
     it('should send command to specified pane', async () => {
       shell.execFile.resolves({ stdout: '', stderr: '' });

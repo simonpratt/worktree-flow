@@ -56,6 +56,33 @@ export class TmuxService {
     ]);
   }
 
+  async addPane(sessionName: string, worktreePath: string): Promise<number> {
+    await this.shell.execFile('tmux', [
+      'split-window',
+      '-t',
+      sessionName,
+      '-c',
+      worktreePath,
+    ]);
+
+    const { stdout } = await this.shell.execFile('tmux', [
+      'display-message',
+      '-p',
+      '-t',
+      sessionName,
+      '#{pane_index}',
+    ]);
+
+    await this.shell.execFile('tmux', [
+      'select-layout',
+      '-t',
+      sessionName,
+      'tiled',
+    ]);
+
+    return parseInt(stdout.trim(), 10);
+  }
+
   async killSession(sessionName: string): Promise<void> {
     try {
       await this.shell.execFile('tmux', ['kill-session', '-t', sessionName]);
