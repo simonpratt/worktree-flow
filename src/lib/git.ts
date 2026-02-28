@@ -150,6 +150,10 @@ export class GitService {
     }
   }
 
+  async createBranch(repoPath: string, branchName: string, startPoint: string): Promise<void> {
+    await this.exec(repoPath, ['branch', '--no-track', branchName, startPoint]);
+  }
+
   async removeWorktree(repoPath: string, worktreePath: string): Promise<void> {
     await this.exec(repoPath, ['worktree', 'remove', worktreePath]);
   }

@@ -42,14 +42,14 @@ Replace four existing use cases (`runPostCheckout`, `createBranchWorkspace`, `ch
 ## Phase 2: Create `CreateWorkspaceUseCase`
 
 **Files created:**
-- `src/usecases/createWorkspace.ts`
-- `src/usecases/__test__/createWorkspace.test.ts`
+- [x] `src/usecases/createWorkspace.ts`
+- [x] `src/usecases/__test__/createWorkspace.test.ts`
 
 **Responsibilities:**
-1. Create workspace directory via `WorkspaceDirectoryService.createWorkspaceDir(destPath, branchName)`
-2. Save placeholder config via `WorkspaceConfigService.savePlaceholder(workspacePath)`
-3. Copy AGENTS.md from source-path via `WorkspaceDirectoryService.copyAgentsMd(sourcePath, workspacePath)`
-4. If tmux enabled: create tmux session with root pane only via `TmuxService.createSession(workspacePath, branchName, [])` (empty worktree array = root pane only)
+1. [x] Create workspace directory via `WorkspaceDirectoryService.createWorkspaceDir(destPath, branchName)`
+2. [x] Save placeholder config via `WorkspaceConfigService.savePlaceholder(workspacePath)`
+3. [x] Copy AGENTS.md from source-path via `WorkspaceDirectoryService.copyAgentsMd(sourcePath, workspacePath)`
+4. [x] If tmux enabled: create tmux session with root pane only via `TmuxService.createSession(workspacePath, branchName, [])` (empty worktree array = root pane only)
 
 **Params:**
 ```typescript
@@ -69,22 +69,22 @@ type CreateWorkspaceResult = {
 **Dependencies:** `WorkspaceDirectoryService`, `WorkspaceConfigService`, `TmuxService`
 
 **Tests (unit, sinon stubs):**
-- Creates workspace directory and saves placeholder config
-- Copies AGENTS.md when it exists
-- Creates tmux session when tmux is enabled
-- Handles tmux creation failure gracefully (returns `tmuxCreated: false`)
-- Does not create tmux session when tmux is disabled
+- [x] Creates workspace directory and saves placeholder config
+- [x] Copies AGENTS.md when it exists
+- [x] Creates tmux session when tmux is enabled
+- [x] Handles tmux creation failure gracefully (returns `tmuxCreated: false`)
+- [x] Does not create tmux session when tmux is disabled
 
 ---
 
 ## Phase 3: Create `CreateBranchUseCase` + `GitService.createBranch()`
 
 **Files changed:**
-- `src/lib/git.ts` — add `createBranch()` method
+- [x] `src/lib/git.ts` — add `createBranch()` method
 
 **Files created:**
-- `src/usecases/createBranch.ts`
-- `src/usecases/__test__/createBranch.test.ts`
+- [x] `src/usecases/createBranch.ts`
+- [x] `src/usecases/__test__/createBranch.test.ts`
 
 ### GitService changes
 
@@ -176,14 +176,14 @@ type AddToWorkspaceResult = {
 ## Phase 5: Create `DiscoverReposWithBranchUseCase`
 
 **Files created:**
-- `src/usecases/discoverReposWithBranch.ts`
-- `src/usecases/__test__/discoverReposWithBranch.test.ts`
+- [x] `src/usecases/discoverReposWithBranch.ts`
+- [x] `src/usecases/__test__/discoverReposWithBranch.test.ts`
 
 **Responsibilities:**
-1. Discover all repos via `RepoService.discoverRepos(sourcePath)`
-2. Throw `NoReposFoundError` if none found
-3. Check which repos have the branch via `RepoService.findReposWithBranch(allRepos, branchName)`
-4. Return all repos, matching repos, and branch check results
+1. [x] Discover all repos via `RepoService.discoverRepos(sourcePath)`
+2. [x] Throw `NoReposFoundError` if none found
+3. [x] Check which repos have the branch via `RepoService.findReposWithBranch(allRepos, branchName)`
+4. [x] Return all repos, matching repos, and branch check results
 
 **Params:**
 ```typescript
