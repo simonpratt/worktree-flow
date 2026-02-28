@@ -8,6 +8,7 @@ import {
   createTempDir,
   initGitRepo,
   createIntegrationServices,
+  createTestWorkspace,
   type IntegrationServices,
 } from '../../test/integration-test-utils.js';
 
@@ -48,7 +49,7 @@ describe('pull integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    const result = await integration.useCases.createBranchWorkspace.execute({
+    const result = await createTestWorkspace(integration.useCases, {
       repos: [repo1],
       branchName: 'feature',
       sourceBranch: 'master',
@@ -78,7 +79,7 @@ describe('pull integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    const result = await integration.useCases.createBranchWorkspace.execute({
+    const result = await createTestWorkspace(integration.useCases, {
       repos: [repo1],
       branchName: 'feature',
       sourceBranch: 'master',
@@ -108,7 +109,7 @@ describe('pull integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    await integration.useCases.createBranchWorkspace.execute({
+    await createTestWorkspace(integration.useCases, {
       repos: [repo1],
       branchName: 'feature',
       sourceBranch: 'master',

@@ -7,6 +7,7 @@ import {
   createTempDir,
   initGitRepo,
   createIntegrationServices,
+  createTestWorkspace,
   ProcessExitError,
   type IntegrationServices,
 } from '../../test/integration-test-utils.js';
@@ -56,7 +57,7 @@ describe('prune integration', () => {
     integration = createIntegrationServices(sourcePath, destPath);
 
     // Create a workspace
-    await integration.useCases.createBranchWorkspace.execute({
+    await createTestWorkspace(integration.useCases, {
       repos: [repo1],
       branchName: 'feature',
       sourceBranch: 'master',
@@ -87,7 +88,7 @@ describe('prune integration', () => {
     integration = createIntegrationServices(sourcePath, destPath);
 
     // Create a workspace
-    const result = await integration.useCases.createBranchWorkspace.execute({
+    const result = await createTestWorkspace(integration.useCases, {
       repos: [repo1],
       branchName: 'old-feature',
       sourceBranch: 'master',
@@ -146,7 +147,7 @@ describe('prune integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    const result = await integration.useCases.createBranchWorkspace.execute({
+    const result = await createTestWorkspace(integration.useCases, {
       repos: [repo1],
       branchName: 'old-feature',
       sourceBranch: 'master',
@@ -205,7 +206,7 @@ describe('prune integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    const result = await integration.useCases.createBranchWorkspace.execute({
+    const result = await createTestWorkspace(integration.useCases, {
       repos: [repo1],
       branchName: 'old-feature',
       sourceBranch: 'master',
@@ -267,7 +268,7 @@ describe('prune integration', () => {
     integration = createIntegrationServices(sourcePath, destPath);
 
     // Create two old workspaces
-    const result1 = await integration.useCases.createBranchWorkspace.execute({
+    const result1 = await createTestWorkspace(integration.useCases, {
       repos: [repo1],
       branchName: 'old-feature-1',
       sourceBranch: 'master',
@@ -277,7 +278,7 @@ describe('prune integration', () => {
       tmux: false,
     });
 
-    const result2 = await integration.useCases.createBranchWorkspace.execute({
+    const result2 = await createTestWorkspace(integration.useCases, {
       repos: [repo1],
       branchName: 'old-feature-2',
       sourceBranch: 'master',

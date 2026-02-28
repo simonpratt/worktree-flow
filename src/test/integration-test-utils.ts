@@ -78,6 +78,60 @@ export type IntegrationServices = {
   };
 };
 
+export type CreateTestWorkspaceParams = {
+  repos: string[];
+  branchName: string;
+  sourceBranch: string;
+  sourcePath: string;
+  destPath: string;
+  copyFiles?: string;
+  tmux: boolean;
+};
+
+export type CreateTestWorkspaceResult = {
+  workspacePath: string;
+};
+
+/**
+ * Test helper that creates a workspace with worktrees using the new use case pattern.
+ * Replaces the removed createBranchWorkspace use case for test setup purposes.
+ */
+export async function createTestWorkspace(
+  useCases: UseCases,
+  params: CreateTestWorkspaceParams
+): Promise<CreateTestWorkspaceResult> {
+  const workspaceResult = await useCases.createWorkspace.execute({
+    branchName: params.branchName,
+    sourcePath: params.sourcePath,
+    destPath: params.destPath,
+    tmux: params.tmux,
+  });
+
+  const { workspacePath } = workspaceResult;
+
+  await Promise.all(
+    params.repos.map(async (repoPath) => {
+      const branchResult = await useCases.createBranch.execute({
+        repoPath,
+        branchName: params.branchName,
+        sourceBranch: params.sourceBranch,
+      });
+
+      await useCases.addToWorkspace.execute({
+        repoPath,
+        workspacePath,
+        branchName: params.branchName,
+        baseBranch: branchResult.baseBranch,
+        sessionName: undefined,
+        copyFiles: params.copyFiles,
+        postCheckout: undefined,
+      });
+    })
+  );
+
+  return { workspacePath };
+}
+
 export function createIntegrationServices(sourcePath: string, destPath: string): IntegrationServices {
   const nodeFs = new NodeFileSystem();
   const nodeShell = new NodeShell();

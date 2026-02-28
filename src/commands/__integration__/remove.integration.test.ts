@@ -8,6 +8,7 @@ import {
   createTempDir,
   initGitRepo,
   createIntegrationServices,
+  createTestWorkspace,
   ProcessExitError,
   type IntegrationServices,
 } from '../../test/integration-test-utils.js';
@@ -45,9 +46,9 @@ describe('remove integration', () => {
   it('should remove workspace and worktrees on happy path', async () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
 
-    // Create a workspace with a worktree via createBranchWorktrees
+    // Create a workspace with a worktree via createTestWorkspace
     integration = createIntegrationServices(sourcePath, destPath);
-    const result = await integration.useCases.createBranchWorkspace.execute({
+    const result = await createTestWorkspace(integration.useCases, {
       repos: [repo1],
       branchName: 'feature',
       sourceBranch: 'master',
@@ -78,7 +79,7 @@ describe('remove integration', () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
 
     integration = createIntegrationServices(sourcePath, destPath);
-    const result = await integration.useCases.createBranchWorkspace.execute({
+    const result = await createTestWorkspace(integration.useCases, {
       repos: [repo1],
       branchName: 'feature',
       sourceBranch: 'master',
@@ -106,7 +107,7 @@ describe('remove integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    const result = await integration.useCases.createBranchWorkspace.execute({
+    const result = await createTestWorkspace(integration.useCases, {
       repos: [repo1],
       branchName: 'feature',
       sourceBranch: 'master',
@@ -136,7 +137,7 @@ describe('remove integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    const result = await integration.useCases.createBranchWorkspace.execute({
+    const result = await createTestWorkspace(integration.useCases, {
       repos: [repo1],
       branchName: 'feature',
       sourceBranch: 'master',
@@ -160,7 +161,7 @@ describe('remove integration', () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
 
     integration = createIntegrationServices(sourcePath, destPath);
-    const result = await integration.useCases.createBranchWorkspace.execute({
+    const result = await createTestWorkspace(integration.useCases, {
       repos: [repo1],
       branchName: 'feature',
       sourceBranch: 'master',
@@ -192,7 +193,7 @@ describe('remove integration', () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
 
     integration = createIntegrationServices(sourcePath, destPath);
-    const result = await integration.useCases.createBranchWorkspace.execute({
+    const result = await createTestWorkspace(integration.useCases, {
       repos: [repo1],
       branchName: 'feature',
       sourceBranch: 'master',

@@ -7,6 +7,7 @@ import {
   createTempDir,
   initGitRepo,
   createIntegrationServices,
+  createTestWorkspace,
   type IntegrationServices,
 } from '../../test/integration-test-utils.js';
 
@@ -42,7 +43,7 @@ describe('list integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    await integration.useCases.createBranchWorkspace.execute({
+    await createTestWorkspace(integration.useCases, {
       repos: [repo1, repo2],
       branchName: 'feature-a',
       sourceBranch: 'master',
@@ -75,7 +76,7 @@ describe('list integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    const result = await integration.useCases.createBranchWorkspace.execute({
+    const result = await createTestWorkspace(integration.useCases, {
       repos: [repo1],
       branchName: 'feature-a',
       sourceBranch: 'master',
@@ -108,7 +109,7 @@ describe('list integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    const result = await integration.useCases.createBranchWorkspace.execute({
+    const result = await createTestWorkspace(integration.useCases, {
       repos: [repo1],
       branchName: 'feature-a',
       sourceBranch: 'master',
@@ -140,7 +141,7 @@ describe('list integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    const resultA = await integration.useCases.createBranchWorkspace.execute({
+    const resultA = await createTestWorkspace(integration.useCases, {
       repos: [repo1],
       branchName: 'feature-a',
       sourceBranch: 'master',
@@ -150,7 +151,7 @@ describe('list integration', () => {
       tmux: false,
     });
 
-    await integration.useCases.createBranchWorkspace.execute({
+    await createTestWorkspace(integration.useCases, {
       repos: [repo2],
       branchName: 'feature-b',
       sourceBranch: 'master',

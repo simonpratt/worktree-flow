@@ -7,6 +7,7 @@ import {
   createTempDir,
   initGitRepo,
   createIntegrationServices,
+  createTestWorkspace,
   type IntegrationServices,
 } from '../../test/integration-test-utils.js';
 
@@ -43,7 +44,7 @@ describe('tmux resume integration', () => {
     integration = createIntegrationServices(sourcePath, destPath);
 
     // Create two workspaces
-    await integration.useCases.createBranchWorkspace.execute({
+    await createTestWorkspace(integration.useCases, {
       repos: [repo1, repo2],
       branchName: 'feature-a',
       sourceBranch: 'master',
@@ -53,7 +54,7 @@ describe('tmux resume integration', () => {
       tmux: false, // Don't create tmux during creation
     });
 
-    await integration.useCases.createBranchWorkspace.execute({
+    await createTestWorkspace(integration.useCases, {
       repos: [repo1],
       branchName: 'feature-b',
       sourceBranch: 'master',
@@ -86,7 +87,7 @@ describe('tmux resume integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    await integration.useCases.createBranchWorkspace.execute({
+    await createTestWorkspace(integration.useCases, {
       repos: [repo1],
       branchName: 'feature-a',
       sourceBranch: 'master',
@@ -123,7 +124,7 @@ describe('tmux resume integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    await integration.useCases.createBranchWorkspace.execute({
+    await createTestWorkspace(integration.useCases, {
       repos: [repo1],
       branchName: 'feature-a',
       sourceBranch: 'master',
@@ -151,7 +152,7 @@ describe('tmux resume integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    await integration.useCases.createBranchWorkspace.execute({
+    await createTestWorkspace(integration.useCases, {
       repos: [repo1],
       branchName: 'feature-a',
       sourceBranch: 'master',
@@ -179,7 +180,7 @@ describe('tmux resume integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    await integration.useCases.createBranchWorkspace.execute({
+    await createTestWorkspace(integration.useCases, {
       repos: [repo1],
       branchName: 'feature-branch-1',
       sourceBranch: 'master',
@@ -189,7 +190,7 @@ describe('tmux resume integration', () => {
       tmux: false,
     });
 
-    await integration.useCases.createBranchWorkspace.execute({
+    await createTestWorkspace(integration.useCases, {
       repos: [repo1],
       branchName: 'feature-branch-2',
       sourceBranch: 'master',
@@ -220,7 +221,7 @@ describe('tmux resume integration', () => {
     integration = createIntegrationServices(sourcePath, destPath);
 
     // Create workspace with both repos
-    await integration.useCases.createBranchWorkspace.execute({
+    await createTestWorkspace(integration.useCases, {
       repos: [repo1, repo2],
       branchName: 'feature-a',
       sourceBranch: 'master',

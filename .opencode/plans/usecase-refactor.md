@@ -274,17 +274,17 @@ The test assertions should remain the same (they test end-to-end behaviour). The
 ## Phase 7: Update `usecases.ts` factory and clean up
 
 **Changes to `src/usecases/usecases.ts`:**
-1. Remove imports/instantiation: `RunPostCheckoutUseCase`, `AddReposToWorkspaceUseCase`, `CreateBranchWorkspaceUseCase`, `CheckoutWorkspaceUseCase`
-2. Add imports/instantiation: `CreateWorkspaceUseCase`, `CreateBranchUseCase`, `AddToWorkspaceUseCase`, `DiscoverReposWithBranchUseCase`
-3. Wire new use cases with their service dependencies
+1. [x] Remove imports/instantiation: `RunPostCheckoutUseCase`, `AddReposToWorkspaceUseCase`, `CreateBranchWorkspaceUseCase`, `CheckoutWorkspaceUseCase`
+2. [x] Add imports/instantiation: `CreateWorkspaceUseCase`, `CreateBranchUseCase`, `AddToWorkspaceUseCase`, `DiscoverReposWithBranchUseCase`
+3. [x] Wire new use cases with their service dependencies
 
 **Files deleted:**
-- `src/usecases/runPostCheckout.ts`
-- `src/usecases/createBranchWorkspace.ts`
-- `src/usecases/checkoutWorkspace.ts`
-- `src/usecases/addReposToWorkspace.ts`
-- `src/usecases/__test__/runPostCheckout.test.ts`
-- `src/usecases/__test__/addReposToWorkspace.test.ts`
+- [x] `src/usecases/runPostCheckout.ts`
+- [x] `src/usecases/createBranchWorkspace.ts`
+- [x] `src/usecases/checkoutWorkspace.ts`
+- [x] `src/usecases/addReposToWorkspace.ts`
+- [x] `src/usecases/__test__/runPostCheckout.test.ts`
+- [x] `src/usecases/__test__/addReposToWorkspace.test.ts`
 
 **Note:** `resumeTmuxSessions.ts` uses `TmuxService.createSession()` with all worktree dirs. This continues to work unchanged — it's a separate flow for resuming sessions after reboot.
 
