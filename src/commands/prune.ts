@@ -117,7 +117,6 @@ export async function runPrune(
 export function registerPruneCommand(program: Command): void {
   program
     .command('prune')
-    .alias('clean')
     .description('Select and remove workspaces')
     .action(async () => {
       const services = createServices();

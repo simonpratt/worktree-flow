@@ -2,14 +2,16 @@
 
 ## Unreleased
 
-- `add` command no longer preselects based on the `autoSelectRepos` config option
+- Renamed `add` command to `attach`
+- Renamed `remove` command to `drop`
+- Removed `clean` alias from `prune` command
 
 ## [0.0.17] - 2026-02-28
 
 ### Added
 
-- `flow add [branch-name]` command — add repos to an existing workspace interactively. Presents a repo picker (excluding repos already in the workspace), creates worktrees with new branches, copies config files, and runs post-checkout commands. Auto-detects the workspace from the current directory, or accepts an explicit branch name.
-- Repo-level `flow-config.json` support — individual repos can now define `copy-files` and `post-checkout` settings at their root. Applies to `branch`, `checkout`, and `add` commands.
+- `flow attach [branch-name]` command — attach repos to an existing workspace interactively. Presents a repo picker (excluding repos already in the workspace), creates worktrees with new branches, copies config files, and runs post-checkout commands. Auto-detects the workspace from the current directory, or accepts an explicit branch name.
+- Repo-level `flow-config.json` support — individual repos can now define `copy-files` and `post-checkout` settings at their root. Applies to `branch`, `checkout`, and `attach` commands.
 
 ### Changed
 
@@ -73,7 +75,7 @@
 
 ### Changed
 
-- `remove` and `prune` commands now consider unpushed changes as safe to delete (since worktrees preserve git history)
+- `drop` and `prune` commands now consider unpushed changes as safe to delete (since worktrees preserve git history)
 - Changed status safety checks - only uncommitted changes block removal
 
 ## [0.0.9] - 2026-02-12
@@ -146,7 +148,7 @@
 ### Added
 
 - Initial public release
-- Core commands: `branch`, `checkout`, `push`, `pull`, `status`, `remove`, `list`, `prune`
+- Core commands: `branch`, `checkout`, `push`, `pull`, `status`, `drop`, `list`, `prune`
 - Git worktree management across multiple repositories
 - Interactive repo selection for branch creation
 - Workspace-level operations (push, pull, status)

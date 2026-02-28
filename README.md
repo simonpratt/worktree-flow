@@ -56,9 +56,9 @@ Create a new branch across selected repos. Interactively select which repos to i
 
 Checkout an existing branch. Fetches all repos, detects which have the branch, and creates worktrees.
 
-### `flow add [name]`
+### `flow attach [name]`
 
-Add repos to an existing workspace. Discovers available repos not yet in the workspace, presents an interactive picker, creates worktrees with new branches, copies config files, and runs post-checkout commands. Auto-detects the workspace from the current directory, or specify a branch name explicitly.
+Attach repos to an existing workspace. Discovers available repos not yet in the workspace, presents an interactive picker, creates worktrees with new branches, copies config files, and runs post-checkout commands. Auto-detects the workspace from the current directory, or specify a branch name explicitly.
 
 ### `flow pull`
 
@@ -81,11 +81,11 @@ List all workspaces with status indicators. Shows:
 
 Fetches all repos before checking status to ensure accurate information. The status check uses git's patch-id comparison, which correctly handles squash-merged branches.
 
-### `flow remove <name>`
+### `flow drop <name>`
 
-Remove a workspace and all its worktrees. Fetches latest, checks for uncommitted changes, and prompts for confirmation before removing. Committed changes are safe to remove since they're preserved in git history.
+Drop a workspace and all its worktrees. Fetches latest, checks for uncommitted changes, and prompts for confirmation before removing. Committed changes are safe to drop since they're preserved in git history.
 
-### `flow prune` (alias: `clean`)
+### `flow prune`
 
 Remove workspaces interactively. Shows all workspaces with their status (similar to `flow list`) and lets you select which ones to prune. Only workspaces with no uncommitted changes can be successfully removed.
 

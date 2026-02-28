@@ -12,7 +12,7 @@ import { NoReposFoundError } from '../lib/errors.js';
 import { resolveWorkspace } from '../lib/workspaceResolver.js';
 import { buildRepoCheckboxChoices } from './helpers.js';
 
-export async function runAdd(
+export async function runAttach(
   branchName: string | undefined,
   useCases: UseCases,
   services: Services,
@@ -58,7 +58,7 @@ export async function runAdd(
   const checkboxChoices = buildRepoCheckboxChoices(availableRepos, services, [], (label) => new Separator(label));
 
   const selected = await deps.checkbox({
-    message: `Select repos to add to "${displayName}":`,
+    message: `Select repos to attach to "${displayName}":`,
     choices: checkboxChoices,
     pageSize: 20,
     loop: false,
@@ -84,7 +84,7 @@ export async function runAdd(
     });
   }
 
-  services.console.log('\nAdding repos to workspace...');
+  services.console.log('\nAttaching repos to workspace...');
 
   // 7. Fetch selected repos
   await services.fetch.fetchRepos(selected, {
@@ -149,7 +149,7 @@ export async function runAdd(
 
   // 10. Display results
   services.console.log(
-    `\nAdded ${successCount}/${totalCount} repos to ${chalk.cyan(workspacePath)}.`
+    `\nAttached ${successCount}/${totalCount} repos to ${chalk.cyan(workspacePath)}.`
   );
 
   if (postCheckoutTotal > 0) {
@@ -159,16 +159,16 @@ export async function runAdd(
   }
 }
 
-export function registerAddCommand(program: Command): void {
+export function registerAttachCommand(program: Command): void {
   program
-    .command('add [branch-name]')
-    .description('Add repos to an existing workspace (auto-detects from current directory if branch not provided)')
+    .command('attach [branch-name]')
+    .description('Attach repos to an existing workspace (auto-detects from current directory if branch not provided)')
     .action(async (branchName?: string) => {
       const services = createServices();
       const useCases = createUseCases(services);
 
       try {
-        await runAdd(branchName, useCases, services, { checkbox, input, confirm });
+        await runAttach(branchName, useCases, services, { checkbox, input, confirm });
       } catch (error: any) {
         services.console.error(error.message);
         services.process.exit(1);

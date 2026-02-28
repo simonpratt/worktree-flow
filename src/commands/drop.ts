@@ -8,7 +8,7 @@ import type { UseCases } from '../usecases/usecases.js';
 import { StatusService } from '../lib/status.js';
 import { resolveWorkspace } from '../lib/workspaceResolver.js';
 
-export async function runRemove(
+export async function runDrop(
   branchName: string | undefined,
   useCases: UseCases,
   services: Services,
@@ -69,7 +69,7 @@ export async function runRemove(
   }
 
   const confirmed = await deps.confirm({
-    message: 'Are you sure you want to remove this workspace?',
+    message: 'Are you sure you want to drop this workspace?',
     default: false,
   });
 
@@ -79,7 +79,7 @@ export async function runRemove(
   }
 
   // Execute use case (will throw if there are issues)
-  services.console.log('\nRemoving workspace...');
+  services.console.log('\nDropping workspace...');
   const result = await useCases.removeWorkspace.execute({
     workspacePath,
     branchName: branchNameForDisplay,
@@ -114,19 +114,19 @@ export async function runRemove(
     services.console.log(`${chalk.green('Killed tmux session:')} ${branchNameForDisplay}`);
   }
 
-  services.console.log(`\n${chalk.green('Successfully removed workspace:')} ${branchNameForDisplay}`);
+  services.console.log(`\n${chalk.green('Successfully dropped workspace:')} ${branchNameForDisplay}`);
 }
 
-export function registerRemoveCommand(program: Command): void {
+export function registerDropCommand(program: Command): void {
   program
-    .command('remove [branch-name]')
-    .description('Remove a workspace and all its worktrees (auto-detects from current directory if branch not provided)')
+    .command('drop [branch-name]')
+    .description('Drop a workspace and all its worktrees (auto-detects from current directory if branch not provided)')
     .action(async (branchName?: string) => {
       const services = createServices();
       const useCases = createUseCases(services);
 
       try {
-        await runRemove(branchName, useCases, services, { confirm });
+        await runDrop(branchName, useCases, services, { confirm });
       } catch (error: any) {
         services.console.error(error.message);
         services.process.exit(1);

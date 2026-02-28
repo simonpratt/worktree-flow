@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import sinon from 'sinon';
-import { runAdd } from '../add.js';
+import { runAttach } from '../attach.js';
 import { NotInWorkspaceError, WorkspaceNotFoundError } from '../../lib/errors.js';
 import {
   createTempDir,
@@ -11,7 +11,7 @@ import {
   type IntegrationServices,
 } from '../../test/integration-test-utils.js';
 
-describe('add integration', () => {
+describe('attach integration', () => {
   let tempDir: { path: string; cleanup: () => void };
   let sourcePath: string;
   let destPath: string;
@@ -41,7 +41,7 @@ describe('add integration', () => {
     const checkboxStub = sinon.stub().resolves([]);
 
     await expect(
-      runAdd(undefined, integration.useCases, integration.services, {
+      runAttach(undefined, integration.useCases, integration.services, {
         checkbox: checkboxStub,
         input: inputStub,
         confirm: confirmStub,
@@ -55,7 +55,7 @@ describe('add integration', () => {
     const checkboxStub = sinon.stub().resolves([]);
 
     await expect(
-      runAdd('nonexistent', integration.useCases, integration.services, {
+      runAttach('nonexistent', integration.useCases, integration.services, {
         checkbox: checkboxStub,
         input: inputStub,
         confirm: confirmStub,
@@ -63,7 +63,7 @@ describe('add integration', () => {
     ).rejects.toThrow(WorkspaceNotFoundError);
   });
 
-  it('should add new repos to an existing workspace', async () => {
+  it('should attach new repos to an existing workspace', async () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
     const repo2 = await initGitRepo(sourcePath, 'repo2');
     const repo3 = await initGitRepo(sourcePath, 'repo3');
@@ -84,12 +84,12 @@ describe('add integration', () => {
     expect(fs.existsSync(path.join(workspacePath, 'repo1'))).toBe(true);
     expect(fs.existsSync(path.join(workspacePath, 'repo2'))).toBe(false);
 
-    // Now add repo2 and repo3 via the add command
-    const addCheckboxStub = sinon.stub().resolves([repo2, repo3]);
+    // Now attach repo2 and repo3 via the attach command
+    const attachCheckboxStub = sinon.stub().resolves([repo2, repo3]);
     (integration.stubs.process.cwd as sinon.SinonStub).returns(workspacePath);
 
-    await runAdd(undefined, integration.useCases, integration.services, {
-      checkbox: addCheckboxStub,
+    await runAttach(undefined, integration.useCases, integration.services, {
+      checkbox: attachCheckboxStub,
       input: inputStub,
       confirm: confirmStub,
     });
@@ -99,7 +99,7 @@ describe('add integration', () => {
     expect(fs.existsSync(path.join(workspacePath, 'repo2'))).toBe(true);
     expect(fs.existsSync(path.join(workspacePath, 'repo3'))).toBe(true);
 
-    // Verify correct branch in the added worktrees
+    // Verify correct branch in the attached worktrees
     const { NodeShell } = await import('../../adapters/node.js');
     const shell = new NodeShell();
     const { stdout: branch2 } = await shell.execFile('git', ['-C', path.join(workspacePath, 'repo2'), 'branch', '--show-current']);
@@ -123,12 +123,12 @@ describe('add integration', () => {
       confirm: confirmStub,
     });
 
-    // Add repo2 using explicit branch name (cwd doesn't matter)
-    const addCheckboxStub = sinon.stub().resolves([repo2]);
+    // Attach repo2 using explicit branch name (cwd doesn't matter)
+    const attachCheckboxStub = sinon.stub().resolves([repo2]);
     (integration.stubs.process.cwd as sinon.SinonStub).returns('/tmp/somewhere-else');
 
-    await runAdd('feature', integration.useCases, integration.services, {
-      checkbox: addCheckboxStub,
+    await runAttach('feature', integration.useCases, integration.services, {
+      checkbox: attachCheckboxStub,
       input: inputStub,
       confirm: confirmStub,
     });
@@ -152,18 +152,18 @@ describe('add integration', () => {
       confirm: confirmStub,
     });
 
-    // Run add - checkbox should only show repo2
-    const addCheckboxStub = sinon.stub().resolves([repo2]);
+    // Run attach - checkbox should only show repo2
+    const attachCheckboxStub = sinon.stub().resolves([repo2]);
     (integration.stubs.process.cwd as sinon.SinonStub).returns(path.join(destPath, 'feature'));
 
-    await runAdd(undefined, integration.useCases, integration.services, {
-      checkbox: addCheckboxStub,
+    await runAttach(undefined, integration.useCases, integration.services, {
+      checkbox: attachCheckboxStub,
       input: inputStub,
       confirm: confirmStub,
     });
 
     // Verify checkbox choices only contained repo2
-    const choices = addCheckboxStub.firstCall.args[0].choices;
+    const choices = attachCheckboxStub.firstCall.args[0].choices;
     const repoNames = choices.filter((c: any) => c.name !== undefined).map((c: any) => c.name);
     expect(repoNames).toEqual(['repo2']);
     expect(repoNames).not.toContain('repo1');
@@ -184,12 +184,12 @@ describe('add integration', () => {
       confirm: confirmStub,
     });
 
-    // Run add but select nothing (repo2 is available but not selected)
-    const addCheckboxStub = sinon.stub().resolves([]);
+    // Run attach but select nothing (repo2 is available but not selected)
+    const attachCheckboxStub = sinon.stub().resolves([]);
     (integration.stubs.process.cwd as sinon.SinonStub).returns(path.join(destPath, 'feature'));
 
-    await runAdd(undefined, integration.useCases, integration.services, {
-      checkbox: addCheckboxStub,
+    await runAttach(undefined, integration.useCases, integration.services, {
+      checkbox: attachCheckboxStub,
       input: inputStub,
       confirm: confirmStub,
     });
@@ -200,7 +200,7 @@ describe('add integration', () => {
     expect(logCalls.some((line: string) => line.includes('No repos selected'))).toBe(true);
   });
 
-  it('should run post-checkout commands on newly added repos', async () => {
+  it('should run post-checkout commands on newly attached repos', async () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
     const repo2 = await initGitRepo(sourcePath, 'repo2');
 
@@ -215,7 +215,7 @@ describe('add integration', () => {
       confirm: confirmStub,
     });
 
-    // Configure post-checkout for the add
+    // Configure post-checkout for the attach
     integration.services.config.load = sinon.stub().returns({
       sourcePath,
       destPath,
@@ -227,14 +227,14 @@ describe('add integration', () => {
       branchAutoSelectRepos: [],
     });
 
-    const addCheckboxStub = sinon.stub().resolves([repo2]);
-    const addConfirmStub = sinon.stub().resolves(true);
+    const attachCheckboxStub = sinon.stub().resolves([repo2]);
+    const attachConfirmStub = sinon.stub().resolves(true);
     (integration.stubs.process.cwd as sinon.SinonStub).returns(path.join(destPath, 'feature'));
 
-    await runAdd(undefined, integration.useCases, integration.services, {
-      checkbox: addCheckboxStub,
+    await runAttach(undefined, integration.useCases, integration.services, {
+      checkbox: attachCheckboxStub,
       input: inputStub,
-      confirm: addConfirmStub,
+      confirm: attachConfirmStub,
     });
 
     // Verify post-checkout ran in the new repo
@@ -282,14 +282,14 @@ describe('add integration', () => {
       branchAutoSelectRepos: [],
     });
 
-    const addCheckboxStub = sinon.stub().resolves([repo2, repo3, repo4]);
-    const addConfirmStub = sinon.stub().resolves(true);
+    const attachCheckboxStub = sinon.stub().resolves([repo2, repo3, repo4]);
+    const attachConfirmStub = sinon.stub().resolves(true);
     (integration.stubs.process.cwd as sinon.SinonStub).returns(path.join(destPath, 'feature'));
 
-    await runAdd(undefined, integration.useCases, integration.services, {
-      checkbox: addCheckboxStub,
+    await runAttach(undefined, integration.useCases, integration.services, {
+      checkbox: attachCheckboxStub,
       input: inputStub,
-      confirm: addConfirmStub,
+      confirm: attachConfirmStub,
     });
 
     const wt2 = path.join(destPath, 'feature', 'repo2');

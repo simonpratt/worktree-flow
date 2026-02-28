@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import sinon from 'sinon';
-import { runRemove } from '../remove.js';
+import { runDrop } from '../drop.js';
 import { WorkspaceHasIssuesError, NotInWorkspaceError } from '../../lib/errors.js';
 import {
   createTempDir,
@@ -13,7 +13,7 @@ import {
   type IntegrationServices,
 } from '../../test/integration-test-utils.js';
 
-describe('remove integration', () => {
+describe('drop integration', () => {
   let tempDir: { path: string; cleanup: () => void };
   let sourcePath: string;
   let destPath: string;
@@ -39,11 +39,11 @@ describe('remove integration', () => {
     (integration.stubs.process.cwd as sinon.SinonStub).returns('/tmp/nowhere');
 
     await expect(
-      runRemove(undefined, integration.useCases, integration.services, { confirm: confirmStub })
+      runDrop(undefined, integration.useCases, integration.services, { confirm: confirmStub })
     ).rejects.toThrow(NotInWorkspaceError);
   });
 
-  it('should remove workspace and worktrees on happy path', async () => {
+  it('should drop workspace and worktrees on happy path', async () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
 
     // Create a workspace with a worktree via createTestWorkspace
@@ -62,8 +62,8 @@ describe('remove integration', () => {
     const worktreePath = path.join(workspacePath, 'repo1');
     expect(fs.existsSync(worktreePath)).toBe(true);
 
-    // Now remove the workspace
-    await runRemove('feature', integration.useCases, integration.services, { confirm: confirmStub });
+    // Now drop the workspace
+    await runDrop('feature', integration.useCases, integration.services, { confirm: confirmStub });
 
     // Workspace directory should be gone
     expect(fs.existsSync(workspacePath)).toBe(false);
@@ -95,7 +95,7 @@ describe('remove integration', () => {
     fs.writeFileSync(path.join(worktreePath, 'dirty.txt'), 'uncommitted\n');
 
     await expect(
-      runRemove('feature', integration.useCases, integration.services, { confirm: confirmStub })
+      runDrop('feature', integration.useCases, integration.services, { confirm: confirmStub })
     ).rejects.toThrow(WorkspaceHasIssuesError);
 
     // Workspace should still exist (not removed)
@@ -120,7 +120,7 @@ describe('remove integration', () => {
     // Set cwd to inside the workspace
     (integration.stubs.process.cwd as sinon.SinonStub).returns(result.workspacePath);
 
-    await runRemove(undefined, integration.useCases, integration.services, { confirm: confirmStub });
+    await runDrop(undefined, integration.useCases, integration.services, { confirm: confirmStub });
 
     // Workspace directory should be gone
     expect(fs.existsSync(result.workspacePath)).toBe(false);
@@ -151,13 +151,13 @@ describe('remove integration', () => {
     const repoCwd = path.join(result.workspacePath, 'repo1');
     (integration.stubs.process.cwd as sinon.SinonStub).returns(repoCwd);
 
-    await runRemove(undefined, integration.useCases, integration.services, { confirm: confirmStub });
+    await runDrop(undefined, integration.useCases, integration.services, { confirm: confirmStub });
 
     // Workspace directory should be gone
     expect(fs.existsSync(result.workspacePath)).toBe(false);
   });
 
-  it('should allow removal when worktree has commits ahead of base branch (but no uncommitted changes)', async () => {
+  it('should allow dropping when worktree has commits ahead of base branch (but no uncommitted changes)', async () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
 
     integration = createIntegrationServices(sourcePath, destPath);
@@ -181,13 +181,13 @@ describe('remove integration', () => {
     await shell.execFile('git', ['-C', worktreePath, 'commit', '-m', 'Add new feature']);
 
     // Should NOT throw - committed changes are safe
-    await runRemove('feature', integration.useCases, integration.services, { confirm: confirmStub });
+    await runDrop('feature', integration.useCases, integration.services, { confirm: confirmStub });
 
     // Workspace should be removed
     expect(fs.existsSync(result.workspacePath)).toBe(false);
   });
 
-  it('should not remove workspace when user declines confirmation', async () => {
+  it('should not drop workspace when user declines confirmation', async () => {
     confirmStub.resolves(false);
 
     const repo1 = await initGitRepo(sourcePath, 'repo1');
@@ -207,7 +207,7 @@ describe('remove integration', () => {
 
     // Process.exit throws ProcessExitError in tests to simulate stopping execution
     try {
-      await runRemove('feature', integration.useCases, integration.services, { confirm: confirmStub });
+      await runDrop('feature', integration.useCases, integration.services, { confirm: confirmStub });
       expect.fail('Should have thrown ProcessExitError');
     } catch (error) {
       expect(error).toBeInstanceOf(ProcessExitError);
