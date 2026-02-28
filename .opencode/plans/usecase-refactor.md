@@ -124,8 +124,8 @@ type CreateBranchResult = {
 ## Phase 4: Create `AddToWorkspaceUseCase`
 
 **Files created:**
-- `src/usecases/addToWorkspace.ts`
-- `src/usecases/__test__/addToWorkspace.test.ts`
+- [x] `src/usecases/addToWorkspace.ts`
+- [x] `src/usecases/__test__/addToWorkspace.test.ts`
 
 **Responsibilities (for a single repo):**
 1. Create worktree: `WorktreeService.createWorktreeCheckout(repoPath, worktreeDest, branchName)` — always checks out an existing branch
