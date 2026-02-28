@@ -23,6 +23,7 @@ describe('CreateBranchUseCase', () => {
 
   it('creates branch from specified source branch when it exists', async () => {
     git.localRemoteBranchExists.withArgs('/source/my-repo', 'develop').resolves(true);
+    git.localRemoteBranchExists.withArgs('/source/my-repo', 'feature/my-feature').resolves(false);
     git.createBranch.resolves();
 
     const result = await useCase.execute({
@@ -44,6 +45,7 @@ describe('CreateBranchUseCase', () => {
 
   it('returns the actual base branch used', async () => {
     git.localRemoteBranchExists.withArgs('/source/my-repo', 'develop').resolves(true);
+    git.localRemoteBranchExists.withArgs('/source/my-repo', 'feature/my-feature').resolves(false);
     git.createBranch.resolves();
 
     const result = await useCase.execute({
@@ -57,6 +59,7 @@ describe('CreateBranchUseCase', () => {
 
   it('falls back to default branches when source branch does not exist', async () => {
     git.localRemoteBranchExists.withArgs('/source/my-repo', 'non-existent').resolves(false);
+    git.localRemoteBranchExists.withArgs('/source/my-repo', 'feature/my-feature').resolves(false);
     git.findFirstExistingBranch.resolves('main');
     git.createBranch.resolves();
 
@@ -94,6 +97,37 @@ describe('CreateBranchUseCase', () => {
     expect(result.baseBranch).toBe('master');
   });
 
+  it('skips branch creation when the target branch already exists', async () => {
+    git.localRemoteBranchExists.withArgs('/source/my-repo', 'develop').resolves(true);
+    git.localRemoteBranchExists.withArgs('/source/my-repo', 'feature/my-feature').resolves(true);
+
+    const result = await useCase.execute({
+      repoPath: '/source/my-repo',
+      branchName: 'feature/my-feature',
+      sourceBranch: 'develop',
+    });
+
+    sinon.assert.notCalled(git.createBranch);
+    expect(result.repoName).toBe('my-repo');
+    expect(result.baseBranch).toBe('develop');
+  });
+
+  it('skips branch creation when the target branch already exists with fallback source', async () => {
+    git.localRemoteBranchExists.withArgs('/source/my-repo', 'non-existent').resolves(false);
+    git.localRemoteBranchExists.withArgs('/source/my-repo', 'feature/my-feature').resolves(true);
+    git.findFirstExistingBranch.resolves('main');
+
+    const result = await useCase.execute({
+      repoPath: '/source/my-repo',
+      branchName: 'feature/my-feature',
+      sourceBranch: 'non-existent',
+    });
+
+    sinon.assert.notCalled(git.createBranch);
+    expect(result.repoName).toBe('my-repo');
+    expect(result.baseBranch).toBe('main');
+  });
+
   it('throws when no fallback branch exists either', async () => {
     git.localRemoteBranchExists.resolves(false);
     git.findFirstExistingBranch.resolves(null);
@@ -112,7 +146,8 @@ describe('CreateBranchUseCase', () => {
   });
 
   it('does not call findFirstExistingBranch when source branch exists', async () => {
-    git.localRemoteBranchExists.resolves(true);
+    git.localRemoteBranchExists.withArgs('/source/my-repo', 'develop').resolves(true);
+    git.localRemoteBranchExists.withArgs('/source/my-repo', 'feature/my-feature').resolves(false);
     git.createBranch.resolves();
 
     await useCase.execute({

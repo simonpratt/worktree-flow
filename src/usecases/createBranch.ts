@@ -48,10 +48,18 @@ export class CreateBranchUseCase {
       actualBaseBranch = fallback;
     }
 
-    // 3. Create the branch from origin/<actualBaseBranch>
-    await this.git.createBranch(params.repoPath, params.branchName, `origin/${actualBaseBranch}`);
+    // 3. If the target branch already exists, skip creation and use it as-is
+    const targetBranchExists = await this.git.localRemoteBranchExists(
+      params.repoPath,
+      params.branchName
+    );
 
-    // 4. Return the actual base branch used
+    if (!targetBranchExists) {
+      // 4. Create the branch from origin/<actualBaseBranch>
+      await this.git.createBranch(params.repoPath, params.branchName, `origin/${actualBaseBranch}`);
+    }
+
+    // 5. Return the actual base branch used
     return {
       repoName,
       baseBranch: actualBaseBranch,

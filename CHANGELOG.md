@@ -8,6 +8,7 @@
 - Renamed `branch` command to `create`; `branch` is kept as a deprecated alias that redirects to `create`
 - `flow fetch` is now workspace-scoped when a branch name is provided; fetches all repos across all workspaces when no branch is given
 - Renamed `tmux resume` subcommand to `tmux sync`
+- `create` and `attach` commands now gracefully handle existing branches — uses the branch if it already exists instead of erroring
 
 ## [0.0.17] - 2026-02-28
 
