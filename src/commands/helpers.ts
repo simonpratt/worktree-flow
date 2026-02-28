@@ -89,12 +89,12 @@ export function logStatus(
 export function buildRepoCheckboxChoices(
   repos: string[],
   services: Pick<Services, 'repos' | 'fetchCache'>,
-  config: ParsedConfig,
+  preSelected: string[],
   createSeparator: (label?: string) => unknown
 ): unknown[] {
   const choices = services.repos.formatRepoChoices(repos).map((choice) => ({
     ...choice,
-    checked: config.branchAutoSelectRepos.includes(choice.name),
+    checked: preSelected.includes(choice.name),
   }));
 
   const recentlyUsed = new Set(services.fetchCache.getRecentlyUsedRepos(8));

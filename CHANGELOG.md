@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- `add` command no longer preselects based on the `autoSelectRepos` config option
+
 ## [0.0.17] - 2026-02-28
 
 ### Added

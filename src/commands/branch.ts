@@ -30,7 +30,7 @@ export async function runBranch(
   }
 
   // User prompts
-  const checkboxChoices = buildRepoCheckboxChoices(repos, services, config, (label) => new Separator(label));
+  const checkboxChoices = buildRepoCheckboxChoices(repos, services, config.branchAutoSelectRepos, (label) => new Separator(label));
 
   const selected = await deps.checkbox({
     message: `Select repos for branch "${branchName}":`,

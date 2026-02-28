@@ -1,18 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import sinon from 'sinon';
 import { buildRepoCheckboxChoices } from '../helpers.js';
-import type { ParsedConfig } from '../../lib/config.js';
-
-const defaultConfig: ParsedConfig = {
-  sourcePath: '/source',
-  destPath: '/dest',
-  copyFiles: '.env',
-  tmux: false,
-  postCheckout: undefined,
-  perRepoPostCheckout: {},
-  fetchCacheTtlSeconds: 300,
-  branchAutoSelectRepos: [],
-};
 
 function makeSeparator(label?: string) {
   return { isSeparator: true, label };
@@ -42,7 +30,7 @@ describe('buildRepoCheckboxChoices', () => {
     const result = buildRepoCheckboxChoices(
       ['/source/repo1', '/source/repo2'],
       services as any,
-      defaultConfig,
+      [],
       makeSeparator
     );
 
@@ -65,7 +53,7 @@ describe('buildRepoCheckboxChoices', () => {
     const result = buildRepoCheckboxChoices(
       ['/source/repo1', '/source/repo2', '/source/repo3'],
       services as any,
-      defaultConfig,
+      [],
       makeSeparator
     ) as any[];
 
@@ -89,7 +77,7 @@ describe('buildRepoCheckboxChoices', () => {
     const result = buildRepoCheckboxChoices(
       ['/source/repo1', '/source/repo2'],
       services as any,
-      defaultConfig,
+      [],
       makeSeparator
     ) as any[];
 
@@ -109,12 +97,10 @@ describe('buildRepoCheckboxChoices', () => {
       []
     );
 
-    const config = { ...defaultConfig, branchAutoSelectRepos: ['repo1'] };
-
     const result = buildRepoCheckboxChoices(
       ['/source/repo1', '/source/repo2'],
       services as any,
-      config,
+      ['repo1'],
       makeSeparator
     ) as any[];
 
@@ -140,7 +126,7 @@ describe('buildRepoCheckboxChoices', () => {
     buildRepoCheckboxChoices(
       ['/source/repo1', '/source/repo2'],
       services as any,
-      defaultConfig,
+      [],
       trackingSeparator
     );
 

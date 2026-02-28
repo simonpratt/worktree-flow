@@ -55,7 +55,7 @@ export async function runAdd(
   }
 
   // 4. Repo picker (same pattern as branch command)
-  const checkboxChoices = buildRepoCheckboxChoices(availableRepos, services, config, (label) => new Separator(label));
+  const checkboxChoices = buildRepoCheckboxChoices(availableRepos, services, [], (label) => new Separator(label));
 
   const selected = await deps.checkbox({
     message: `Select repos to add to "${displayName}":`,
