@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- `flow drop` status display now uses the same format as `flow status` — shows workspace header with fetching indicator, then per-repo status with indicators, tracking info, and consistent styling
+- `flow drop` now blocks before the confirmation prompt when uncommitted changes are detected — the user sees the status output with issues highlighted, then must resolve them before dropping
+
 ## [0.0.18] - 2026-03-01
 
 - Renamed `add` command to `attach`

@@ -73,6 +73,20 @@ describe('drop integration', () => {
     const shell = new NodeShell();
     const { stdout } = await shell.execFile('git', ['-C', repo1, 'worktree', 'list']);
     expect(stdout).not.toContain('feature');
+
+    // Status output should use the same format as `flow status`
+    const logCalls = (integration.stubs.console.log as sinon.SinonStub).args.map(
+      (a: any[]) => a[0]
+    );
+    const workspaceHeader = logCalls.find((line: string) => line.includes('Workspace:'));
+    expect(workspaceHeader).toBeDefined();
+
+    const repoLine = logCalls.find(
+      (line: string) => typeof line === 'string' && line.startsWith('    ') && line.includes('repo1')
+    );
+    expect(repoLine).toBeDefined();
+    expect(repoLine).toMatch(/✓/);
+    expect(repoLine).toContain('up to date');
   });
 
   it('should throw WorkspaceHasIssuesError when worktree has uncommitted changes', async () => {
@@ -100,6 +114,20 @@ describe('drop integration', () => {
 
     // Workspace should still exist (not removed)
     expect(fs.existsSync(result.workspacePath)).toBe(true);
+
+    // Confirmation prompt should never have been shown
+    expect(confirmStub.called).toBe(false);
+
+    // Status output should show the issue in the same format as `flow status`
+    const logCalls = (integration.stubs.console.log as sinon.SinonStub).args.map(
+      (a: any[]) => a[0]
+    );
+    const repoLine = logCalls.find(
+      (line: string) => typeof line === 'string' && line.startsWith('    ') && line.includes('repo1')
+    );
+    expect(repoLine).toBeDefined();
+    expect(repoLine).toMatch(/✗/);
+    expect(repoLine).toContain('uncommitted');
   });
 
   it('should auto-detect workspace when no branch provided and cwd is inside workspace', async () => {
@@ -185,6 +213,16 @@ describe('drop integration', () => {
 
     // Workspace should be removed
     expect(fs.existsSync(result.workspacePath)).toBe(false);
+
+    // Status should have shown ahead indicator (not an issue, so checkmark)
+    const logCalls = (integration.stubs.console.log as sinon.SinonStub).args.map(
+      (a: any[]) => a[0]
+    );
+    const repoLine = logCalls.find(
+      (line: string) => typeof line === 'string' && line.startsWith('    ') && line.includes('repo1')
+    );
+    expect(repoLine).toBeDefined();
+    expect(repoLine).toMatch(/✓/);
   });
 
   it('should not drop workspace when user declines confirmation', async () => {

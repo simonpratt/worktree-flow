@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { Command } from 'commander';
 import chalk from 'chalk';
 import confirm from '@inquirer/confirm';
@@ -5,8 +6,10 @@ import { createServices } from '../lib/services.js';
 import { createUseCases } from '../usecases/usecases.js';
 import type { Services } from '../lib/services.js';
 import type { UseCases } from '../usecases/usecases.js';
-import { StatusService } from '../lib/status.js';
 import { resolveWorkspace } from '../lib/workspaceResolver.js';
+import { logStatusFetching, logStatus } from './helpers.js';
+import { StatusService } from '../lib/status.js';
+import { WorkspaceHasIssuesError } from '../lib/errors.js';
 
 export async function runDrop(
   branchName: string | undefined,
@@ -23,39 +26,50 @@ export async function runDrop(
     services.process
   );
 
-  services.console.log(`Checking workspace: ${chalk.cyan(workspacePath)}`);
-
   // Get worktree dirs to show what will be removed
   const worktreeDirs = services.workspaceDir.getWorktreeDirs(workspacePath);
 
   // Display status check if worktrees exist
   if (worktreeDirs.length > 0) {
+    const workspaceName = path.basename(workspacePath);
+    const repoCount = worktreeDirs.length;
+
+    // Phase 1: Show header with fetching indicator
+    const loadingLines = logStatusFetching('Workspace:', [{ name: workspaceName, repoCount }], services.console);
+
+    // Fetch workspace repos (silently)
     await useCases.fetchWorkspaceRepos.execute({
       workspacePath,
       sourcePath,
       fetchCacheTtlSeconds: config.fetchCacheTtlSeconds,
+      silent: true,
     });
 
-    services.console.log(`\nChecking for uncommitted changes...`);
+    const statusResult = await useCases.checkWorkspaceStatus.execute({
+      workspacePath,
+    });
 
     // Load workspace config to get per-repo base branches
     const workspaceConfig = services.workspaceConfig.load(workspacePath);
-    const getBaseBranch = (repoName: string) =>
-      workspaceConfig.baseBranches[repoName] || 'master';
 
-    const results = await services.status.checkAllWorktrees(worktreeDirs, getBaseBranch);
+    // Phase 2: Clear Phase 1 lines and re-render with full status
+    logStatus(
+      'Workspace:',
+      [{ name: workspaceName, path: workspacePath, repoCount, isActive: false, statuses: statusResult.statuses }],
+      loadingLines,
+      (_, repoName) => workspaceConfig.baseBranches[repoName] || 'master',
+      services.console,
+    );
 
-    for (const { repoName, status } of results) {
-      const baseBranch = getBaseBranch(repoName);
-      const message = StatusService.getStatusMessage(status, baseBranch);
-      if (StatusService.hasIssues(status)) {
-        services.console.log(`${repoName}... ${chalk.red(message)}`);
-      } else {
-        services.console.log(`${repoName}... ${chalk.green(message)}`);
-      }
+    // Block if any repos have uncommitted changes — user must resolve them first
+    const reposWithIssues = statusResult.statuses.filter(({ status }) => StatusService.hasIssues(status));
+    if (reposWithIssues.length > 0) {
+      throw new WorkspaceHasIssuesError(
+        `${reposWithIssues.length} repo(s) have uncommitted changes or errors. Resolve them before dropping.`
+      );
     }
   } else {
-    services.console.log('No worktrees found in workspace.');
+    services.console.log('\nNo worktrees found in workspace.');
   }
 
   // Show what will be removed
