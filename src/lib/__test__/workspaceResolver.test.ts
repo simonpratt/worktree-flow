@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
 import * as sinon from 'sinon';
-import { resolveWorkspace } from '../workspaceResolver.js';
+import { resolveWorkspace, tryResolveWorkspace } from '../workspaceResolver.js';
 import { NotInWorkspaceError, WorkspaceNotFoundError } from '../errors.js';
 import { WorkspaceDirectoryService } from '../workspaceDirectory.js';
 import { ConfigService } from '../config.js';
@@ -279,5 +279,69 @@ describe('resolveWorkspace', () => {
 
       expect(result.displayName).toBe(branchName);
     });
+  });
+});
+
+describe('tryResolveWorkspace', () => {
+  it('should return the resolution when workspace is found', () => {
+    const destPath = '/workspaces';
+    const branchName = 'feature-123';
+    const workspacePath = path.join(destPath, branchName);
+
+    const { fs } = createMemFs({
+      [getConfigPath()]: JSON.stringify({
+        'source-path': '/source',
+        'dest-path': destPath,
+      }),
+      [path.join(workspacePath, 'flow-config.json')]: JSON.stringify({ baseBranches: {} }),
+      [path.join(workspacePath, 'repo1', '.git')]: '',
+    });
+
+    const config = new ConfigService(fs);
+    const workspaceDir = new WorkspaceDirectoryService(fs);
+    const mockProcess = createMockProcess();
+
+    const result = tryResolveWorkspace(branchName, workspaceDir, config, mockProcess);
+
+    expect(result).toEqual({ workspacePath, displayName: branchName });
+  });
+
+  it('should return null when workspace is not found', () => {
+    const destPath = '/workspaces';
+
+    const { fs } = createMemFs({
+      [getConfigPath()]: JSON.stringify({
+        'source-path': '/source',
+        'dest-path': destPath,
+      }),
+    });
+
+    const config = new ConfigService(fs);
+    const workspaceDir = new WorkspaceDirectoryService(fs);
+    const mockProcess = createMockProcess();
+
+    const result = tryResolveWorkspace('non-existent', workspaceDir, config, mockProcess);
+
+    expect(result).toBeNull();
+  });
+
+  it('should return null when cwd is outside dest path', () => {
+    const destPath = '/workspaces';
+
+    const { fs } = createMemFs({
+      [getConfigPath()]: JSON.stringify({
+        'source-path': '/source',
+        'dest-path': destPath,
+      }),
+    });
+
+    const config = new ConfigService(fs);
+    const workspaceDir = new WorkspaceDirectoryService(fs);
+    const mockProcess = createMockProcess();
+    mockProcess.cwd.returns('/home/user/projects');
+
+    const result = tryResolveWorkspace(undefined, workspaceDir, config, mockProcess);
+
+    expect(result).toBeNull();
   });
 });

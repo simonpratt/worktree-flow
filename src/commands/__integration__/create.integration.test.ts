@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import sinon from 'sinon';
-import { runBranch } from '../branch.js';
+import { runCreate } from '../create.js';
 import { WorkspaceAlreadyExistsError } from '../../lib/errors.js';
 import {
   createTempDir,
@@ -11,7 +11,7 @@ import {
   type IntegrationServices,
 } from '../../test/integration-test-utils.js';
 
-describe('branch integration', () => {
+describe('create integration', () => {
   let tempDir: { path: string; cleanup: () => void };
   let sourcePath: string;
   let destPath: string;
@@ -42,7 +42,7 @@ describe('branch integration', () => {
 
     const checkboxStub = sinon.stub().resolves([repo1, repo2]);
 
-    await runBranch('new-feature', integration.useCases, integration.services, {
+    await runCreate('new-feature', integration.useCases, integration.services, {
       checkbox: checkboxStub,
       input: inputStub,
       confirm: confirmStub,
@@ -74,7 +74,7 @@ describe('branch integration', () => {
     const checkboxStub = sinon.stub().resolves([repo1]);
 
     await expect(
-      runBranch('new-feature', integration.useCases, integration.services, {
+      runCreate('new-feature', integration.useCases, integration.services, {
         checkbox: checkboxStub,
         input: inputStub,
         confirm: confirmStub,
@@ -101,7 +101,7 @@ describe('branch integration', () => {
 
     const checkboxStub = sinon.stub().resolves([repo1]);
 
-    await runBranch('feature', integration.useCases, integration.services, {
+    await runCreate('feature', integration.useCases, integration.services, {
       checkbox: checkboxStub,
       input: inputStub,
       confirm: confirmStub,
@@ -126,7 +126,7 @@ describe('branch integration', () => {
 
     const checkboxStub = sinon.stub().resolves([repo1]);
 
-    await runBranch('feature', integration.useCases, integration.services, {
+    await runCreate('feature', integration.useCases, integration.services, {
       checkbox: checkboxStub,
       input: inputStub,
       confirm: confirmStub,
@@ -155,7 +155,7 @@ describe('branch integration', () => {
 
     const checkboxStub = sinon.stub().resolves([repo1, repo2]);
 
-    await runBranch('feature', integration.useCases, integration.services, {
+    await runCreate('feature', integration.useCases, integration.services, {
       checkbox: checkboxStub,
       input: inputStub,
       confirm: confirmStub,
@@ -197,7 +197,7 @@ describe('branch integration', () => {
     const checkboxStub = sinon.stub().resolves([repo1, repo2, repo3]);
     confirmStub.resolves(true);
 
-    await runBranch('feature', integration.useCases, integration.services, {
+    await runCreate('feature', integration.useCases, integration.services, {
       checkbox: checkboxStub,
       input: inputStub,
       confirm: confirmStub,
@@ -245,7 +245,7 @@ describe('branch integration', () => {
     const checkboxStub = sinon.stub().resolves([repo1, repo2, repo3]);
     confirmStub.resolves(true); // Confirm running post-checkout
 
-    await runBranch('feature-test', integration.useCases, integration.services, {
+    await runCreate('feature-test', integration.useCases, integration.services, {
       checkbox: checkboxStub,
       input: inputStub,
       confirm: confirmStub,

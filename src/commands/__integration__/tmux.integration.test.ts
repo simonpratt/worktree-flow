@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import sinon from 'sinon';
-import { runTmuxResume } from '../tmux.js';
+import { runTmuxSync } from '../tmux.js';
 import {
   createTempDir,
   initGitRepo,
@@ -11,7 +11,7 @@ import {
   type IntegrationServices,
 } from '../../test/integration-test-utils.js';
 
-describe('tmux resume integration', () => {
+describe('tmux sync integration', () => {
   let tempDir: { path: string; cleanup: () => void };
   let sourcePath: string;
   let destPath: string;
@@ -32,7 +32,7 @@ describe('tmux resume integration', () => {
 
   it('should log "No workspaces found." when dest is empty', async () => {
     integration = createIntegrationServices(sourcePath, destPath);
-    await runTmuxResume(integration.useCases, integration.services);
+    await runTmuxSync(integration.useCases, integration.services);
 
     sinon.assert.calledWith(integration.stubs.console.log as any, 'No workspaces found.');
   });
@@ -68,7 +68,7 @@ describe('tmux resume integration', () => {
     const tmuxStub = integration.services.tmux as sinon.SinonStubbedInstance<any>;
     tmuxStub.createSession.resolves();
 
-    await runTmuxResume(integration.useCases, integration.services);
+    await runTmuxSync(integration.useCases, integration.services);
 
     // Verify tmux sessions were created for both workspaces
     sinon.assert.calledTwice(tmuxStub.createSession);
@@ -108,8 +108,8 @@ describe('tmux resume integration', () => {
       .rejects(new Error('duplicate session: feature-a'));
 
     // Run twice
-    await runTmuxResume(integration.useCases, integration.services);
-    await runTmuxResume(integration.useCases, integration.services);
+    await runTmuxSync(integration.useCases, integration.services);
+    await runTmuxSync(integration.useCases, integration.services);
 
     // Verify console output on second run
     const logCalls = (integration.stubs.console.log as sinon.SinonStub).args.map(
@@ -137,7 +137,7 @@ describe('tmux resume integration', () => {
     const tmuxStub = integration.services.tmux as sinon.SinonStubbedInstance<any>;
     tmuxStub.createSession.rejects(new Error('tmux not installed'));
 
-    await runTmuxResume(integration.useCases, integration.services);
+    await runTmuxSync(integration.useCases, integration.services);
 
     // Verify error output
     const logCalls = (integration.stubs.console.log as sinon.SinonStub).args.map(
@@ -165,7 +165,7 @@ describe('tmux resume integration', () => {
     const tmuxStub = integration.services.tmux as sinon.SinonStubbedInstance<any>;
     tmuxStub.createSession.resolves();
 
-    await runTmuxResume(integration.useCases, integration.services);
+    await runTmuxSync(integration.useCases, integration.services);
 
     const logCalls = (integration.stubs.console.log as sinon.SinonStub).args.map(
       (a: any[]) => a[0]
@@ -203,7 +203,7 @@ describe('tmux resume integration', () => {
     const tmuxStub = integration.services.tmux as sinon.SinonStubbedInstance<any>;
     tmuxStub.createSession.resolves();
 
-    await runTmuxResume(integration.useCases, integration.services);
+    await runTmuxSync(integration.useCases, integration.services);
 
     // Verify session names match workspace names
     const createSessionCalls = tmuxStub.createSession.getCalls();
@@ -239,7 +239,7 @@ describe('tmux resume integration', () => {
     const tmuxStub = integration.services.tmux as sinon.SinonStubbedInstance<any>;
     tmuxStub.createSession.resolves();
 
-    await runTmuxResume(integration.useCases, integration.services);
+    await runTmuxSync(integration.useCases, integration.services);
 
     // Verify tmux.createSession was called with only repo1 and repo2 (directories with .git)
     sinon.assert.calledOnce(tmuxStub.createSession);

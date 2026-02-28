@@ -53,3 +53,21 @@ export function resolveWorkspace(
     };
   }
 }
+
+/**
+ * Like resolveWorkspace, but returns null instead of throwing when no workspace
+ * can be resolved. Useful when workspace resolution is optional (e.g. falling back
+ * to a broader operation when not in a workspace).
+ */
+export function tryResolveWorkspace(
+  branchName: string | undefined,
+  workspaceDir: WorkspaceDirectoryService,
+  config: ConfigService,
+  process: IProcess
+): WorkspaceResolution | null {
+  try {
+    return resolveWorkspace(branchName, workspaceDir, config, process);
+  } catch {
+    return null;
+  }
+}

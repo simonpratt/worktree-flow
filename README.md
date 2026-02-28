@@ -26,7 +26,7 @@ npm install -g worktree-flow
 flow quickstart
 
 # Create a workspace with new branches
-flow branch TICKET-123
+flow create TICKET-123
 # → Select repos interactively, creates branches + worktrees
 
 # Or checkout an existing branch
@@ -48,7 +48,7 @@ Working on features that span multiple repositories means manually creating bran
 
 ## Commands
 
-### `flow branch <name>`
+### `flow create <name>`
 
 Create a new branch across selected repos. Interactively select which repos to include, then creates branches and worktrees in a new workspace directory.
 
@@ -89,7 +89,11 @@ Drop a workspace and all its worktrees. Fetches latest, checks for uncommitted c
 
 Remove workspaces interactively. Shows all workspaces with their status (similar to `flow list`) and lets you select which ones to prune. Only workspaces with no uncommitted changes can be successfully removed.
 
-### `flow tmux resume`
+### `flow fetch [name]`
+
+Fetch repos for a specific workspace (when branch name provided), or fetch all repos used across all workspaces (when no branch given). Always bypasses the fetch cache.
+
+### `flow tmux sync`
 
 Create tmux sessions for all workspaces that don't already have one. Each session is created with split panes (one for the workspace root and one for each worktree that matches a repo from source-path) using a tiled layout. Skips workspaces that already have active sessions.
 

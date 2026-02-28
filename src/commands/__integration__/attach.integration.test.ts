@@ -72,8 +72,8 @@ describe('attach integration', () => {
 
     // First create a workspace with repo1 only
     const branchCheckboxStub = sinon.stub().resolves([repo1]);
-    const { runBranch } = await import('../branch.js');
-    await runBranch('feature', integration.useCases, integration.services, {
+    const { runCreate } = await import('../create.js');
+    await runCreate('feature', integration.useCases, integration.services, {
       checkbox: branchCheckboxStub,
       input: inputStub,
       confirm: confirmStub,
@@ -116,8 +116,8 @@ describe('attach integration', () => {
 
     // Create workspace with repo1
     const branchCheckboxStub = sinon.stub().resolves([repo1]);
-    const { runBranch } = await import('../branch.js');
-    await runBranch('feature', integration.useCases, integration.services, {
+    const { runCreate } = await import('../create.js');
+    await runCreate('feature', integration.useCases, integration.services, {
       checkbox: branchCheckboxStub,
       input: inputStub,
       confirm: confirmStub,
@@ -145,8 +145,8 @@ describe('attach integration', () => {
 
     // Create workspace with repo1
     const branchCheckboxStub = sinon.stub().resolves([repo1]);
-    const { runBranch } = await import('../branch.js');
-    await runBranch('feature', integration.useCases, integration.services, {
+    const { runCreate } = await import('../create.js');
+    await runCreate('feature', integration.useCases, integration.services, {
       checkbox: branchCheckboxStub,
       input: inputStub,
       confirm: confirmStub,
@@ -177,8 +177,8 @@ describe('attach integration', () => {
 
     // Create workspace with repo1
     const branchCheckboxStub = sinon.stub().resolves([repo1]);
-    const { runBranch } = await import('../branch.js');
-    await runBranch('feature', integration.useCases, integration.services, {
+    const { runCreate } = await import('../create.js');
+    await runCreate('feature', integration.useCases, integration.services, {
       checkbox: branchCheckboxStub,
       input: inputStub,
       confirm: confirmStub,
@@ -208,8 +208,8 @@ describe('attach integration', () => {
 
     // Create workspace with repo1 (no post-checkout)
     const branchCheckboxStub = sinon.stub().resolves([repo1]);
-    const { runBranch } = await import('../branch.js');
-    await runBranch('feature', integration.useCases, integration.services, {
+    const { runCreate } = await import('../create.js');
+    await runCreate('feature', integration.useCases, integration.services, {
       checkbox: branchCheckboxStub,
       input: inputStub,
       confirm: confirmStub,
@@ -257,8 +257,8 @@ describe('attach integration', () => {
 
     // Create workspace with repo1 first (no post-checkout)
     const branchCheckboxStub = sinon.stub().resolves([repo1]);
-    const { runBranch } = await import('../branch.js');
-    await runBranch('feature', integration.useCases, integration.services, {
+    const { runCreate } = await import('../create.js');
+    await runCreate('feature', integration.useCases, integration.services, {
       checkbox: branchCheckboxStub,
       input: inputStub,
       confirm: confirmStub,

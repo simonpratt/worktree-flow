@@ -5,7 +5,7 @@ import { createUseCases } from '../usecases/usecases.js';
 import type { Services } from '../lib/services.js';
 import type { UseCases } from '../usecases/usecases.js';
 
-export async function runTmuxResume(useCases: UseCases, services: Services): Promise<void> {
+export async function runTmuxSync(useCases: UseCases, services: Services): Promise<void> {
   const { destPath } = services.config.getRequired();
 
   const result = await useCases.resumeTmuxSessions.execute({ destPath });
@@ -47,14 +47,14 @@ export function registerTmuxCommand(program: Command): void {
     .description('Manage tmux sessions for workspaces');
 
   tmuxCommand
-    .command('resume')
+    .command('sync')
     .description('Create tmux sessions for all workspaces that don\'t have one')
     .action(async () => {
       const services = createServices();
       const useCases = createUseCases(services);
 
       try {
-        await runTmuxResume(useCases, services);
+        await runTmuxSync(useCases, services);
       } catch (error: any) {
         services.console.error(error.message);
         services.process.exit(1);

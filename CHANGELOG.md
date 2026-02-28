@@ -5,6 +5,9 @@
 - Renamed `add` command to `attach`
 - Renamed `remove` command to `drop`
 - Removed `clean` alias from `prune` command
+- Renamed `branch` command to `create`; `branch` is kept as a deprecated alias that redirects to `create`
+- `flow fetch` is now workspace-scoped when a branch name is provided; fetches all repos across all workspaces when no branch is given
+- Renamed `tmux resume` subcommand to `tmux sync`
 
 ## [0.0.17] - 2026-02-28
 

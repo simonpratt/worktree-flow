@@ -157,7 +157,7 @@ export async function runQuickstart(
   services.console.log('');
   services.console.log(chalk.bold('  Get started:'));
   services.console.log('');
-  services.console.log(`    ${chalk.cyan('flow branch my-feature')}     Create a new branch across repos`);
+  services.console.log(`    ${chalk.cyan('flow create my-feature')}     Create a new branch across repos`);
   services.console.log(`    ${chalk.cyan('flow checkout my-feature')}   Checkout an existing branch`);
   services.console.log(`    ${chalk.cyan('flow list')}                  See all your workspaces`);
   services.console.log('');
