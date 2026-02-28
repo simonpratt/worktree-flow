@@ -6,6 +6,12 @@
 
 - `flow drop` status display now uses the same format as `flow status` — shows workspace header with fetching indicator, then per-repo status with indicators, tracking info, and consistent styling
 - `flow drop` now blocks before the confirmation prompt when uncommitted changes are detected — the user sees the status output with issues highlighted, then must resolve them before dropping
+- `flow prune` now consolidates display with `flow list` — shows full workspace status (identical format with per-repo details) before the selection prompt, then excludes any workspaces with uncommitted changes or errors from being selectable. Skipped workspaces are clearly marked with reason.
+- `flow prune` now exits early if all workspaces have uncommitted changes or errors, with a helpful message to resolve issues first
+
+### Fixed
+
+- `flow prune` previously allowed selection of workspaces with uncommitted changes, only to fail during removal. Users can now only select clean workspaces, preventing wasted interaction.
 
 ## [0.0.18] - 2026-03-01
 

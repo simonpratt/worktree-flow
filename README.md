@@ -87,7 +87,7 @@ Drop a workspace and all its worktrees. Fetches latest, checks for uncommitted c
 
 ### `flow prune`
 
-Remove workspaces interactively. Shows all workspaces with their status (similar to `flow list`) and lets you select which ones to prune. Only workspaces with no uncommitted changes can be successfully removed.
+Remove workspaces interactively. Displays full workspace status (identical to `flow list`), then excludes any workspaces with uncommitted changes or errors from the selection prompt. Resolve issues before pruning those workspaces.
 
 ### `flow fetch [name]`
 

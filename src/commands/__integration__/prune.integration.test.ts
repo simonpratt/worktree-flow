@@ -82,6 +82,49 @@ describe('prune integration', () => {
     expect(logs.some((log) => log.includes('No workspaces selected'))).toBe(true);
   });
 
+  it('should display full workspace status before checkbox prompt', async () => {
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+
+    const result = await createTestWorkspace(integration.useCases, {
+      repos: [repo1],
+      branchName: 'old-feature',
+      sourceBranch: 'master',
+      sourcePath,
+      destPath,
+      copyFiles: '.env',
+      tmux: false,
+    });
+
+    const workspacePath = result.workspacePath;
+    const worktreePath = path.join(workspacePath, 'repo1');
+
+    const { NodeShell } = await import('../../adapters/node.js');
+    const shell = new NodeShell();
+
+    // Add a commit and simulate merge
+    fs.writeFileSync(path.join(worktreePath, 'test.txt'), 'test content\n');
+    await shell.execFile('git', ['-C', worktreePath, 'add', 'test.txt']);
+    await shell.execFile('git', [
+      '-C', worktreePath, '-c', 'user.name=Test', '-c', 'user.email=test@example.com',
+      'commit', '-m', 'old commit',
+    ]);
+
+    const sha = (await shell.execFile('git', ['-C', worktreePath, 'rev-parse', 'HEAD'])).stdout.trim();
+    await shell.execFile('git', ['-C', repo1, 'update-ref', 'refs/remotes/origin/master', sha]);
+
+    checkboxStub.resolves(['old-feature']);
+
+    await runPrune(integration.useCases, integration.services, { checkbox: checkboxStub, confirm: confirmStub });
+
+    // Verify status was displayed (logStatus writes header via console.log)
+    const logs = (integration.stubs.console.log as sinon.SinonStub).getCalls().map((call) => call.args[0]);
+    expect(logs.some((log: string) => log.includes('Workspaces:'))).toBe(true);
+    // Should show per-repo status line (repo name and status message)
+    expect(logs.some((log: string) => log.includes('repo1'))).toBe(true);
+  });
+
   it('should prune old workspaces with clean status', async () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
 
@@ -142,14 +185,15 @@ describe('prune integration', () => {
     expect(fs.existsSync(workspacePath)).toBe(false);
   });
 
-  it('should fail to prune workspace with uncommitted changes', async () => {
+  it('should exclude workspace with uncommitted changes from checkbox choices', async () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    const result = await createTestWorkspace(integration.useCases, {
+    // Create two workspaces
+    const dirtyResult = await createTestWorkspace(integration.useCases, {
       repos: [repo1],
-      branchName: 'old-feature',
+      branchName: 'dirty-feature',
       sourceBranch: 'master',
       sourcePath,
       destPath,
@@ -157,46 +201,90 @@ describe('prune integration', () => {
       tmux: false,
     });
 
-    const workspacePath = result.workspacePath;
-    const worktreePath = path.join(workspacePath, 'repo1');
+    const cleanResult = await createTestWorkspace(integration.useCases, {
+      repos: [repo1],
+      branchName: 'clean-feature',
+      sourceBranch: 'master',
+      sourcePath,
+      destPath,
+      copyFiles: '.env',
+      tmux: false,
+    });
 
     const { NodeShell } = await import('../../adapters/node.js');
     const shell = new NodeShell();
 
-    // Add a new commit with an old date
-    fs.writeFileSync(path.join(worktreePath, 'test.txt'), 'test content\n');
-    await shell.execFile('git', ['-C', worktreePath, 'add', 'test.txt']);
-
-    const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
-    const gitDate = tenDaysAgo.toISOString();
+    // Make the clean workspace actually clean (commit merged)
+    const cleanWorktree = path.join(cleanResult.workspacePath, 'repo1');
+    fs.writeFileSync(path.join(cleanWorktree, 'test.txt'), 'test content\n');
+    await shell.execFile('git', ['-C', cleanWorktree, 'add', 'test.txt']);
     await shell.execFile('git', [
-      '-C',
-      worktreePath,
-      '-c',
-      `user.name=Test`,
-      '-c',
-      `user.email=test@example.com`,
-      'commit',
-      '-m',
-      'old commit',
-      '--date',
-      gitDate,
+      '-C', cleanWorktree, '-c', 'user.name=Test', '-c', 'user.email=test@example.com',
+      'commit', '-m', 'test commit',
     ]);
+    const sha = (await shell.execFile('git', ['-C', cleanWorktree, 'rev-parse', 'HEAD'])).stdout.trim();
+    await shell.execFile('git', ['-C', repo1, 'update-ref', 'refs/remotes/origin/master', sha]);
 
-    // Add uncommitted changes
-    fs.writeFileSync(path.join(worktreePath, 'dirty.txt'), 'uncommitted\n');
+    // Add uncommitted changes to the dirty workspace
+    const dirtyWorktree = path.join(dirtyResult.workspacePath, 'repo1');
+    fs.writeFileSync(path.join(dirtyWorktree, 'dirty.txt'), 'uncommitted\n');
 
-    // User selects the workspace with uncommitted changes
-    checkboxStub.resolves(['old-feature']);
+    // User selects the clean one
+    checkboxStub.resolves(['clean-feature']);
 
     await runPrune(integration.useCases, integration.services, { checkbox: checkboxStub, confirm: confirmStub });
 
-    // Workspace should NOT be removed due to uncommitted changes
-    expect(fs.existsSync(workspacePath)).toBe(true);
-
-    // Should log failure message
+    // Verify the skip message was logged for the dirty workspace
     const logs = (integration.stubs.console.log as sinon.SinonStub).getCalls().map((call) => call.args[0]);
-    expect(logs.some((log) => log.includes('Failed to remove'))).toBe(true);
+    expect(logs.some((log: string) => log.includes('Skipping') && log.includes('dirty-feature'))).toBe(true);
+
+    // Verify the checkbox was NOT offered the dirty workspace
+    const checkboxCall = checkboxStub.getCall(0);
+    const choiceValues = checkboxCall.args[0].choices.map((c: any) => c.value);
+    expect(choiceValues).not.toContain('dirty-feature');
+    expect(choiceValues).toContain('clean-feature');
+
+    // Clean workspace should be removed, dirty should remain
+    expect(fs.existsSync(cleanResult.workspacePath)).toBe(false);
+    expect(fs.existsSync(dirtyResult.workspacePath)).toBe(true);
+  });
+
+  it('should exit when all workspaces have uncommitted changes', async () => {
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+
+    const result = await createTestWorkspace(integration.useCases, {
+      repos: [repo1],
+      branchName: 'dirty-feature',
+      sourceBranch: 'master',
+      sourcePath,
+      destPath,
+      copyFiles: '.env',
+      tmux: false,
+    });
+
+    // Add uncommitted changes
+    const worktreePath = path.join(result.workspacePath, 'repo1');
+    fs.writeFileSync(path.join(worktreePath, 'dirty.txt'), 'uncommitted\n');
+
+    try {
+      await runPrune(integration.useCases, integration.services, { checkbox: checkboxStub, confirm: confirmStub });
+      expect.fail('Should have thrown ProcessExitError');
+    } catch (error) {
+      expect(error).toBeInstanceOf(ProcessExitError);
+    }
+
+    // Should have logged the skip message and the exit message
+    const logs = (integration.stubs.console.log as sinon.SinonStub).getCalls().map((call) => call.args[0]);
+    expect(logs.some((log: string) => log.includes('Skipping') && log.includes('dirty-feature'))).toBe(true);
+    expect(logs.some((log: string) => log.includes('All workspaces have uncommitted changes or errors'))).toBe(true);
+
+    // Checkbox should NOT have been called
+    expect(checkboxStub.called).toBe(false);
+
+    // Workspace should still exist
+    expect(fs.existsSync(result.workspacePath)).toBe(true);
   });
 
   it('should not prune workspace when user declines confirmation', async () => {

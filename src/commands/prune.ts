@@ -6,7 +6,8 @@ import { createServices } from '../lib/services.js';
 import { createUseCases } from '../usecases/usecases.js';
 import type { Services } from '../lib/services.js';
 import type { UseCases } from '../usecases/usecases.js';
-import { getStatusIndicator } from './helpers.js';
+import { logStatusFetching, logStatus } from './helpers.js';
+import { StatusService } from '../lib/status.js';
 
 export async function runPrune(
   useCases: UseCases,
@@ -28,11 +29,15 @@ export async function runPrune(
     services.process.exit(0);
   }
 
+  // Phase 1: Show basic list with fetching indicator
+  const loadingLines = logStatusFetching('Workspaces:', basicWorkspaces, services.console);
+
   // Fetch repos used across all workspaces
   await useCases.fetchUsedRepos.execute({
     destPath,
     sourcePath,
     fetchCacheTtlSeconds: config.fetchCacheTtlSeconds,
+    silent: true,
   });
 
   // Get full status for all workspaces
@@ -42,13 +47,46 @@ export async function runPrune(
     cwd,
   });
 
-  // Format choices for checkbox prompt
-  const choices = result.workspaces.map(workspace => {
-    const statusIndicator = getStatusIndicator(workspace);
+  // Phase 2: Clear Phase 1 and re-print with full status (same as `list` command)
+  logStatus(
+    'Workspaces:',
+    result.workspaces,
+    loadingLines,
+    (wsPath, repoName) => services.workspaceConfig.load(wsPath).baseBranches[repoName] || 'master',
+    services.console,
+  );
+
+  // Partition workspaces into prunable (no issues) and skipped (has issues)
+  const prunableWorkspaces = result.workspaces.filter(ws =>
+    !ws.statuses.some(({ status }) => StatusService.hasIssues(status))
+  );
+  const skippedWorkspaces = result.workspaces.filter(ws =>
+    ws.statuses.some(({ status }) => StatusService.hasIssues(status))
+  );
+
+  // Log skipped workspaces with reason
+  for (const ws of skippedWorkspaces) {
+    const hasUncommitted = ws.statuses.some(s => s.status.type === 'uncommitted');
+    const hasError = ws.statuses.some(s => s.status.type === 'error');
+    const reason = hasUncommitted ? 'uncommitted changes' : hasError ? 'errors' : 'issues';
+    services.console.log(`${chalk.yellow('⚠')} Skipping ${chalk.cyan(ws.name)} (${reason})`);
+  }
+
+  // Newline if there were skipped workspaces
+  if (skippedWorkspaces.length) console.log('')
+
+  // If no prunable workspaces remain, exit
+  if (prunableWorkspaces.length === 0) {
+    services.console.log('\nAll workspaces have uncommitted changes or errors. Resolve them before pruning.');
+    services.process.exit(0);
+  }
+
+  // Format choices for checkbox prompt (only prunable workspaces)
+  const choices = prunableWorkspaces.map(workspace => {
     const repoCount = chalk.dim(`(${workspace.repoCount} repo${workspace.repoCount === 1 ? '' : 's'})`);
 
     return {
-      name: `${chalk.cyan(workspace.name)} ${repoCount} ${statusIndicator}`,
+      name: `${chalk.cyan(workspace.name)} ${repoCount}`,
       value: workspace.name,
     };
   });
@@ -66,7 +104,7 @@ export async function runPrune(
   }
 
   // Get full workspace objects for selected items
-  const selectedWorkspaces = result.workspaces.filter(w => selected.includes(w.name));
+  const selectedWorkspaces = prunableWorkspaces.filter(w => selected.includes(w.name));
 
   // Confirm deletion
   const confirmed = await deps.confirm({
