@@ -98,7 +98,12 @@ export function createIntegrationServices(sourcePath: string, destPath: string):
   const gitService = new GitService(nodeShell);
   const parallel = new ParallelService(consoleStub);
   const status = new StatusService(gitService);
-  const tmuxStub = { createSession: sinon.stub(), killSession: sinon.stub() } as any;
+  const tmuxStub = {
+    createSession: sinon.stub(),
+    killSession: sinon.stub(),
+    addPane: sinon.stub().resolves(1),
+    sendKeysToPane: sinon.stub().resolves(),
+  } as any;
   const repos = new RepoService(nodeFs, gitService);
   const postCheckout = new PostCheckoutService(nodeShell);
   const repoConfig = new RepoConfigService(nodeFs);

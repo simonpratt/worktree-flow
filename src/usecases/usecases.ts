@@ -13,6 +13,10 @@ import { FetchUsedReposUseCase } from './fetchUsedRepos.js';
 import { ResumeTmuxSessionsUseCase } from './resumeTmuxSessions.js';
 import { RunPostCheckoutUseCase } from './runPostCheckout.js';
 import { AddReposToWorkspaceUseCase } from './addReposToWorkspace.js';
+import { CreateWorkspaceUseCase } from './createWorkspace.js';
+import { CreateBranchUseCase } from './createBranch.js';
+import { AddToWorkspaceUseCase } from './addToWorkspace.js';
+import { DiscoverReposWithBranchUseCase } from './discoverReposWithBranch.js';
 
 /**
  * Factory function for creating all use cases with their service dependencies.
@@ -102,6 +106,21 @@ export function createUseCases(services: Services) {
       services.tmux
     ),
     runPostCheckout,
+    // New use cases (Phase 2-5)
+    createWorkspace: new CreateWorkspaceUseCase(
+      services.workspaceDir,
+      services.workspaceConfig,
+      services.tmux
+    ),
+    createBranch: new CreateBranchUseCase(services.git),
+    addToWorkspace: new AddToWorkspaceUseCase(
+      services.worktree,
+      services.workspaceConfig,
+      services.repoConfig,
+      services.postCheckout,
+      services.tmux
+    ),
+    discoverReposWithBranch: new DiscoverReposWithBranchUseCase(services.repos),
   };
 }
 

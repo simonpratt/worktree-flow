@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { Command } from 'commander';
 import confirm from '@inquirer/confirm';
 import chalk from 'chalk';
@@ -26,25 +27,20 @@ export async function runCheckout(
   services.console.log('\nChecking for branch...');
 
   try {
-    // Fetch all repos from source-path
+    // 1. Fetch all repos from source-path
     await useCases.fetchAllRepos.execute({
       sourcePath,
       fetchCacheTtlSeconds: config.fetchCacheTtlSeconds,
     });
 
-    // Execute use case
-    const result = await useCases.checkoutWorkspace.execute({
-      branchName,
+    // 2. Discover repos and find which ones have the branch
+    const discoverResult = await useCases.discoverReposWithBranch.execute({
       sourcePath,
-      destPath,
-      copyFiles: config.copyFiles,
-      tmux: config.tmux,
-      postCheckout: shouldRunPostCheckout ? config.postCheckout : undefined,
-      perRepoPostCheckout: shouldRunPostCheckout ? config.perRepoPostCheckout: {},
+      branchName,
     });
 
-    // Display branch check results
-    for (const checkResult of result.branchCheckResults) {
+    // 3. Display per-repo branch check results
+    for (const checkResult of discoverResult.branchCheckResults) {
       if (checkResult.error) {
         services.console.log(`${checkResult.repoName}... ${chalk.red(`error: ${checkResult.error}`)}`);
       } else if (checkResult.hasBranch) {
@@ -54,17 +50,83 @@ export async function runCheckout(
       }
     }
 
-    services.console.log(
-      `\nCreated workspace at ${chalk.cyan(result.workspacePath)} with ${result.successCount}/${result.totalCount} repos.`
+    // 4. Throw error if no repos match
+    if (discoverResult.matchingRepos.length === 0) {
+      throw new Error(`Branch "${branchName}" not found in any repo.`);
+    }
+
+    // 5. Create workspace directory, placeholder config, AGENTS.md, tmux session
+    const workspaceResult = await useCases.createWorkspace.execute({
+      branchName,
+      sourcePath,
+      destPath,
+      tmux: config.tmux,
+    });
+
+    const { workspacePath, tmuxCreated } = workspaceResult;
+    const sessionName = tmuxCreated ? branchName : undefined;
+
+    // 6. For each matching repo in parallel: detect base branch, then addToWorkspace
+    const results = await Promise.allSettled(
+      discoverResult.matchingRepos.map(async (repoPath) => {
+        const repoName = path.basename(repoPath);
+
+        // Resolve per-repo post-checkout command
+        const repoConf = services.repoConfig.load(repoPath);
+        const resolvedPostCheckout = shouldRunPostCheckout
+          ? services.repoConfig.resolvePostCheckout(
+              repoName,
+              config.perRepoPostCheckout,
+              repoConf,
+              config.postCheckout
+            )
+          : undefined;
+
+        // Detect base branch for this repo
+        const baseBranch = await services.git.findFirstExistingBranch(
+          repoPath,
+          ['master', 'main', 'trunk', 'develop']
+        ) ?? 'master';
+
+        // Add repo to workspace (creates worktree, copies files, tmux pane, post-checkout)
+        return useCases.addToWorkspace.execute({
+          repoPath,
+          workspacePath,
+          branchName,
+          baseBranch,
+          sessionName,
+          copyFiles: config.copyFiles,
+          postCheckout: resolvedPostCheckout,
+        });
+      })
     );
 
-    if (result.tmuxCreated) {
+    // Tally results
+    const successCount = results.filter((r) => r.status === 'fulfilled').length;
+    const totalCount = results.length;
+
+    const postCheckoutResults = results
+      .filter((r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof useCases.addToWorkspace.execute>>> =>
+        r.status === 'fulfilled'
+      )
+      .map((r) => r.value)
+      .filter((r) => r.postCheckoutRan);
+
+    const postCheckoutSuccess = postCheckoutResults.filter((r) => r.postCheckoutSuccess).length;
+    const postCheckoutTotal = postCheckoutResults.length;
+
+    // 7. Display results
+    services.console.log(
+      `\nCreated workspace at ${chalk.cyan(workspacePath)} with ${successCount}/${totalCount} repos.`
+    );
+
+    if (tmuxCreated) {
       services.console.log(`Created tmux session: ${chalk.cyan(branchName)}`);
     }
 
-    if (result.postCheckoutSuccess !== undefined) {
+    if (postCheckoutTotal > 0) {
       services.console.log(
-        `\nCompleted post-checkout in ${result.postCheckoutSuccess}/${result.postCheckoutTotal} workspace(s).`
+        `\nCompleted post-checkout in ${postCheckoutSuccess}/${postCheckoutTotal} workspace(s).`
       );
     } else if (!config.postCheckout) {
       services.console.log('\nTip: Configure a post-checkout command to run automatically after branching/checkout.');

@@ -91,28 +91,70 @@ export async function runAdd(
     ttlSeconds: config.fetchCacheTtlSeconds,
   });
 
-  // 8. Execute use case
-  const result = await useCases.addReposToWorkspace.execute({
-    repos: selected,
-    workspacePath,
-    branchName: displayName,
-    sourceBranch,
-    copyFiles: config.copyFiles,
-    postCheckout: shouldRunPostCheckout ? config.postCheckout : undefined,
-    perRepoPostCheckout: shouldRunPostCheckout ? config.perRepoPostCheckout : {},
-  });
+  // 8. For each selected repo in parallel: createBranch then addToWorkspace
+  // If tmux is enabled, use the workspace branch name as session name
+  const sessionName = config.tmux ? displayName : undefined;
+
+  const results = await Promise.allSettled(
+    selected.map(async (repoPath) => {
+      const repoName = path.basename(repoPath);
+
+      // Resolve per-repo post-checkout command
+      const repoConf = services.repoConfig.load(repoPath);
+      const resolvedPostCheckout = shouldRunPostCheckout
+        ? services.repoConfig.resolvePostCheckout(
+            repoName,
+            config.perRepoPostCheckout,
+            repoConf,
+            config.postCheckout
+          )
+        : undefined;
+
+      // a. Create branch in source repo
+      const branchResult = await useCases.createBranch.execute({
+        repoPath,
+        branchName: displayName,
+        sourceBranch,
+      });
+
+      // b. Add repo to workspace (creates worktree, copies files, tmux pane, post-checkout)
+      return useCases.addToWorkspace.execute({
+        repoPath,
+        workspacePath,
+        branchName: displayName,
+        baseBranch: branchResult.baseBranch,
+        sessionName,
+        copyFiles: config.copyFiles,
+        postCheckout: resolvedPostCheckout,
+      });
+    })
+  );
 
   // 9. Track usage
   services.fetchCache.trackBranchUsage(selected.map((r) => path.basename(r)));
 
+  // Tally results
+  const successCount = results.filter((r) => r.status === 'fulfilled').length;
+  const totalCount = results.length;
+
+  const postCheckoutResults = results
+    .filter((r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof useCases.addToWorkspace.execute>>> =>
+      r.status === 'fulfilled'
+    )
+    .map((r) => r.value)
+    .filter((r) => r.postCheckoutRan);
+
+  const postCheckoutSuccess = postCheckoutResults.filter((r) => r.postCheckoutSuccess).length;
+  const postCheckoutTotal = postCheckoutResults.length;
+
   // 10. Display results
   services.console.log(
-    `\nAdded ${result.successCount}/${result.totalCount} repos to ${chalk.cyan(workspacePath)}.`
+    `\nAdded ${successCount}/${totalCount} repos to ${chalk.cyan(workspacePath)}.`
   );
 
-  if (result.postCheckoutSuccess !== undefined) {
+  if (postCheckoutTotal > 0) {
     services.console.log(
-      `\nCompleted post-checkout in ${result.postCheckoutSuccess}/${result.postCheckoutTotal} workspace(s).`
+      `\nCompleted post-checkout in ${postCheckoutSuccess}/${postCheckoutTotal} workspace(s).`
     );
   }
 }

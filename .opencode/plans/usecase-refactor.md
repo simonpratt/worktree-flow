@@ -216,29 +216,29 @@ type DiscoverReposWithBranchResult = {
 **Current flow:** User selects repos → `createBranchWorkspace.execute()` does everything
 
 **New flow:**
-1. User selects repos, source branch, confirms post-checkout
-2. Fetch selected repos
-3. Call `createWorkspace.execute()` — creates workspace dir, placeholder config, AGENTS.md, tmux session
-4. For each selected repo, in parallel (via `Promise.allSettled`):
-   a. Call `createBranch.execute()` — creates branch in source repo, returns baseBranch
-   b. Call `addToWorkspace.execute()` — creates worktree, copies files, adds tmux pane, runs post-checkout
-5. Track fetch cache usage
-6. Display results (success counts, tmux info, post-checkout counts)
+1. [x] User selects repos, source branch, confirms post-checkout
+2. [x] Fetch selected repos
+3. [x] Call `createWorkspace.execute()` — creates workspace dir, placeholder config, AGENTS.md, tmux session
+4. [x] For each selected repo, in parallel (via `Promise.allSettled`):
+   a. [x] Call `createBranch.execute()` — creates branch in source repo, returns baseBranch
+   b. [x] Call `addToWorkspace.execute()` — creates worktree, copies files, adds tmux pane, runs post-checkout
+5. [x] Track fetch cache usage
+6. [x] Display results (success counts, tmux info, post-checkout counts)
 
 ### 6b: Update `checkout` command (`src/commands/checkout.ts`)
 
 **Current flow:** `checkoutWorkspace.execute()` does everything
 
 **New flow:**
-1. Fetch all repos
-2. Call `discoverReposWithBranch.execute()` — find repos with the branch
-3. Display per-repo branch check results
-4. Throw error if no repos match
-5. Call `createWorkspace.execute()` — creates workspace dir, placeholder config, AGENTS.md, tmux session
-6. For each matching repo, in parallel:
-   a. Detect base branch via `GitService.findFirstExistingBranch()`
-   b. Call `addToWorkspace.execute()` — creates worktree (existing branch), copies files, adds tmux pane, runs post-checkout
-7. Display results
+1. [x] Fetch all repos
+2. [x] Call `discoverReposWithBranch.execute()` — find repos with the branch
+3. [x] Display per-repo branch check results
+4. [x] Throw error if no repos match
+5. [x] Call `createWorkspace.execute()` — creates workspace dir, placeholder config, AGENTS.md, tmux session
+6. [x] For each matching repo, in parallel:
+   a. [x] Detect base branch via `GitService.findFirstExistingBranch()`
+   b. [x] Call `addToWorkspace.execute()` — creates worktree (existing branch), copies files, adds tmux pane, runs post-checkout
+7. [x] Display results
 
 **Note:** For checkout, `createBranch` is NOT called since branches already exist. The base branch detection (for workspace config) happens in the command layer per-repo and is passed to `addToWorkspace`.
 
@@ -247,24 +247,27 @@ type DiscoverReposWithBranchResult = {
 **Current flow:** `addReposToWorkspace.execute()` creates worktrees + post-checkout
 
 **New flow:**
-1. Resolve workspace, discover repos, filter existing, user picks repos/source branch
-2. Fetch selected repos
-3. For each selected repo, in parallel:
-   a. Call `createBranch.execute()` — creates branch
-   b. Call `addToWorkspace.execute()` — creates worktree, copies files, adds tmux pane, runs post-checkout
-4. Track fetch cache usage
-5. Display results
+1. [x] Resolve workspace, discover repos, filter existing, user picks repos/source branch
+2. [x] Fetch selected repos
+3. [x] For each selected repo, in parallel:
+   a. [x] Call `createBranch.execute()` — creates branch
+   b. [x] Call `addToWorkspace.execute()` — creates worktree, copies files, adds tmux pane, runs post-checkout
+4. [x] Track fetch cache usage
+5. [x] Display results
 
 **Note:** The `add` command does NOT call `createWorkspace` since the workspace already exists. If tmux is enabled, pass the existing session name (workspace branch name) to `addToWorkspace` so it can add panes.
 
 ### 6d: Update integration tests
 
 All three integration test files need updating to match the new command flows:
-- `src/commands/__integration__/branch.integration.test.ts`
-- `src/commands/__integration__/checkout.integration.test.ts`
-- `src/commands/__integration__/add.integration.test.ts`
+- [x] `src/commands/__integration__/branch.integration.test.ts`
+- [x] `src/commands/__integration__/checkout.integration.test.ts`
+- [x] `src/commands/__integration__/add.integration.test.ts`
 
 The test assertions should remain the same (they test end-to-end behaviour). The only changes needed are if internal wiring changes the `UseCases` type signature, requiring updates to `createIntegrationServices` and `createUseCases`.
+
+- [x] Updated `createIntegrationServices` in `src/test/integration-test-utils.ts` to add `addPane` and `sendKeysToPane` stubs to `tmuxStub`
+- [x] Added new use cases to `src/usecases/usecases.ts` factory: `createWorkspace`, `createBranch`, `addToWorkspace`, `discoverReposWithBranch`
 
 ---
 
