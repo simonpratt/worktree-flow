@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## [0.0.18] - 2026-03-01
 
 - Renamed `add` command to `attach`
 - Renamed `remove` command to `drop`
