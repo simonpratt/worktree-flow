@@ -4,6 +4,7 @@
     "dockerfile": "Dockerfile"
   },
   "mounts": [
+    "source=${localEnv:HOME}/.local/share/opencode/storage,target=/root/.local/share/opencode/storage,type=bind,consistency=cached",
     "source=${localEnv:HOME}/.local/share/opencode/auth.json,target=/root/.local/share/opencode/auth.json,type=bind,consistency=cached,readonly",
     "source=${localEnv:HOME}/.config/opencode,target=/root/.config/opencode,type=bind,consistency=cached,readonly",
     "source=${localEnv:HOME}/.gitconfig,target=/root/.gitconfig,type=bind,consistency=cached,readonly"
