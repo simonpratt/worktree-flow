@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- `createBranch` now prefers `origin/<branch>` as the start point when creating a new branch, falling back to the local branch ref when no remote-tracking ref exists
+
 ## [0.0.19] 2026-03-01
 
 ### Changed

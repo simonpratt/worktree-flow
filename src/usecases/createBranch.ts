@@ -55,8 +55,13 @@ export class CreateBranchUseCase {
     );
 
     if (!targetBranchExists) {
-      // 4. Create the branch from origin/<actualBaseBranch>
-      await this.git.createBranch(params.repoPath, params.branchName, `origin/${actualBaseBranch}`);
+      // 4. Prefer origin/<actualBaseBranch> as start point; fall back to local branch
+      const originExists = await this.git.remoteTrackingBranchExists(
+        params.repoPath,
+        actualBaseBranch
+      );
+      const startPoint = originExists ? `origin/${actualBaseBranch}` : actualBaseBranch;
+      await this.git.createBranch(params.repoPath, params.branchName, startPoint);
     }
 
     // 5. Return the actual base branch used

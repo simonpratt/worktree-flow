@@ -10,6 +10,7 @@ describe('CreateBranchUseCase', () => {
   beforeEach(() => {
     git = {
       localRemoteBranchExists: sinon.stub(),
+      remoteTrackingBranchExists: sinon.stub(),
       findFirstExistingBranch: sinon.stub(),
       createBranch: sinon.stub(),
     } as any;
@@ -24,6 +25,7 @@ describe('CreateBranchUseCase', () => {
   it('creates branch from specified source branch when it exists', async () => {
     git.localRemoteBranchExists.withArgs('/source/my-repo', 'develop').resolves(true);
     git.localRemoteBranchExists.withArgs('/source/my-repo', 'feature/my-feature').resolves(false);
+    git.remoteTrackingBranchExists.withArgs('/source/my-repo', 'develop').resolves(true);
     git.createBranch.resolves();
 
     const result = await useCase.execute({
@@ -46,6 +48,7 @@ describe('CreateBranchUseCase', () => {
   it('returns the actual base branch used', async () => {
     git.localRemoteBranchExists.withArgs('/source/my-repo', 'develop').resolves(true);
     git.localRemoteBranchExists.withArgs('/source/my-repo', 'feature/my-feature').resolves(false);
+    git.remoteTrackingBranchExists.withArgs('/source/my-repo', 'develop').resolves(true);
     git.createBranch.resolves();
 
     const result = await useCase.execute({
@@ -61,6 +64,7 @@ describe('CreateBranchUseCase', () => {
     git.localRemoteBranchExists.withArgs('/source/my-repo', 'non-existent').resolves(false);
     git.localRemoteBranchExists.withArgs('/source/my-repo', 'feature/my-feature').resolves(false);
     git.findFirstExistingBranch.resolves('main');
+    git.remoteTrackingBranchExists.withArgs('/source/my-repo', 'main').resolves(true);
     git.createBranch.resolves();
 
     const result = await useCase.execute({
@@ -86,6 +90,7 @@ describe('CreateBranchUseCase', () => {
   it('returns the fallback branch as the actual base branch used', async () => {
     git.localRemoteBranchExists.resolves(false);
     git.findFirstExistingBranch.resolves('master');
+    git.remoteTrackingBranchExists.resolves(true);
     git.createBranch.resolves();
 
     const result = await useCase.execute({
@@ -148,6 +153,7 @@ describe('CreateBranchUseCase', () => {
   it('does not call findFirstExistingBranch when source branch exists', async () => {
     git.localRemoteBranchExists.withArgs('/source/my-repo', 'develop').resolves(true);
     git.localRemoteBranchExists.withArgs('/source/my-repo', 'feature/my-feature').resolves(false);
+    git.remoteTrackingBranchExists.withArgs('/source/my-repo', 'develop').resolves(true);
     git.createBranch.resolves();
 
     await useCase.execute({
@@ -157,5 +163,46 @@ describe('CreateBranchUseCase', () => {
     });
 
     sinon.assert.notCalled(git.findFirstExistingBranch);
+  });
+
+  it('uses local branch as start point when origin remote-tracking ref does not exist', async () => {
+    git.localRemoteBranchExists.withArgs('/source/my-repo', 'develop').resolves(true);
+    git.localRemoteBranchExists.withArgs('/source/my-repo', 'feature/my-feature').resolves(false);
+    git.remoteTrackingBranchExists.withArgs('/source/my-repo', 'develop').resolves(false);
+    git.createBranch.resolves();
+
+    await useCase.execute({
+      repoPath: '/source/my-repo',
+      branchName: 'feature/my-feature',
+      sourceBranch: 'develop',
+    });
+
+    sinon.assert.calledWith(
+      git.createBranch,
+      '/source/my-repo',
+      'feature/my-feature',
+      'develop'
+    );
+  });
+
+  it('uses local fallback branch as start point when its origin remote-tracking ref does not exist', async () => {
+    git.localRemoteBranchExists.withArgs('/source/my-repo', 'non-existent').resolves(false);
+    git.localRemoteBranchExists.withArgs('/source/my-repo', 'feature/my-feature').resolves(false);
+    git.findFirstExistingBranch.resolves('main');
+    git.remoteTrackingBranchExists.withArgs('/source/my-repo', 'main').resolves(false);
+    git.createBranch.resolves();
+
+    await useCase.execute({
+      repoPath: '/source/my-repo',
+      branchName: 'feature/my-feature',
+      sourceBranch: 'non-existent',
+    });
+
+    sinon.assert.calledWith(
+      git.createBranch,
+      '/source/my-repo',
+      'feature/my-feature',
+      'main'
+    );
   });
 });

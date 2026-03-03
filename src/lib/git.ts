@@ -38,6 +38,15 @@ export class GitService {
     }
   }
 
+  async remoteTrackingBranchExists(repoPath: string, branch: string): Promise<boolean> {
+    try {
+      await this.exec(repoPath, ['rev-parse', '--verify', `origin/${branch}`]);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async findFirstExistingBranch(
     repoPath: string,
     candidates: string[]
