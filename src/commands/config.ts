@@ -12,6 +12,7 @@ import { createServices } from '../lib/services.js';
 export function registerConfigCommand(program: Command): void {
   const configCmd = program
     .command('config')
+    .helpGroup('Getting Started')
     .description('Manage flow configuration');
 
   configCmd

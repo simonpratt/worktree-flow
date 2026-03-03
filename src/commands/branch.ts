@@ -5,6 +5,7 @@ import { createServices } from '../lib/services.js';
 export function registerBranchCommand(program: Command): void {
   program
     .command('branch <branch-name>')
+    .helpGroup('Deprecated')
     .description(chalk.dim('Deprecated: use "flow create <branch-name>" instead'))
     .action(async () => {
       const services = createServices();

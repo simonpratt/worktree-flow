@@ -46,6 +46,7 @@ export async function runFetch(
 export function registerFetchCommand(program: Command): void {
   program
     .command('fetch [branch-name]')
+    .helpGroup('Git Operations')
     .description('Fetch repos (workspace-scoped if branch provided, all workspaces otherwise)')
     .action(async (branchName?: string) => {
       const services = createServices();

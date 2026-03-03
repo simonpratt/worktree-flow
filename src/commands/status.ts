@@ -62,6 +62,7 @@ export async function runStatus(
 export function registerStatusCommand(program: Command): void {
   program
     .command('status [branch-name]')
+    .helpGroup('Git Operations')
     .description('Show status of all worktrees in a workspace (auto-detects from current directory if branch not provided)')
     .action(async (branchName?: string) => {
       const services = createServices();

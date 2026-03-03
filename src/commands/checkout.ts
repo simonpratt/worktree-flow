@@ -141,6 +141,7 @@ export async function runCheckout(
 export function registerCheckoutCommand(program: Command): void {
   program
     .command('checkout <branch-name>')
+    .helpGroup('Workspaces')
     .description('Checkout an existing branch across repos')
     .action(async (branchName: string) => {
       const services = createServices();

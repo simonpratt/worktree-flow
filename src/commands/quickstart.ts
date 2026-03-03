@@ -168,6 +168,7 @@ export async function runQuickstart(
 export function registerQuickstartCommand(program: Command): void {
   program
     .command('quickstart')
+    .helpGroup('Getting Started')
     .description('Interactive setup wizard for first-time configuration')
     .action(async () => {
       const services = createServices();

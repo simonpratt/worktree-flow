@@ -150,6 +150,7 @@ export async function runCreate(
 export function registerCreateCommand(program: Command): void {
   program
     .command('create <branch-name>')
+    .helpGroup('Workspaces')
     .description('Create branches and worktrees for selected repos')
     .action(async (branchName: string) => {
       const services = createServices();

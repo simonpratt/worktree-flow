@@ -162,6 +162,7 @@ export async function runAttach(
 export function registerAttachCommand(program: Command): void {
   program
     .command('attach [branch-name]')
+    .helpGroup('Workspaces')
     .description('Attach repos to an existing workspace (auto-detects from current directory if branch not provided)')
     .action(async (branchName?: string) => {
       const services = createServices();

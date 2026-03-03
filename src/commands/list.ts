@@ -50,6 +50,7 @@ export function registerListCommand(program: Command): void {
   program
     .command('list')
     .alias('ls')
+    .helpGroup('Workspaces')
     .description('List all workspaces with status indicators')
     .action(async () => {
       const services = createServices();

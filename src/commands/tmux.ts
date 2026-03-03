@@ -44,6 +44,7 @@ export async function runTmuxSync(useCases: UseCases, services: Services): Promi
 export function registerTmuxCommand(program: Command): void {
   const tmuxCommand = program
     .command('tmux')
+    .helpGroup('Extras')
     .description('Manage tmux sessions for workspaces');
 
   tmuxCommand

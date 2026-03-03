@@ -35,6 +35,7 @@ export async function runPull(
 export function registerPullCommand(program: Command): void {
   program
     .command('pull [branch-name]')
+    .helpGroup('Git Operations')
     .description('Pull all repos in a workspace (auto-detects from current directory if branch not provided)')
     .action(async (branchName?: string) => {
       const services = createServices();

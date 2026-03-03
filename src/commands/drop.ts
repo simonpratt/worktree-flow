@@ -134,6 +134,7 @@ export async function runDrop(
 export function registerDropCommand(program: Command): void {
   program
     .command('drop [branch-name]')
+    .helpGroup('Workspaces')
     .description('Drop a workspace and all its worktrees (auto-detects from current directory if branch not provided)')
     .action(async (branchName?: string) => {
       const services = createServices();

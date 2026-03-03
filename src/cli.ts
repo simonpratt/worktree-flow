@@ -22,19 +22,28 @@ program
   .description('Manage git worktrees across a poly-repo environment')
   .version('0.1.0');
 
+// Getting Started
+registerQuickstartCommand(program);
 registerConfigCommand(program);
+
+// Workspaces
 registerCreateCommand(program);
-registerAttachCommand(program);
-registerBranchCommand(program);
 registerCheckoutCommand(program);
 registerListCommand(program);
+registerAttachCommand(program);
+registerDropCommand(program);
+registerPruneCommand(program);
+
+// Git Operations
+registerStatusCommand(program);
 registerPullCommand(program);
 registerPushCommand(program);
-registerDropCommand(program);
-registerStatusCommand(program);
-registerPruneCommand(program);
 registerFetchCommand(program);
+
+// Extras
 registerTmuxCommand(program);
-registerQuickstartCommand(program);
+
+// Deprecated
+registerBranchCommand(program);
 
 program.parse();

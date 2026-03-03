@@ -35,6 +35,7 @@ export async function runPush(
 export function registerPushCommand(program: Command): void {
   program
     .command('push [branch-name]')
+    .helpGroup('Git Operations')
     .description('Push all repos in a workspace (auto-detects from current directory if branch not provided)')
     .action(async (branchName?: string) => {
       const services = createServices();
