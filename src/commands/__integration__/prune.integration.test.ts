@@ -87,7 +87,7 @@ describe('prune integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    const result = await createTestWorkspace(integration.useCases, {
+    await createTestWorkspace(integration.useCases, {
       repos: [repo1],
       branchName: 'old-feature',
       sourceBranch: 'master',
@@ -96,23 +96,6 @@ describe('prune integration', () => {
       copyFiles: '.env',
       tmux: false,
     });
-
-    const workspacePath = result.workspacePath;
-    const worktreePath = path.join(workspacePath, 'repo1');
-
-    const { NodeShell } = await import('../../adapters/node.js');
-    const shell = new NodeShell();
-
-    // Add a commit and simulate merge
-    fs.writeFileSync(path.join(worktreePath, 'test.txt'), 'test content\n');
-    await shell.execFile('git', ['-C', worktreePath, 'add', 'test.txt']);
-    await shell.execFile('git', [
-      '-C', worktreePath, '-c', 'user.name=Test', '-c', 'user.email=test@example.com',
-      'commit', '-m', 'old commit',
-    ]);
-
-    const sha = (await shell.execFile('git', ['-C', worktreePath, 'rev-parse', 'HEAD'])).stdout.trim();
-    await shell.execFile('git', ['-C', repo1, 'update-ref', 'refs/remotes/origin/master', sha]);
 
     checkboxStub.resolves(['old-feature']);
 
@@ -142,36 +125,6 @@ describe('prune integration', () => {
     });
 
     const workspacePath = result.workspacePath;
-    const worktreePath = path.join(workspacePath, 'repo1');
-
-    const { NodeShell } = await import('../../adapters/node.js');
-    const shell = new NodeShell();
-
-    // Add a new commit and update origin/master to point to it
-    // This simulates the commit being merged to master
-    fs.writeFileSync(path.join(worktreePath, 'test.txt'), 'test content\n');
-    await shell.execFile('git', ['-C', worktreePath, 'add', 'test.txt']);
-
-    const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
-    const gitDate = tenDaysAgo.toISOString();
-
-    await shell.execFile('git', [
-      '-C',
-      worktreePath,
-      '-c',
-      `user.name=Test`,
-      '-c',
-      `user.email=test@example.com`,
-      'commit',
-      '-m',
-      'old commit',
-      '--date',
-      gitDate,
-    ]);
-
-    // Update origin/master to point to the new commit (simulate merge)
-    const sha = (await shell.execFile('git', ['-C', worktreePath, 'rev-parse', 'HEAD'])).stdout.trim();
-    await shell.execFile('git', ['-C', repo1, 'update-ref', 'refs/remotes/origin/master', sha]);
 
     expect(fs.existsSync(workspacePath)).toBe(true);
 
@@ -210,20 +163,6 @@ describe('prune integration', () => {
       copyFiles: '.env',
       tmux: false,
     });
-
-    const { NodeShell } = await import('../../adapters/node.js');
-    const shell = new NodeShell();
-
-    // Make the clean workspace actually clean (commit merged)
-    const cleanWorktree = path.join(cleanResult.workspacePath, 'repo1');
-    fs.writeFileSync(path.join(cleanWorktree, 'test.txt'), 'test content\n');
-    await shell.execFile('git', ['-C', cleanWorktree, 'add', 'test.txt']);
-    await shell.execFile('git', [
-      '-C', cleanWorktree, '-c', 'user.name=Test', '-c', 'user.email=test@example.com',
-      'commit', '-m', 'test commit',
-    ]);
-    const sha = (await shell.execFile('git', ['-C', cleanWorktree, 'rev-parse', 'HEAD'])).stdout.trim();
-    await shell.execFile('git', ['-C', repo1, 'update-ref', 'refs/remotes/origin/master', sha]);
 
     // Add uncommitted changes to the dirty workspace
     const dirtyWorktree = path.join(dirtyResult.workspacePath, 'repo1');
@@ -305,30 +244,6 @@ describe('prune integration', () => {
     });
 
     const workspacePath = result.workspacePath;
-    const worktreePath = path.join(workspacePath, 'repo1');
-
-    const { NodeShell } = await import('../../adapters/node.js');
-    const shell = new NodeShell();
-
-    // Add a new commit with an old date
-    fs.writeFileSync(path.join(worktreePath, 'test.txt'), 'test content\n');
-    await shell.execFile('git', ['-C', worktreePath, 'add', 'test.txt']);
-
-    const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
-    const gitDate = tenDaysAgo.toISOString();
-    await shell.execFile('git', [
-      '-C',
-      worktreePath,
-      '-c',
-      `user.name=Test`,
-      '-c',
-      `user.email=test@example.com`,
-      'commit',
-      '-m',
-      'old commit',
-      '--date',
-      gitDate,
-    ]);
 
     // User selects the workspace but declines confirmation
     checkboxStub.resolves(['old-feature']);
@@ -375,37 +290,6 @@ describe('prune integration', () => {
       copyFiles: '.env',
       tmux: false,
     });
-
-    const { NodeShell } = await import('../../adapters/node.js');
-    const shell = new NodeShell();
-    const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
-    const gitDate = tenDaysAgo.toISOString();
-
-    // Make commits old for both workspaces
-    for (const result of [result1, result2]) {
-      const worktreePath = path.join(result.workspacePath, 'repo1');
-
-      // Add a new commit with an old date
-      fs.writeFileSync(path.join(worktreePath, 'test.txt'), 'test content\n');
-      await shell.execFile('git', ['-C', worktreePath, 'add', 'test.txt']);
-      await shell.execFile('git', [
-        '-C',
-        worktreePath,
-        '-c',
-        `user.name=Test`,
-        '-c',
-        `user.email=test@example.com`,
-        'commit',
-        '-m',
-        'old commit',
-        '--date',
-        gitDate,
-      ]);
-
-      // Update origin/master to point to the new commit (simulate merge)
-      const sha = (await shell.execFile('git', ['-C', worktreePath, 'rev-parse', 'HEAD'])).stdout.trim();
-      await shell.execFile('git', ['-C', repo1, 'update-ref', 'refs/remotes/origin/master', sha]);
-    }
 
     // User selects both workspaces to prune
     checkboxStub.resolves(['old-feature-1', 'old-feature-2']);

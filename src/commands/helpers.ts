@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import { StatusService, type WorktreeStatus } from '../lib/status.js';
 import type { IConsole } from '../adapters/types.js';
 import type { Services } from '../lib/services.js';
-import type { ParsedConfig } from '../lib/config.js';
+
 
 type WorkspaceLoadingInfo = { name: string; repoCount: number };
 
@@ -19,17 +19,12 @@ type WorkspaceStatusInfo = {
  */
 export function formatRepoStatusLine(
   repoName: string,
-  status: WorktreeStatus,
-  baseBranch: string
+  status: WorktreeStatus
 ): string {
-  const statusMessage = StatusService.getStatusMessage(status, baseBranch);
+  const statusMessage = StatusService.getStatusMessage(status);
   const hasIssues = StatusService.hasIssues(status);
-  const indicator = hasIssues ? chalk.red('✗') : chalk.green('✓');
   const message = hasIssues ? chalk.red(statusMessage) : chalk.green(statusMessage);
-  const trackingInfo = status.upstreamBranch
-    ? chalk.dim(` → ${status.upstreamBranch}`)
-    : chalk.dim(' (no upstream)');
-  return `    ${indicator} ${chalk.yellow(repoName)}: ${message}${trackingInfo}`;
+  return `    ${chalk.yellow(repoName)}: ${message}`;
 }
 
 /**
@@ -58,7 +53,6 @@ export function logStatus(
   header: string,
   workspaces: WorkspaceStatusInfo[],
   linesToClear: number,
-  getBaseBranch: (workspacePath: string, repoName: string) => string,
   console: IConsole
 ): void {
   for (let i = 0; i < linesToClear; i++) {
@@ -73,8 +67,7 @@ export function logStatus(
     console.log(`${activeIndicator}${chalk.cyan(workspace.name)} ${repoCount}`);
 
     for (const { repoName, status } of workspace.statuses) {
-      const baseBranch = getBaseBranch(workspace.path, repoName);
-      console.log(formatRepoStatusLine(repoName, status, baseBranch));
+      console.log(formatRepoStatusLine(repoName, status));
     }
     console.log('');
   }

@@ -31,7 +31,6 @@ export function createUseCases(services: Services) {
     ),
     removeWorkspace: new RemoveWorkspaceUseCase(
       services.workspaceDir,
-      services.workspaceConfig,
       services.worktree,
       services.repos,
       services.status,
@@ -49,18 +48,15 @@ export function createUseCases(services: Services) {
     ),
     checkWorkspaceStatus: new CheckWorkspaceStatusUseCase(
       services.workspaceDir,
-      services.workspaceConfig,
       services.status
     ),
     discoverPrunableWorkspaces: new DiscoverPrunableWorkspacesUseCase(
       services.workspaceDir,
-      services.workspaceConfig,
       services.status,
       services.git
     ),
     listWorkspacesWithStatus: new ListWorkspacesWithStatusUseCase(
       services.workspaceDir,
-      services.workspaceConfig,
       services.status
     ),
     resumeTmuxSessions: new ResumeTmuxSessionsUseCase(

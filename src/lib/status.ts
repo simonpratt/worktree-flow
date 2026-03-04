@@ -1,9 +1,11 @@
 import type { GitService } from './git.js';
 
 export type WorktreeStatus = {
-  type: 'clean' | 'uncommitted' | 'ahead' | 'error';
+  type: 'clean' | 'dirty' | 'error';
+  untracked: number;
+  uncommitted: number;
+  unpushed: number;
   error?: string;
-  comparedTo?: 'main';
   currentBranch?: string;
   upstreamBranch?: string | null;
 };
@@ -14,52 +16,55 @@ export type WorktreeStatus = {
 export class StatusService {
   constructor(private git: GitService) {}
 
-  async getWorktreeStatus(
-    worktreePath: string,
-    baseBranch: string
-  ): Promise<WorktreeStatus> {
+  async getWorktreeStatus(worktreePath: string): Promise<WorktreeStatus> {
     try {
-      // Get branch information
       const currentBranch = await this.git.getCurrentBranch(worktreePath);
       const upstreamBranch = await this.git.getUpstreamBranch(worktreePath);
 
-      // Check for uncommitted changes first
-      const hasUncommitted = await this.git.hasUncommittedChanges(worktreePath);
-      if (hasUncommitted) {
-        return { type: 'uncommitted', currentBranch, upstreamBranch };
-      }
+      const { untracked, uncommitted } = await this.git.getStatusCounts(worktreePath);
+      const unpushed = await this.git.getUnpushedCommitCount(worktreePath);
 
-      // Compare against base branch using git cherry (handles squash merges)
-      const isAhead = await this.git.isAheadOfMain(worktreePath, baseBranch);
-      if (isAhead) {
-        return { type: 'ahead', comparedTo: 'main', currentBranch, upstreamBranch };
-      }
+      const type = untracked > 0 || uncommitted > 0 ? 'dirty' : 'clean';
 
-      return { type: 'clean', comparedTo: 'main', currentBranch, upstreamBranch };
+      return { type, untracked, uncommitted, unpushed, currentBranch, upstreamBranch };
     } catch (err: any) {
       return {
         type: 'error',
+        untracked: 0,
+        uncommitted: 0,
+        unpushed: 0,
         error: err.stderr || err.message,
       };
     }
   }
 
-  static getStatusMessage(status: WorktreeStatus, baseBranch: string): string {
-    switch (status.type) {
-      case 'clean':
-        return 'up to date';
-      case 'uncommitted':
-        return 'uncommitted changes';
-      case 'ahead':
-        return `ahead of ${baseBranch}`;
-      case 'error':
-        return `error: ${status.error}`;
+  static getStatusMessage(status: WorktreeStatus): string {
+    if (status.type === 'error') {
+      return `error: ${status.error}`;
     }
+
+    if (status.type === 'clean' && status.unpushed === 0) {
+      return 'clean';
+    }
+
+    const parts: string[] = [];
+    if (status.untracked > 0) {
+      parts.push(`${status.untracked} untracked`);
+    }
+    if (status.uncommitted > 0) {
+      parts.push(`${status.uncommitted} modified`);
+    }
+    if (status.unpushed > 0) {
+      parts.push(`${status.unpushed} unpushed commit${status.unpushed === 1 ? '' : 's'}`);
+    }
+
+    return parts.length > 0 ? parts.join(', ') : 'clean';
   }
 
   static hasIssues(status: WorktreeStatus): boolean {
     return (
-      status.type === 'uncommitted' ||
+      status.untracked > 0 ||
+      status.uncommitted > 0 ||
       status.type === 'error'
     );
   }
@@ -68,14 +73,12 @@ export class StatusService {
    * Check status of all worktrees in parallel
    */
   async checkAllWorktrees(
-    worktreeDirs: string[],
-    getBaseBranch: (repoName: string) => string
+    worktreeDirs: string[]
   ): Promise<Array<{ repoName: string; status: WorktreeStatus }>> {
     const results = await Promise.all(
       worktreeDirs.map(async (worktreePath) => {
         const repoName = worktreePath.split('/').pop() || worktreePath;
-        const baseBranch = getBaseBranch(repoName);
-        const status = await this.getWorktreeStatus(worktreePath, baseBranch);
+        const status = await this.getWorktreeStatus(worktreePath);
         return { repoName, status };
       })
     );
@@ -86,11 +89,8 @@ export class StatusService {
   /**
    * Find repos with issues (for removal validation)
    */
-  async findReposWithIssues(
-    worktreeDirs: string[],
-    getBaseBranch: (repoName: string) => string
-  ): Promise<string[]> {
-    const results = await this.checkAllWorktrees(worktreeDirs, getBaseBranch);
+  async findReposWithIssues(worktreeDirs: string[]): Promise<string[]> {
+    const results = await this.checkAllWorktrees(worktreeDirs);
     return results
       .filter(({ status }) => StatusService.hasIssues(status))
       .map(({ repoName }) => repoName);

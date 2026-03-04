@@ -52,7 +52,6 @@ export async function runPrune(
     'Workspaces:',
     result.workspaces,
     loadingLines,
-    (wsPath, repoName) => services.workspaceConfig.load(wsPath).baseBranches[repoName] || 'master',
     services.console,
   );
 
@@ -66,9 +65,9 @@ export async function runPrune(
 
   // Log skipped workspaces with reason
   for (const ws of skippedWorkspaces) {
-    const hasUncommitted = ws.statuses.some(s => s.status.type === 'uncommitted');
+    const hasDirty = ws.statuses.some(s => s.status.type === 'dirty');
     const hasError = ws.statuses.some(s => s.status.type === 'error');
-    const reason = hasUncommitted ? 'uncommitted changes' : hasError ? 'errors' : 'issues';
+    const reason = hasDirty ? 'uncommitted changes' : hasError ? 'errors' : 'issues';
     services.console.log(`${chalk.yellow('⚠')} Skipping ${chalk.cyan(ws.name)} (${reason})`);
   }
 

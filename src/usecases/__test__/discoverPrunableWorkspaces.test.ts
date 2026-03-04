@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import sinon from 'sinon';
 import { DiscoverPrunableWorkspacesUseCase } from '../discoverPrunableWorkspaces.js';
 import type { WorkspaceDirectoryService } from '../../lib/workspaceDirectory.js';
-import type { WorkspaceConfigService } from '../../lib/workspaceConfig.js';
 import type { StatusService } from '../../lib/status.js';
 import type { GitService } from '../../lib/git.js';
 import type { WorktreeStatus } from '../../lib/status.js';
@@ -10,18 +9,17 @@ import type { WorktreeStatus } from '../../lib/status.js';
 describe('DiscoverPrunableWorkspacesUseCase', () => {
   let useCase: DiscoverPrunableWorkspacesUseCase;
   let workspaceDirStub: sinon.SinonStubbedInstance<WorkspaceDirectoryService>;
-  let workspaceConfigStub: sinon.SinonStubbedInstance<WorkspaceConfigService>;
   let statusStub: sinon.SinonStubbedInstance<StatusService>;
   let gitStub: sinon.SinonStubbedInstance<GitService>;
+
+  const cleanStatus: WorktreeStatus = { type: 'clean', untracked: 0, uncommitted: 0, unpushed: 0 };
+  const dirtyStatus: WorktreeStatus = { type: 'dirty', untracked: 1, uncommitted: 0, unpushed: 0 };
+  const unpushedOnlyStatus: WorktreeStatus = { type: 'clean', untracked: 0, uncommitted: 0, unpushed: 3 };
 
   beforeEach(() => {
     workspaceDirStub = {
       listWorkspaces: sinon.stub(),
       getWorktreeDirs: sinon.stub(),
-    } as any;
-
-    workspaceConfigStub = {
-      load: sinon.stub().returns({ baseBranches: {} }),
     } as any;
 
     statusStub = {
@@ -34,7 +32,6 @@ describe('DiscoverPrunableWorkspacesUseCase', () => {
 
     useCase = new DiscoverPrunableWorkspacesUseCase(
       workspaceDirStub as any,
-      workspaceConfigStub as any,
       statusStub as any,
       gitStub as any
     );
@@ -85,7 +82,6 @@ describe('DiscoverPrunableWorkspacesUseCase', () => {
       '/dest/feature/repo2',
     ]);
 
-    const cleanStatus: WorktreeStatus = { type: 'clean' };
     statusStub.checkAllWorktrees.resolves([
       { repoName: 'repo1', status: cleanStatus },
       { repoName: 'repo2', status: cleanStatus },
@@ -126,8 +122,8 @@ describe('DiscoverPrunableWorkspacesUseCase', () => {
     ]);
 
     statusStub.checkAllWorktrees.resolves([
-      { repoName: 'repo1', status: { type: 'uncommitted' } },
-      { repoName: 'repo2', status: { type: 'clean' } },
+      { repoName: 'repo1', status: dirtyStatus },
+      { repoName: 'repo2', status: cleanStatus },
     ]);
 
     gitStub.getLastCommitDate.resolves(tenDaysAgo);
@@ -141,7 +137,7 @@ describe('DiscoverPrunableWorkspacesUseCase', () => {
     expect(result.prunable).toEqual([]);
   });
 
-  it('should include workspace if worktree is ahead of main (committed changes are safe)', async () => {
+  it('should include workspace if worktree only has unpushed commits (safe in worktrees)', async () => {
     const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
 
     workspaceDirStub.listWorkspaces.returns([
@@ -150,7 +146,7 @@ describe('DiscoverPrunableWorkspacesUseCase', () => {
     workspaceDirStub.getWorktreeDirs.returns(['/dest/feature/repo1']);
 
     statusStub.checkAllWorktrees.resolves([
-      { repoName: 'repo1', status: { type: 'ahead', comparedTo: 'main' } },
+      { repoName: 'repo1', status: unpushedOnlyStatus },
     ]);
 
     gitStub.getLastCommitDate.resolves(tenDaysAgo);
@@ -161,7 +157,7 @@ describe('DiscoverPrunableWorkspacesUseCase', () => {
       daysOld: 7,
     });
 
-    // Workspace should be prunable since commits are safe in git history
+    // Workspace should be prunable since unpushed commits are safe in git history
     expect(result.prunable).toEqual([
       {
         name: 'feature',
@@ -169,7 +165,7 @@ describe('DiscoverPrunableWorkspacesUseCase', () => {
         repoCount: 1,
         oldestCommitDate: tenDaysAgo,
         statuses: [
-          { repoName: 'repo1', status: { type: 'ahead', comparedTo: 'main' } },
+          { repoName: 'repo1', status: unpushedOnlyStatus },
         ],
       },
     ]);
@@ -184,7 +180,7 @@ describe('DiscoverPrunableWorkspacesUseCase', () => {
     workspaceDirStub.getWorktreeDirs.returns(['/dest/feature/repo1']);
 
     statusStub.checkAllWorktrees.resolves([
-      { repoName: 'repo1', status: { type: 'clean', comparedTo: 'main' } },
+      { repoName: 'repo1', status: cleanStatus },
     ]);
 
     gitStub.getLastCommitDate.resolves(tenDaysAgo);
@@ -212,8 +208,8 @@ describe('DiscoverPrunableWorkspacesUseCase', () => {
     ]);
 
     statusStub.checkAllWorktrees.resolves([
-      { repoName: 'repo1', status: { type: 'clean' } },
-      { repoName: 'repo2', status: { type: 'clean' } },
+      { repoName: 'repo1', status: cleanStatus },
+      { repoName: 'repo2', status: cleanStatus },
     ]);
 
     gitStub.getLastCommitDate
@@ -246,8 +242,8 @@ describe('DiscoverPrunableWorkspacesUseCase', () => {
     ]);
 
     statusStub.checkAllWorktrees.resolves([
-      { repoName: 'repo1', status: { type: 'clean' } },
-      { repoName: 'repo2', status: { type: 'clean' } },
+      { repoName: 'repo1', status: cleanStatus },
+      { repoName: 'repo2', status: cleanStatus },
     ]);
 
     gitStub.getLastCommitDate
@@ -285,7 +281,7 @@ describe('DiscoverPrunableWorkspacesUseCase', () => {
       .returns(['/dest/new-feature/repo1']);
 
     statusStub.checkAllWorktrees.resolves([
-      { repoName: 'repo1', status: { type: 'clean' } },
+      { repoName: 'repo1', status: cleanStatus },
     ]);
 
     gitStub.getLastCommitDate
@@ -314,7 +310,7 @@ describe('DiscoverPrunableWorkspacesUseCase', () => {
     workspaceDirStub.getWorktreeDirs.returns(['/dest/feature/repo1']);
 
     statusStub.checkAllWorktrees.resolves([
-      { repoName: 'repo1', status: { type: 'clean' } },
+      { repoName: 'repo1', status: cleanStatus },
     ]);
 
     gitStub.getLastCommitDate.resolves(tenDaysAgo);
@@ -342,7 +338,7 @@ describe('DiscoverPrunableWorkspacesUseCase', () => {
       .returns(['/dest/workspace2/repo1']);
 
     statusStub.checkAllWorktrees.resolves([
-      { repoName: 'repo1', status: { type: 'clean' } },
+      { repoName: 'repo1', status: cleanStatus },
     ]);
 
     gitStub.getLastCommitDate.resolves(tenDaysAgo);

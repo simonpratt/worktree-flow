@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import sinon from 'sinon';
+import { NodeShell } from '../../adapters/node.js';
 import { runStatus } from '../status.js';
 import { WorkspaceNotFoundError, NotInWorkspaceError } from '../../lib/errors.js';
 import {
@@ -73,15 +74,13 @@ describe('status integration', () => {
     const workspaceLine = logCalls.find((line: string) => line.includes('feature'));
     expect(workspaceLine).toBeDefined();
 
-    // Repo line should match list command format: indicator, repo name, status, tracking info
+    // Repo line should show clean status without icons
     // formatRepoStatusLine produces lines starting with 4 spaces
     const repoLine = logCalls.find(
       (line: string) => typeof line === 'string' && line.startsWith('    ') && line.includes('repo1')
     );
     expect(repoLine).toBeDefined();
-    expect(repoLine).toMatch(/✓/);
-    expect(repoLine).toContain('up to date');
-    expect(repoLine).toMatch(/→|no upstream/);
+    expect(repoLine).toContain('clean');
   });
 
   it('should show issues for repos with uncommitted changes', async () => {
@@ -109,14 +108,13 @@ describe('status integration', () => {
       (a: any[]) => a[0]
     );
 
-    // Repo line should match list command format with error indicator
+    // Repo line should show count-based dirty status
     // formatRepoStatusLine produces lines starting with 4 spaces
     const repoLine = logCalls.find(
       (line: string) => typeof line === 'string' && line.startsWith('    ') && line.includes('repo1')
     );
     expect(repoLine).toBeDefined();
-    expect(repoLine).toMatch(/✗/);
-    expect(repoLine).toContain('uncommitted');
+    expect(repoLine).toContain('untracked');
   });
 
   it('should show multiple repos with mixed status', async () => {
@@ -148,12 +146,12 @@ describe('status integration', () => {
     const cleanRepoLine = logCalls.find(
       (line: string) => typeof line === 'string' && line.startsWith('    ') && line.includes('repo2')
     );
-    expect(cleanRepoLine).toMatch(/✓/);
+    expect(cleanRepoLine).toContain('clean');
 
     const dirtyRepoLine = logCalls.find(
       (line: string) => typeof line === 'string' && line.startsWith('    ') && line.includes('repo1')
     );
-    expect(dirtyRepoLine).toMatch(/✗/);
+    expect(dirtyRepoLine).toContain('untracked');
   });
 
   it('should auto-detect workspace when no branch provided and cwd is inside workspace', async () => {
@@ -185,7 +183,7 @@ describe('status integration', () => {
     const repoLine = logCalls.find(
       (line: string) => typeof line === 'string' && line.startsWith('    ') && line.includes('repo1')
     );
-    expect(repoLine).toMatch(/✓/);
+    expect(repoLine).toContain('clean');
   });
 
   it('should auto-detect workspace when no branch provided and cwd is inside a repo subdirectory', async () => {
@@ -218,6 +216,40 @@ describe('status integration', () => {
     const repoLine = logCalls.find(
       (line: string) => typeof line === 'string' && line.startsWith('    ') && line.includes('repo1')
     );
-    expect(repoLine).toMatch(/✓/);
+    expect(repoLine).toContain('clean');
+  });
+
+  it('should show unpushed commits for a branch with commits but no remote-tracking ref', async () => {
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+
+    const result = await createTestWorkspace(integration.useCases, {
+      repos: [repo1],
+      branchName: 'feature',
+      sourceBranch: 'master',
+      sourcePath,
+      destPath,
+      copyFiles: '.env',
+      tmux: false,
+    });
+
+    // Commit a change in the worktree — no origin/feature ref exists
+    const worktreePath = path.join(result.workspacePath, 'repo1');
+    fs.writeFileSync(path.join(worktreePath, 'new-feature.txt'), 'committed change\n');
+    const shell = new NodeShell();
+    await shell.execFile('git', ['-C', worktreePath, 'add', 'new-feature.txt']);
+    await shell.execFile('git', ['-C', worktreePath, 'commit', '-m', 'Add new feature']);
+
+    await runStatus('feature', integration.useCases, integration.services);
+
+    const logCalls = (integration.stubs.console.log as sinon.SinonStub).args.map(
+      (a: any[]) => a[0]
+    );
+    const repoLine = logCalls.find(
+      (line: string) => typeof line === 'string' && line.startsWith('    ') && line.includes('repo1')
+    );
+    expect(repoLine).toBeDefined();
+    expect(repoLine).toContain('unpushed commit');
   });
 });

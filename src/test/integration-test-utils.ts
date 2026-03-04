@@ -45,9 +45,6 @@ export async function initGitRepo(parentDir: string, name: string): Promise<stri
   fs.writeFileSync(path.join(repoPath, 'README.md'), `# ${name}\n`);
   await git(repoPath, ['add', '.']);
   await git(repoPath, ['commit', '-m', 'initial commit']);
-  // Create origin/master ref so isAheadOfMain() can compare against it
-  const sha = (await git(repoPath, ['rev-parse', 'HEAD'])).trim();
-  await git(repoPath, ['update-ref', 'refs/remotes/origin/master', sha]);
   return repoPath;
 }
 
@@ -126,6 +123,12 @@ export async function createTestWorkspace(
         copyFiles: params.copyFiles,
         postCheckout: undefined,
       });
+
+      // Seed origin/<branch> pointing at the current worktree HEAD so that
+      // getUnpushedCommitCount() has a remote baseline and reports 0 for a
+      // freshly created worktree with no additional commits.
+      const { stdout: sha } = await shell.execFile('git', ['-C', repoPath, 'rev-parse', params.branchName]);
+      await shell.execFile('git', ['-C', repoPath, 'update-ref', `refs/remotes/origin/${params.branchName}`, sha.trim()]);
     })
   );
 

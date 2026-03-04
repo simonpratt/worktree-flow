@@ -2,14 +2,16 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import sinon from 'sinon';
 import { ListWorkspacesWithStatusUseCase } from '../listWorkspacesWithStatus.js';
 import type { WorkspaceDirectoryService } from '../../lib/workspaceDirectory.js';
-import type { WorkspaceConfigService } from '../../lib/workspaceConfig.js';
 import type { StatusService } from '../../lib/status.js';
+import type { WorktreeStatus } from '../../lib/status.js';
 
 describe('ListWorkspacesWithStatusUseCase', () => {
   let workspaceDir: sinon.SinonStubbedInstance<WorkspaceDirectoryService>;
-  let workspaceConfig: sinon.SinonStubbedInstance<WorkspaceConfigService>;
   let status: sinon.SinonStubbedInstance<StatusService>;
   let useCase: ListWorkspacesWithStatusUseCase;
+
+  const cleanStatus: WorktreeStatus = { type: 'clean', untracked: 0, uncommitted: 0, unpushed: 0 };
+  const dirtyStatus: WorktreeStatus = { type: 'dirty', untracked: 2, uncommitted: 1, unpushed: 0 };
 
   beforeEach(() => {
     workspaceDir = {
@@ -18,15 +20,11 @@ describe('ListWorkspacesWithStatusUseCase', () => {
       detectWorkspace: sinon.stub(),
     } as any;
 
-    workspaceConfig = {
-      load: sinon.stub().returns({ baseBranches: {} }),
-    } as any;
-
     status = {
       checkAllWorktrees: sinon.stub(),
     } as any;
 
-    useCase = new ListWorkspacesWithStatusUseCase(workspaceDir, workspaceConfig, status);
+    useCase = new ListWorkspacesWithStatusUseCase(workspaceDir, status);
   });
 
   it('should return empty array when no workspaces exist', async () => {
@@ -53,8 +51,8 @@ describe('ListWorkspacesWithStatusUseCase', () => {
     workspaceDir.detectWorkspace.returns(null);
 
     status.checkAllWorktrees.resolves([
-      { repoName: 'repo1', status: { type: 'clean', comparedTo: 'main' } },
-      { repoName: 'repo2', status: { type: 'clean', comparedTo: 'main' } },
+      { repoName: 'repo1', status: cleanStatus },
+      { repoName: 'repo2', status: cleanStatus },
     ]);
 
     const result = await useCase.execute({
@@ -89,7 +87,7 @@ describe('ListWorkspacesWithStatusUseCase', () => {
       .returns('/dest/feature-a');
 
     status.checkAllWorktrees.resolves([
-      { repoName: 'repo1', status: { type: 'clean', comparedTo: 'main' } },
+      { repoName: 'repo1', status: cleanStatus },
     ]);
 
     const result = await useCase.execute({
@@ -118,7 +116,7 @@ describe('ListWorkspacesWithStatusUseCase', () => {
     workspaceDir.detectWorkspace.returns(null);
 
     status.checkAllWorktrees.resolves([
-      { repoName: 'repo1', status: { type: 'clean', comparedTo: 'main' } },
+      { repoName: 'repo1', status: cleanStatus },
     ]);
 
     const result = await useCase.execute({
@@ -166,11 +164,11 @@ describe('ListWorkspacesWithStatusUseCase', () => {
 
     status.checkAllWorktrees
       .onFirstCall()
-      .resolves([{ repoName: 'repo1', status: { type: 'clean', comparedTo: 'main' } }]);
+      .resolves([{ repoName: 'repo1', status: cleanStatus }]);
 
     status.checkAllWorktrees
       .onSecondCall()
-      .resolves([{ repoName: 'repo2', status: { type: 'uncommitted' } }]);
+      .resolves([{ repoName: 'repo2', status: dirtyStatus }]);
 
     const result = await useCase.execute({
       destPath: '/dest',
@@ -180,6 +178,6 @@ describe('ListWorkspacesWithStatusUseCase', () => {
 
     expect(result.workspaces).toHaveLength(2);
     expect(result.workspaces[0].statuses[0].status.type).toBe('clean');
-    expect(result.workspaces[1].statuses[0].status.type).toBe('uncommitted');
+    expect(result.workspaces[1].statuses[0].status.type).toBe('dirty');
   });
 });

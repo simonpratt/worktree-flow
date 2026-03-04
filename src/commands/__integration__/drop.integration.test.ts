@@ -85,8 +85,7 @@ describe('drop integration', () => {
       (line: string) => typeof line === 'string' && line.startsWith('    ') && line.includes('repo1')
     );
     expect(repoLine).toBeDefined();
-    expect(repoLine).toMatch(/✓/);
-    expect(repoLine).toContain('up to date');
+    expect(repoLine).toContain('clean');
   });
 
   it('should throw WorkspaceHasIssuesError when worktree has uncommitted changes', async () => {
@@ -126,8 +125,7 @@ describe('drop integration', () => {
       (line: string) => typeof line === 'string' && line.startsWith('    ') && line.includes('repo1')
     );
     expect(repoLine).toBeDefined();
-    expect(repoLine).toMatch(/✗/);
-    expect(repoLine).toContain('uncommitted');
+    expect(repoLine).toContain('untracked');
   });
 
   it('should auto-detect workspace when no branch provided and cwd is inside workspace', async () => {
@@ -185,7 +183,7 @@ describe('drop integration', () => {
     expect(fs.existsSync(result.workspacePath)).toBe(false);
   });
 
-  it('should allow dropping when worktree has commits ahead of base branch (but no uncommitted changes)', async () => {
+  it('should allow dropping when worktree has unpushed commits (but no uncommitted changes)', async () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
 
     integration = createIntegrationServices(sourcePath, destPath);
@@ -201,10 +199,16 @@ describe('drop integration', () => {
 
     const worktreePath = path.join(result.workspacePath, 'repo1');
 
-    // Add a committed change in the worktree (ahead of master)
-    fs.writeFileSync(path.join(worktreePath, 'new-feature.txt'), 'committed change\n');
     const { NodeShell } = await import('../../adapters/node.js');
     const shell = new NodeShell();
+
+    // Create a remote-tracking ref origin/feature pointing at the current commit
+    // so that getUnpushedCommitCount() can detect the new commit as unpushed
+    const { stdout: initialSha } = await shell.execFile('git', ['-C', worktreePath, 'rev-parse', 'HEAD']);
+    await shell.execFile('git', ['-C', repo1, 'update-ref', `refs/remotes/origin/feature`, initialSha.trim()]);
+
+    // Add a committed change in the worktree (ahead of origin/feature)
+    fs.writeFileSync(path.join(worktreePath, 'new-feature.txt'), 'committed change\n');
     await shell.execFile('git', ['-C', worktreePath, 'add', 'new-feature.txt']);
     await shell.execFile('git', ['-C', worktreePath, 'commit', '-m', 'Add new feature']);
 
@@ -214,7 +218,7 @@ describe('drop integration', () => {
     // Workspace should be removed
     expect(fs.existsSync(result.workspacePath)).toBe(false);
 
-    // Status should have shown ahead indicator (not an issue, so checkmark)
+    // Status should have shown unpushed commit indicator (not an issue, so shown green)
     const logCalls = (integration.stubs.console.log as sinon.SinonStub).args.map(
       (a: any[]) => a[0]
     );
@@ -222,7 +226,7 @@ describe('drop integration', () => {
       (line: string) => typeof line === 'string' && line.startsWith('    ') && line.includes('repo1')
     );
     expect(repoLine).toBeDefined();
-    expect(repoLine).toMatch(/✓/);
+    expect(repoLine).toContain('unpushed commit');
   });
 
   it('should not drop workspace when user declines confirmation', async () => {

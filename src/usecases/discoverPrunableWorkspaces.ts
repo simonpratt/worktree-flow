@@ -1,5 +1,4 @@
 import type { WorkspaceDirectoryService } from '../lib/workspaceDirectory.js';
-import type { WorkspaceConfigService } from '../lib/workspaceConfig.js';
 import type { StatusService, WorktreeStatus } from '../lib/status.js';
 import type { GitService } from '../lib/git.js';
 import { StatusService as StatusServiceClass } from '../lib/status.js';
@@ -29,7 +28,6 @@ export type DiscoverPrunableWorkspacesResult = {
 export class DiscoverPrunableWorkspacesUseCase {
   constructor(
     private workspaceDir: WorkspaceDirectoryService,
-    private workspaceConfig: WorkspaceConfigService,
     private status: StatusService,
     private git: GitService
   ) {}
@@ -48,16 +46,8 @@ export class DiscoverPrunableWorkspacesUseCase {
         continue;
       }
 
-      // Load workspace config to get per-repo base branches
-      const config = this.workspaceConfig.load(workspace.path);
-      const getBaseBranch = (repoName: string) =>
-        config.baseBranches[repoName] || 'master';
-
       // Check status for all worktrees
-      const statuses = await this.status.checkAllWorktrees(
-        worktreeDirs,
-        getBaseBranch
-      );
+      const statuses = await this.status.checkAllWorktrees(worktreeDirs);
 
       // Skip if any worktree has issues
       const hasAnyIssues = statuses.some(({ status }) =>

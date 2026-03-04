@@ -105,57 +105,34 @@ export class GitService {
     }
   }
 
-  async hasUncommittedChanges(repoPath: string): Promise<boolean> {
+  async getStatusCounts(repoPath: string): Promise<{ untracked: number; uncommitted: number }> {
     const output = await this.exec(repoPath, ['status', '--porcelain']);
-    return output.length > 0;
+    const lines = output.split('\n').filter(line => line.length > 0);
+    let untracked = 0;
+    let uncommitted = 0;
+    for (const line of lines) {
+      if (line.startsWith('??')) {
+        untracked++;
+      } else {
+        uncommitted++;
+      }
+    }
+    return { untracked, uncommitted };
   }
 
-  async originBranchExists(repoPath: string): Promise<boolean> {
+  async getUnpushedCommitCount(repoPath: string): Promise<number> {
     try {
       const branch = await this.getCurrentBranch(repoPath);
-      await this.exec(repoPath, ['rev-parse', '--verify', `origin/${branch}`]);
-      return true;
+      try {
+        const output = await this.exec(repoPath, ['rev-list', '--count', `origin/${branch}..HEAD`]);
+        return parseInt(output.trim(), 10);
+      } catch {
+        // origin/<branch> doesn't exist yet — count commits not reachable from any remote ref
+        const output = await this.exec(repoPath, ['rev-list', '--count', 'HEAD', '--not', '--remotes']);
+        return parseInt(output.trim(), 10);
+      }
     } catch {
-      return false;
-    }
-  }
-
-  async isAheadOfOrigin(repoPath: string): Promise<boolean> {
-    try {
-      const branch = await this.getCurrentBranch(repoPath);
-      const output = await this.exec(repoPath, ['rev-list', '--count', `origin/${branch}..HEAD`]);
-      return parseInt(output, 10) > 0;
-    } catch {
-      return false;
-    }
-  }
-
-  async isBehindOrigin(repoPath: string): Promise<boolean> {
-    try {
-      const branch = await this.getCurrentBranch(repoPath);
-      const output = await this.exec(repoPath, ['rev-list', '--count', `HEAD..origin/${branch}`]);
-      return parseInt(output, 10) > 0;
-    } catch {
-      return false;
-    }
-  }
-
-  async isAheadOfMain(repoPath: string, mainBranch: string): Promise<boolean> {
-    try {
-      // Use git cherry to detect if commits exist in main via patch equivalence
-      // cherry outputs nothing if all commits are equivalent to main
-      // Format: "+ hash message" for unmerged, "- hash message" for already merged
-      const output = await this.exec(repoPath, ['cherry', `origin/${mainBranch}`, 'HEAD']);
-
-      // Filter to only unmerged commits (those starting with +)
-      const unmergedCommits = output
-        .split('\n')
-        .filter(line => line.trim().startsWith('+'));
-
-      return unmergedCommits.length > 0;
-    } catch {
-      // If we can't determine, assume there are changes to be safe
-      return true;
+      return 0;
     }
   }
 

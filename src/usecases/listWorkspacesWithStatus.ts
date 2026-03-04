@@ -1,5 +1,4 @@
 import type { WorkspaceDirectoryService } from '../lib/workspaceDirectory.js';
-import type { WorkspaceConfigService } from '../lib/workspaceConfig.js';
 import type { StatusService, WorktreeStatus } from '../lib/status.js';
 
 export type ListWorkspacesWithStatusParams = {
@@ -27,7 +26,6 @@ export type ListWorkspacesWithStatusResult = {
 export class ListWorkspacesWithStatusUseCase {
   constructor(
     private workspaceDir: WorkspaceDirectoryService,
-    private workspaceConfig: WorkspaceConfigService,
     private status: StatusService
   ) {}
 
@@ -52,16 +50,8 @@ export class ListWorkspacesWithStatusUseCase {
       // Check if this workspace is active (contains current working directory)
       const isActive = this.workspaceDir.detectWorkspace(params.cwd, params.destPath) === workspace.path;
 
-      // Load workspace config to get per-repo base branches
-      const config = this.workspaceConfig.load(workspace.path);
-      const getBaseBranch = (repoName: string) =>
-        config.baseBranches[repoName] || 'master';
-
       // Check status for all worktrees
-      const statuses = await this.status.checkAllWorktrees(
-        worktreeDirs,
-        getBaseBranch
-      );
+      const statuses = await this.status.checkAllWorktrees(worktreeDirs);
 
       workspacesWithStatus.push({
         name: workspace.name,

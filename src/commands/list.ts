@@ -41,7 +41,6 @@ export async function runList(useCases: UseCases, services: Services): Promise<v
     'Workspaces:',
     result.workspaces,
     loadingLines,
-    (wsPath, repoName) => services.workspaceConfig.load(wsPath).baseBranches[repoName] || 'master',
     services.console,
   );
 }

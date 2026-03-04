@@ -49,15 +49,11 @@ export async function runDrop(
       workspacePath,
     });
 
-    // Load workspace config to get per-repo base branches
-    const workspaceConfig = services.workspaceConfig.load(workspacePath);
-
     // Phase 2: Clear Phase 1 lines and re-render with full status
     logStatus(
       'Workspace:',
       [{ name: workspaceName, path: workspacePath, repoCount, isActive: false, statuses: statusResult.statuses }],
       loadingLines,
-      (_, repoName) => workspaceConfig.baseBranches[repoName] || 'master',
       services.console,
     );
 

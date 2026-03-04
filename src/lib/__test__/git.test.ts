@@ -279,11 +279,14 @@ describe('GitService', () => {
     });
   });
 
-  describe('hasUncommittedChanges', () => {
-    it('should execute git status --porcelain', async () => {
-      shell.execFile.resolves({ stdout: 'M file.txt\n', stderr: '' });
+  describe('getStatusCounts', () => {
+    it('should parse untracked and uncommitted files from porcelain output', async () => {
+      shell.execFile.resolves({
+        stdout: '?? new-file.txt\n M modified.txt\nA  staged.txt\n',
+        stderr: '',
+      });
 
-      const result = await service.hasUncommittedChanges('/repo');
+      const result = await service.getStatusCounts('/repo');
 
       sinon.assert.calledOnceWithExactly(
         shell.execFile,
@@ -291,166 +294,104 @@ describe('GitService', () => {
         ['-C', '/repo', 'status', '--porcelain'],
         { encoding: 'utf-8' }
       );
-      expect(result).toBe(true);
+      expect(result).toEqual({ untracked: 1, uncommitted: 2 });
     });
 
-    it('should return false when status is clean', async () => {
+    it('should return zeros when status is clean', async () => {
       shell.execFile.resolves({ stdout: '', stderr: '' });
 
-      const result = await service.hasUncommittedChanges('/repo');
+      const result = await service.getStatusCounts('/repo');
 
-      expect(result).toBe(false);
+      expect(result).toEqual({ untracked: 0, uncommitted: 0 });
+    });
+
+    it('should count multiple untracked files', async () => {
+      shell.execFile.resolves({
+        stdout: '?? a.txt\n?? b.txt\n?? c.txt\n',
+        stderr: '',
+      });
+
+      const result = await service.getStatusCounts('/repo');
+
+      expect(result).toEqual({ untracked: 3, uncommitted: 0 });
+    });
+
+    it('should count various tracked file statuses as uncommitted', async () => {
+      shell.execFile.resolves({
+        stdout: ' M modified.txt\nA  added.txt\n D deleted.txt\nMM both.txt\n',
+        stderr: '',
+      });
+
+      const result = await service.getStatusCounts('/repo');
+
+      expect(result).toEqual({ untracked: 0, uncommitted: 4 });
+    });
+
+    it('should handle mixed untracked and uncommitted files', async () => {
+      shell.execFile.resolves({
+        stdout: '?? new.txt\n M mod.txt\n?? another.txt\nA  staged.txt\n',
+        stderr: '',
+      });
+
+      const result = await service.getStatusCounts('/repo');
+
+      expect(result).toEqual({ untracked: 2, uncommitted: 2 });
     });
   });
 
-  describe('originBranchExists', () => {
-    it('should check both current branch and origin ref', async () => {
-      shell.execFile.onFirstCall().resolves({ stdout: 'feature', stderr: '' });
-      shell.execFile.onSecondCall().resolves({ stdout: 'abc123', stderr: '' });
+  describe('getUnpushedCommitCount', () => {
+    it('should return count of unpushed commits', async () => {
+      // getCurrentBranch
+      shell.execFile.onFirstCall().resolves({ stdout: 'feature\n', stderr: '' });
+      // rev-list --count
+      shell.execFile.onSecondCall().resolves({ stdout: '3\n', stderr: '' });
 
-      const result = await service.originBranchExists('/repo');
-
-      expect(shell.execFile.callCount).toBe(2);
-      sinon.assert.calledWith(
-        shell.execFile.firstCall,
-        'git',
-        ['-C', '/repo', 'rev-parse', '--abbrev-ref', 'HEAD']
-      );
-      sinon.assert.calledWith(
-        shell.execFile.secondCall,
-        'git',
-        ['-C', '/repo', 'rev-parse', '--verify', 'origin/feature']
-      );
-      expect(result).toBe(true);
-    });
-
-    it('should return false when origin branch does not exist', async () => {
-      shell.execFile.onFirstCall().resolves({ stdout: 'feature', stderr: '' });
-      shell.execFile.onSecondCall().rejects(new Error('fatal'));
-
-      const result = await service.originBranchExists('/repo');
-
-      expect(result).toBe(false);
-    });
-  });
-
-  describe('isAheadOfOrigin', () => {
-    it('should execute rev-list to count commits ahead', async () => {
-      shell.execFile.onFirstCall().resolves({ stdout: 'feature', stderr: '' });
-      shell.execFile.onSecondCall().resolves({ stdout: '3', stderr: '' });
-
-      const result = await service.isAheadOfOrigin('/repo');
+      const result = await service.getUnpushedCommitCount('/repo');
 
       sinon.assert.calledWith(
         shell.execFile.secondCall,
         'git',
         ['-C', '/repo', 'rev-list', '--count', 'origin/feature..HEAD']
       );
-      expect(result).toBe(true);
+      expect(result).toBe(3);
     });
 
-    it('should return false when count is zero', async () => {
-      shell.execFile.onFirstCall().resolves({ stdout: 'feature', stderr: '' });
-      shell.execFile.onSecondCall().resolves({ stdout: '0', stderr: '' });
+    it('should return 0 when no unpushed commits', async () => {
+      shell.execFile.onFirstCall().resolves({ stdout: 'feature\n', stderr: '' });
+      shell.execFile.onSecondCall().resolves({ stdout: '0\n', stderr: '' });
 
-      const result = await service.isAheadOfOrigin('/repo');
+      const result = await service.getUnpushedCommitCount('/repo');
 
-      expect(result).toBe(false);
+      expect(result).toBe(0);
     });
 
-    it('should return false on error', async () => {
-      shell.execFile.rejects(new Error('fatal'));
+    it('should fall back to --not --remotes when origin/<branch> does not exist', async () => {
+      // getCurrentBranch
+      shell.execFile.onFirstCall().resolves({ stdout: 'feature\n', stderr: '' });
+      // rev-list origin/feature..HEAD fails (no remote-tracking ref)
+      shell.execFile.onSecondCall().rejects(new Error("fatal: ambiguous argument 'origin/feature..HEAD'"));
+      // fallback: rev-list --count HEAD --not --remotes
+      shell.execFile.onThirdCall().resolves({ stdout: '2\n', stderr: '' });
 
-      const result = await service.isAheadOfOrigin('/repo');
-
-      expect(result).toBe(false);
-    });
-  });
-
-  describe('isBehindOrigin', () => {
-    it('should execute rev-list to count commits behind', async () => {
-      shell.execFile.onFirstCall().resolves({ stdout: 'feature', stderr: '' });
-      shell.execFile.onSecondCall().resolves({ stdout: '2', stderr: '' });
-
-      const result = await service.isBehindOrigin('/repo');
+      const result = await service.getUnpushedCommitCount('/repo');
 
       sinon.assert.calledWith(
-        shell.execFile.secondCall,
+        shell.execFile.thirdCall,
         'git',
-        ['-C', '/repo', 'rev-list', '--count', 'HEAD..origin/feature']
+        ['-C', '/repo', 'rev-list', '--count', 'HEAD', '--not', '--remotes']
       );
-      expect(result).toBe(true);
+      expect(result).toBe(2);
     });
 
-    it('should return false when count is zero', async () => {
-      shell.execFile.onFirstCall().resolves({ stdout: 'feature', stderr: '' });
-      shell.execFile.onSecondCall().resolves({ stdout: '0', stderr: '' });
+    it('should return 0 on unexpected error', async () => {
+      shell.execFile.onFirstCall().resolves({ stdout: 'feature\n', stderr: '' });
+      // Both the primary and fallback calls fail
+      shell.execFile.onSecondCall().rejects(new Error('fatal: not a git repo'));
+      shell.execFile.onThirdCall().rejects(new Error('fatal: not a git repo'));
 
-      const result = await service.isBehindOrigin('/repo');
+      const result = await service.getUnpushedCommitCount('/repo');
 
-      expect(result).toBe(false);
-    });
-
-    it('should return false on error', async () => {
-      shell.execFile.rejects(new Error('fatal'));
-
-      const result = await service.isBehindOrigin('/repo');
-
-      expect(result).toBe(false);
-    });
-  });
-
-  describe('isAheadOfMain', () => {
-    it('should execute git cherry against main branch', async () => {
-      shell.execFile.resolves({ stdout: '+ abc1234 commit message\n', stderr: '' });
-
-      const result = await service.isAheadOfMain('/repo', 'master');
-
-      sinon.assert.calledOnceWithExactly(
-        shell.execFile,
-        'git',
-        ['-C', '/repo', 'cherry', 'origin/master', 'HEAD'],
-        { encoding: 'utf-8' }
-      );
-      expect(result).toBe(true);
-    });
-
-    it('should return false when no unmerged commits (empty output)', async () => {
-      shell.execFile.resolves({ stdout: '', stderr: '' });
-
-      const result = await service.isAheadOfMain('/repo', 'main');
-
-      expect(result).toBe(false);
-    });
-
-    it('should return false when all commits are merged (only - lines)', async () => {
-      shell.execFile.resolves({
-        stdout: '- abc1234 commit message\n- def5678 another commit\n',
-        stderr: ''
-      });
-
-      const result = await service.isAheadOfMain('/repo', 'master');
-
-      expect(result).toBe(false);
-    });
-
-    it('should return true when mixed output has unmerged commits', async () => {
-      shell.execFile.resolves({
-        stdout: '- abc1234 merged commit\n+ def5678 unmerged commit\n',
-        stderr: ''
-      });
-
-      const result = await service.isAheadOfMain('/repo', 'main');
-
-      expect(result).toBe(true);
-    });
-
-    it('should return true on error (safe default)', async () => {
-      shell.execFile.rejects(new Error('fatal'));
-
-      const result = await service.isAheadOfMain('/repo', 'master');
-
-      expect(result).toBe(true);
+      expect(result).toBe(0);
     });
   });
 

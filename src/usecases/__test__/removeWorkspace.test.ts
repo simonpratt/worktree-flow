@@ -3,7 +3,6 @@ import sinon from 'sinon';
 import { RemoveWorkspaceUseCase } from '../removeWorkspace.js';
 import { WorkspaceHasIssuesError } from '../../lib/errors.js';
 import type { WorkspaceDirectoryService } from '../../lib/workspaceDirectory.js';
-import type { WorkspaceConfigService } from '../../lib/workspaceConfig.js';
 import type { WorktreeService } from '../../lib/worktree.js';
 import type { RepoService } from '../../lib/repos.js';
 import type { StatusService } from '../../lib/status.js';
@@ -13,7 +12,6 @@ import type { WorktreeStatus } from '../../lib/status.js';
 describe('RemoveWorkspaceUseCase', () => {
   let useCase: RemoveWorkspaceUseCase;
   let workspaceDirStub: sinon.SinonStubbedInstance<WorkspaceDirectoryService>;
-  let workspaceConfigStub: sinon.SinonStubbedInstance<WorkspaceConfigService>;
   let worktreeStub: sinon.SinonStubbedInstance<WorktreeService>;
   let reposStub: sinon.SinonStubbedInstance<RepoService>;
   let statusStub: sinon.SinonStubbedInstance<StatusService>;
@@ -26,10 +24,6 @@ describe('RemoveWorkspaceUseCase', () => {
     workspaceDirStub = {
       getWorktreeDirs: sinon.stub(),
       removeWorkspaceDir: sinon.stub(),
-    } as any;
-
-    workspaceConfigStub = {
-      load: sinon.stub().returns({ baseBranches: {} }),
     } as any;
 
     worktreeStub = {
@@ -50,7 +44,6 @@ describe('RemoveWorkspaceUseCase', () => {
 
     useCase = new RemoveWorkspaceUseCase(
       workspaceDirStub as any,
-      workspaceConfigStub as any,
       worktreeStub as any,
       reposStub as any,
       statusStub as any,
@@ -65,7 +58,7 @@ describe('RemoveWorkspaceUseCase', () => {
   it('should throw WorkspaceHasIssuesError when repos have uncommitted changes', async () => {
     workspaceDirStub.getWorktreeDirs.returns([`${workspacePath}/repo1`]);
     statusStub.checkAllWorktrees.resolves([
-      { repoName: 'repo1', status: { type: 'uncommitted' } as WorktreeStatus },
+      { repoName: 'repo1', status: { type: 'dirty', untracked: 0, uncommitted: 2, unpushed: 0 } as WorktreeStatus },
     ]);
 
     await expect(
@@ -84,7 +77,7 @@ describe('RemoveWorkspaceUseCase', () => {
   it('should perform status check by default', async () => {
     workspaceDirStub.getWorktreeDirs.returns([`${workspacePath}/repo1`]);
     statusStub.checkAllWorktrees.resolves([
-      { repoName: 'repo1', status: { type: 'clean' } as WorktreeStatus },
+      { repoName: 'repo1', status: { type: 'clean', untracked: 0, uncommitted: 0, unpushed: 0 } as WorktreeStatus },
     ]);
 
     await useCase.execute({
@@ -148,7 +141,7 @@ describe('RemoveWorkspaceUseCase', () => {
   it('should track removal errors for repos not found in source', async () => {
     workspaceDirStub.getWorktreeDirs.returns([`${workspacePath}/missing-repo`]);
     statusStub.checkAllWorktrees.resolves([
-      { repoName: 'missing-repo', status: { type: 'clean' } as WorktreeStatus },
+      { repoName: 'missing-repo', status: { type: 'clean', untracked: 0, uncommitted: 0, unpushed: 0 } as WorktreeStatus },
     ]);
     reposStub.discoverRepos.returns(['/source/repo1']); // missing-repo not in source
 

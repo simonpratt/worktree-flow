@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Status model replaced: `WorktreeStatus` now uses `clean | dirty | error` with numeric `untracked`, `uncommitted`, and `unpushed` counts instead of the old `clean | uncommitted | ahead | error` model
+- Status output uses count-based text summaries (e.g. `3 untracked, 2 uncommitted, 1 unpushed commit`) instead of icons — clean repos show `clean`
+- `hasIssues()` now only considers untracked and uncommitted changes as blockers; unpushed commits are safe in worktrees and no longer prevent `drop` or `prune`
+- `baseBranch` concept removed from the entire status chain — `checkWorkspaceStatus`, `listWorkspacesWithStatus`, `discoverPrunableWorkspaces`, and `removeWorkspace` no longer depend on `WorkspaceConfigService`
+- Tracking info (upstream branch / `no upstream`) removed from per-repo status lines
+
 ### Fixed
 
 - `createBranch` now prefers `origin/<branch>` as the start point when creating a new branch, falling back to the local branch ref when no remote-tracking ref exists

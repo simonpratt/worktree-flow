@@ -68,7 +68,7 @@ describe('list integration', () => {
     // Check repo lines for status
     const repoLines = logCalls.filter((line: string) => line.includes('repo1') || line.includes('repo2'));
     expect(repoLines.length).toBeGreaterThan(0);
-    expect(repoLines.some((line: string) => line.includes('✓'))).toBe(true);
+    expect(repoLines.some((line: string) => line.includes('clean'))).toBe(true);
   });
 
   it('should show dirty status for workspace with uncommitted changes', async () => {
@@ -101,7 +101,7 @@ describe('list integration', () => {
       typeof line === 'string' && line.startsWith('    ') && line.includes('repo1')
     );
     expect(repoLine).toBeDefined();
-    expect(repoLine).toMatch(/uncommitted|✗/i);
+    expect(repoLine).toMatch(/untracked|modified/i);
   });
 
   it('should show active indicator for workspace containing current directory', async () => {
@@ -188,7 +188,7 @@ describe('list integration', () => {
     const repo2Line = logCalls.find((line: string) =>
       typeof line === 'string' && line.startsWith('    ') && line.includes('repo2')
     );
-    expect(repo1Line).toMatch(/uncommitted|✗/i);
-    expect(repo2Line).toMatch(/✓/);
+    expect(repo1Line).toMatch(/untracked|modified/i);
+    expect(repo2Line).toContain('clean');
   });
 });
