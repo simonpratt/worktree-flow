@@ -1,6 +1,6 @@
 {
   "name": "worktree-flow",
-  "version": "0.0.19",
+  "version": "0.0.20",
   "description": "Manage git worktrees across a poly-repo environment",
   "type": "module",
   "bin": {
