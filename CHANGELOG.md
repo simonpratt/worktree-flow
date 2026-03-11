@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- `flow checkout` now fetches and discovers repos first, then shows only repos where the branch was found (repos without the branch are no longer listed), then prompts for post-checkout — previously the post-checkout prompt appeared before any fetching
+
 ## [0.0.20] 2026-03-04
 
 ### Changed

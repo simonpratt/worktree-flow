@@ -16,18 +16,10 @@ export async function runCheckout(
   const { sourcePath, destPath } = services.config.getRequired();
   const config = services.config.load();
 
-  let shouldRunPostCheckout = false;
-  if (config.postCheckout) {
-    shouldRunPostCheckout = await deps.confirm({
-      message: `Run "${config.postCheckout}" in all workspaces?`,
-      default: true,
-    });
-  }
-
-  services.console.log('\nChecking for branch...');
-
   try {
     // 1. Fetch all repos from source-path
+    services.console.log('\nFetching repos...');
+
     await useCases.fetchAllRepos.execute({
       sourcePath,
       fetchCacheTtlSeconds: config.fetchCacheTtlSeconds,
@@ -39,14 +31,12 @@ export async function runCheckout(
       branchName,
     });
 
-    // 3. Display per-repo branch check results
+    // 3. Display only repos that have changes (matching or errored)
     for (const checkResult of discoverResult.branchCheckResults) {
       if (checkResult.error) {
         services.console.log(`${checkResult.repoName}... ${chalk.red(`error: ${checkResult.error}`)}`);
       } else if (checkResult.hasBranch) {
         services.console.log(`${checkResult.repoName}... ${chalk.green('found')}`);
-      } else {
-        services.console.log(`${checkResult.repoName}... ${chalk.dim('no branch')}`);
       }
     }
 
@@ -55,7 +45,16 @@ export async function runCheckout(
       throw new Error(`Branch "${branchName}" not found in any repo.`);
     }
 
-    // 5. Create workspace directory, placeholder config, AGENTS.md, tmux session
+    // 5. Prompt for post-checkout
+    let shouldRunPostCheckout = false;
+    if (config.postCheckout) {
+      shouldRunPostCheckout = await deps.confirm({
+        message: `Run "${config.postCheckout}" in all workspaces?`,
+        default: true,
+      });
+    }
+
+    // 6. Create workspace directory, placeholder config, AGENTS.md, tmux session
     const workspaceResult = await useCases.createWorkspace.execute({
       branchName,
       sourcePath,
@@ -66,7 +65,7 @@ export async function runCheckout(
     const { workspacePath, tmuxCreated } = workspaceResult;
     const sessionName = tmuxCreated ? branchName : undefined;
 
-    // 6. For each matching repo in parallel: detect base branch, then addToWorkspace
+    // 7. For each matching repo in parallel: detect base branch, then addToWorkspace
     const results = await Promise.allSettled(
       discoverResult.matchingRepos.map(async (repoPath) => {
         const repoName = path.basename(repoPath);
@@ -115,7 +114,7 @@ export async function runCheckout(
     const postCheckoutSuccess = postCheckoutResults.filter((r) => r.postCheckoutSuccess).length;
     const postCheckoutTotal = postCheckoutResults.length;
 
-    // 7. Display results
+    // 8. Display results
     services.console.log(
       `\nCreated workspace at ${chalk.cyan(workspacePath)} with ${successCount}/${totalCount} repos.`
     );
