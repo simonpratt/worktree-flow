@@ -57,19 +57,14 @@ export class TmuxService {
   }
 
   async addPane(sessionName: string, worktreePath: string): Promise<number> {
-    await this.shell.execFile('tmux', [
+    const { stdout } = await this.shell.execFile('tmux', [
       'split-window',
       '-t',
       sessionName,
       '-c',
       worktreePath,
-    ]);
-
-    const { stdout } = await this.shell.execFile('tmux', [
-      'display-message',
-      '-p',
-      '-t',
-      sessionName,
+      '-P',
+      '-F',
       '#{pane_index}',
     ]);
 

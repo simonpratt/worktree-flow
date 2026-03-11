@@ -146,10 +146,9 @@ describe('TmuxService', () => {
   });
 
   describe('addPane', () => {
-    it('should split window, return pane index, and apply tiled layout', async () => {
-      shell.execFile.onFirstCall().resolves({ stdout: '', stderr: '' }); // split-window
-      shell.execFile.onSecondCall().resolves({ stdout: '2\n', stderr: '' }); // display-message
-      shell.execFile.onThirdCall().resolves({ stdout: '', stderr: '' }); // select-layout
+    it('should split window with print flag, return pane index, and apply tiled layout', async () => {
+      shell.execFile.onFirstCall().resolves({ stdout: '2\n', stderr: '' }); // split-window -P -F
+      shell.execFile.onSecondCall().resolves({ stdout: '', stderr: '' }); // select-layout
 
       const paneIndex = await service.addPane('feature-branch', '/workspace/feature/repo1');
 
@@ -158,13 +157,7 @@ describe('TmuxService', () => {
       sinon.assert.calledWith(
         shell.execFile,
         'tmux',
-        ['split-window', '-t', 'feature-branch', '-c', '/workspace/feature/repo1']
-      );
-
-      sinon.assert.calledWith(
-        shell.execFile,
-        'tmux',
-        ['display-message', '-p', '-t', 'feature-branch', '#{pane_index}']
+        ['split-window', '-t', 'feature-branch', '-c', '/workspace/feature/repo1', '-P', '-F', '#{pane_index}']
       );
 
       sinon.assert.calledWith(
@@ -173,13 +166,12 @@ describe('TmuxService', () => {
         ['select-layout', '-t', 'feature-branch', 'tiled']
       );
 
-      expect(shell.execFile.callCount).toBe(3);
+      expect(shell.execFile.callCount).toBe(2);
     });
 
     it('should return pane index as a number', async () => {
-      shell.execFile.onFirstCall().resolves({ stdout: '', stderr: '' });
-      shell.execFile.onSecondCall().resolves({ stdout: '5', stderr: '' });
-      shell.execFile.onThirdCall().resolves({ stdout: '', stderr: '' });
+      shell.execFile.onFirstCall().resolves({ stdout: '5', stderr: '' });
+      shell.execFile.onSecondCall().resolves({ stdout: '', stderr: '' });
 
       const paneIndex = await service.addPane('my-session', '/some/path');
 
@@ -193,15 +185,6 @@ describe('TmuxService', () => {
       await expect(
         service.addPane('feature-branch', '/workspace/feature/repo1')
       ).rejects.toThrow('no space for new pane');
-    });
-
-    it('should throw when display-message fails', async () => {
-      shell.execFile.onFirstCall().resolves({ stdout: '', stderr: '' });
-      shell.execFile.onSecondCall().rejects(new Error('no such session'));
-
-      await expect(
-        service.addPane('feature-branch', '/workspace/feature/repo1')
-      ).rejects.toThrow('no such session');
     });
   });
 
