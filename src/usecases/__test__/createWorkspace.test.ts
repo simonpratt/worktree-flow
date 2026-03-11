@@ -15,6 +15,7 @@ describe('CreateWorkspaceUseCase', () => {
     workspaceDir = {
       createWorkspaceDir: sinon.stub(),
       copyAgentsMd: sinon.stub(),
+      copyDevcontainer: sinon.stub(),
     } as any;
     workspaceConfig = {
       savePlaceholder: sinon.stub(),
@@ -57,6 +58,19 @@ describe('CreateWorkspaceUseCase', () => {
     });
 
     sinon.assert.calledOnceWithExactly(workspaceDir.copyAgentsMd, '/source', '/dest/feature');
+  });
+
+  it('should copy .devcontainer from source path', async () => {
+    workspaceDir.createWorkspaceDir.returns('/dest/feature');
+
+    await useCase.execute({
+      branchName: 'feature',
+      sourcePath: '/source',
+      destPath: '/dest',
+      tmux: false,
+    });
+
+    sinon.assert.calledOnceWithExactly(workspaceDir.copyDevcontainer, '/source', '/dest/feature');
   });
 
   it('should create tmux session with empty worktree array when tmux is enabled', async () => {

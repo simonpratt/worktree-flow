@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- `.devcontainer` folder copying — if a `.devcontainer` directory exists in `source-path`, it is recursively copied to the workspace root during `create` and `checkout`
+
 ### Changed
 
 - `flow checkout` now fetches and discovers repos first, then shows only repos where the branch was found (repos without the branch are no longer listed), then prompts for post-checkout — previously the post-checkout prompt appeared before any fetching

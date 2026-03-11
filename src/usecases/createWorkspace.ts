@@ -16,7 +16,7 @@ export type CreateWorkspaceResult = {
 
 /**
  * Use case for creating a new workspace directory with initial config, AGENTS.md copy,
- * and an optional tmux session (root pane only, no worktrees yet).
+ * .devcontainer copy, and an optional tmux session (root pane only, no worktrees yet).
  */
 export class CreateWorkspaceUseCase {
   constructor(
@@ -38,7 +38,10 @@ export class CreateWorkspaceUseCase {
     // 3. Copy AGENTS.md if it exists in source-path
     this.workspaceDir.copyAgentsMd(params.sourcePath, workspacePath);
 
-    // 4. Create tmux session (root pane only) if enabled
+    // 4. Copy .devcontainer if it exists in source-path
+    this.workspaceDir.copyDevcontainer(params.sourcePath, workspacePath);
+
+    // 5. Create tmux session (root pane only) if enabled
     let tmuxCreated = false;
     if (params.tmux) {
       try {

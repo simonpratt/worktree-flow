@@ -78,6 +78,57 @@ describe('WorkspaceDirectoryService', () => {
     });
   });
 
+  describe('copyDevcontainer', () => {
+    it('should copy .devcontainer folder when it exists in source path', () => {
+      const sourcePath = '/source';
+      const workspacePath = '/workspaces/feature-123';
+      const { vol, fs } = createMemFs({
+        [path.join(sourcePath, '.devcontainer', 'devcontainer.json')]: '{"name":"test"}',
+        [path.join(sourcePath, '.devcontainer', 'Dockerfile')]: 'FROM node:24',
+        [path.join(workspacePath, '.gitkeep')]: '',
+      });
+      const service = new WorkspaceDirectoryService(fs);
+
+      service.copyDevcontainer(sourcePath, workspacePath);
+
+      expect(
+        vol.readFileSync(path.join(workspacePath, '.devcontainer', 'devcontainer.json'), 'utf-8')
+      ).toBe('{"name":"test"}');
+      expect(
+        vol.readFileSync(path.join(workspacePath, '.devcontainer', 'Dockerfile'), 'utf-8')
+      ).toBe('FROM node:24');
+    });
+
+    it('should not throw when .devcontainer does not exist', () => {
+      const sourcePath = '/source';
+      const workspacePath = '/workspaces/feature-123';
+      const { vol, fs } = createMemFs({
+        [path.join(workspacePath, '.gitkeep')]: '',
+      });
+      const service = new WorkspaceDirectoryService(fs);
+
+      expect(() => service.copyDevcontainer(sourcePath, workspacePath)).not.toThrow();
+      expect(vol.existsSync(path.join(workspacePath, '.devcontainer'))).toBe(false);
+    });
+
+    it('should copy nested subdirectories within .devcontainer', () => {
+      const sourcePath = '/source';
+      const workspacePath = '/workspaces/feature-123';
+      const { vol, fs } = createMemFs({
+        [path.join(sourcePath, '.devcontainer', 'scripts', 'setup.sh')]: '#!/bin/bash',
+        [path.join(sourcePath, '.devcontainer', 'devcontainer.json')]: '{}',
+        [path.join(workspacePath, '.gitkeep')]: '',
+      });
+      const service = new WorkspaceDirectoryService(fs);
+
+      service.copyDevcontainer(sourcePath, workspacePath);
+
+      expect(
+        vol.readFileSync(path.join(workspacePath, '.devcontainer', 'scripts', 'setup.sh'), 'utf-8')
+      ).toBe('#!/bin/bash');
+    });
+  });
+
   describe('detectWorkspace', () => {
     it('should detect workspace when cwd is directly inside dest path', () => {
       const destPath = '/workspaces';

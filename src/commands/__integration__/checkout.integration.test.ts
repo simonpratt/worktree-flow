@@ -105,6 +105,32 @@ describe('checkout integration', () => {
     expect(fs.readFileSync(agentsMd, 'utf-8')).toBe('# Agents\nDo stuff.\n');
   });
 
+  it('should copy .devcontainer folder to workspace root', async () => {
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+    await createRemoteBranchRef(repo1, 'feature');
+
+    // Create .devcontainer folder in source directory
+    fs.mkdirSync(path.join(sourcePath, '.devcontainer'), { recursive: true });
+    fs.writeFileSync(
+      path.join(sourcePath, '.devcontainer', 'devcontainer.json'),
+      '{"name":"test"}\n'
+    );
+    fs.writeFileSync(
+      path.join(sourcePath, '.devcontainer', 'Dockerfile'),
+      'FROM node:24\n'
+    );
+
+    integration = createIntegrationServices(sourcePath, destPath);
+    await runCheckout('feature', integration.useCases, integration.services, { confirm: confirmStub });
+
+    const devcontainerJson = path.join(destPath, 'feature', '.devcontainer', 'devcontainer.json');
+    const dockerfile = path.join(destPath, 'feature', '.devcontainer', 'Dockerfile');
+    expect(fs.existsSync(devcontainerJson)).toBe(true);
+    expect(fs.readFileSync(devcontainerJson, 'utf-8')).toBe('{"name":"test"}\n');
+    expect(fs.existsSync(dockerfile)).toBe(true);
+    expect(fs.readFileSync(dockerfile, 'utf-8')).toBe('FROM node:24\n');
+  });
+
   it('should respect flow-config.json copy-files and post-checkout with correct priority ordering', async () => {
     // repo1: no flow-config.json — uses global for both copy-files and post-checkout
     // repo2: flow-config.json with copy-files and post-checkout — overrides global for both

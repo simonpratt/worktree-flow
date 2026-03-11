@@ -36,6 +36,10 @@ export class NodeFileSystem implements IFileSystem {
     fs.copyFileSync(src, dest);
   }
 
+  cpSync(src: string, dest: string, options?: { recursive?: boolean }): void {
+    fs.cpSync(src, dest, options);
+  }
+
   rmSync(path: string, options?: { recursive?: boolean; force?: boolean }): void {
     fs.rmSync(path, options);
   }

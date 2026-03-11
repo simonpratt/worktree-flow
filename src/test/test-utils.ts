@@ -85,6 +85,7 @@ export function createMockServices(): {
     workspace: {
       createWorkspaceDir: sinon.stub(),
       copyAgentsMd: sinon.stub(),
+      copyDevcontainer: sinon.stub(),
       copyConfigFilesToWorktree: sinon.stub(),
       detectWorkspace: sinon.stub(),
       getWorktreeDirs: sinon.stub().returns([]),

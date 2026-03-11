@@ -25,6 +25,13 @@ export class WorkspaceDirectoryService {
     }
   }
 
+  copyDevcontainer(sourcePath: string, workspacePath: string): void {
+    const devcontainerPath = path.join(sourcePath, '.devcontainer');
+    if (this.fs.existsSync(devcontainerPath)) {
+      this.fs.cpSync(devcontainerPath, path.join(workspacePath, '.devcontainer'), { recursive: true });
+    }
+  }
+
   detectWorkspace(cwd: string, destPath: string): string | null {
     const normalizedCwd = path.resolve(cwd);
     const normalizedDest = path.resolve(destPath);

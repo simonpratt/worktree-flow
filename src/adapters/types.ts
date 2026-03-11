@@ -11,6 +11,7 @@ export interface IFileSystem {
   readdirSync(path: string, options: { withFileTypes: true }): any[];
   readdirSync(path: string, options?: { withFileTypes?: false }): string[];
   copyFileSync(src: string, dest: string): void;
+  cpSync(src: string, dest: string, options?: { recursive?: boolean }): void;
   rmSync(path: string, options?: { recursive?: boolean; force?: boolean }): void;
 }
 
