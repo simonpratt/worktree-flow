@@ -81,7 +81,7 @@ export class FetchService {
 
     if (!silent) {
       // Clear the progress line and show summary
-      this.console.write('\r');
+      this.console.write('\r\x1b[K');
       const cacheInfo = cachedCount > 0 ? ` (${cachedCount} cached)` : '';
       if (failed > 0) {
         this.console.log(`Fetched ${total - failed}/${total} repos${cacheInfo} ${chalk.yellow(`(${failed} failed)`)}`);

@@ -18,8 +18,6 @@ export async function runCheckout(
 
   try {
     // 1. Fetch all repos from source-path
-    services.console.log('\nFetching repos...');
-
     await useCases.fetchAllRepos.execute({
       sourcePath,
       fetchCacheTtlSeconds: config.fetchCacheTtlSeconds,
