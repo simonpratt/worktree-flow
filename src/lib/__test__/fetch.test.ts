@@ -103,8 +103,8 @@ describe('FetchService', () => {
 
       await service.fetchRepos(['/repo1']);
 
-      // Should have written '\r' to clear the line
-      const clearCalls = console.write.getCalls().filter((call: sinon.SinonSpyCall) => call.args[0] === '\r');
+      // Should have written '\r\x1b[K' to clear the line
+      const clearCalls = console.write.getCalls().filter((call: sinon.SinonSpyCall) => call.args[0] === '\r\x1b[K');
       expect(clearCalls.length).toBeGreaterThan(0);
     });
 
