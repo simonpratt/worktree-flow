@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Tidied up output for `flow checkout` command
+
 ## [0.0.21] 2026-03-12
 
 ### Added

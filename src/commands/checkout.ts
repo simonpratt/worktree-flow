@@ -18,6 +18,7 @@ export async function runCheckout(
 
   try {
     // 1. Fetch all repos from source-path
+    console.log('');
     await useCases.fetchAllRepos.execute({
       sourcePath,
       fetchCacheTtlSeconds: config.fetchCacheTtlSeconds,
@@ -30,6 +31,8 @@ export async function runCheckout(
     });
 
     // 3. Display only repos that have changes (matching or errored)
+    const discoveredCount = discoverResult.branchCheckResults.filter((r) => r.hasBranch).length;
+    console.log(chalk.bold(`\nFound ${discoveredCount} repos with branch "${branchName}"`));
     for (const checkResult of discoverResult.branchCheckResults) {
       if (checkResult.error) {
         services.console.log(`${checkResult.repoName}... ${chalk.red(`error: ${checkResult.error}`)}`);
@@ -46,6 +49,7 @@ export async function runCheckout(
     // 5. Prompt for post-checkout
     let shouldRunPostCheckout = false;
     if (config.postCheckout) {
+      console.log('');
       shouldRunPostCheckout = await deps.confirm({
         message: `Run "${config.postCheckout}" in all workspaces?`,
         default: true,
