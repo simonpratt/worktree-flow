@@ -7,7 +7,7 @@ import { WorkspaceAlreadyExistsError } from './errors.js';
  * e.g. "release/123" → "release_123"
  */
 export function sanitizeBranchForFolder(branch: string): string {
-  return branch.replace(/[^a-zA-Z0-9._-]/g, '_');
+  return branch.replace(/[^a-zA-Z0-9_-]/g, '_');
 }
 
 /**

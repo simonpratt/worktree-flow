@@ -21,8 +21,8 @@ describe('sanitizeBranchForFolder', () => {
     expect(sanitizeBranchForFolder('user@domain/feature#1')).toBe('user_domain_feature_1');
   });
 
-  it('should preserve alphanumeric characters, dashes, dots, and underscores', () => {
-    expect(sanitizeBranchForFolder('my-branch_v1.0')).toBe('my-branch_v1.0');
+  it('should replace dots with underscores', () => {
+    expect(sanitizeBranchForFolder('my-branch_v1.0')).toBe('my-branch_v1_0');
   });
 
   it('should leave simple branch names unchanged', () => {
