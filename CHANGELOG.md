@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.0.23] 2026-03-16
+
+### Fixed
+
+- Workspace folder names now sanitize special characters from branch names — characters like `/`, `\`, `:`, and other non-alphanumeric characters (except `-`, `_`, `.`) are replaced with `_` (e.g. `release/123` creates folder `release_123`)
+
 ## [0.0.22] 2026-03-16
 
 ### Changed
