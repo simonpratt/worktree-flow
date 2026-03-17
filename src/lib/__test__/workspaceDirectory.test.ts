@@ -1,8 +1,34 @@
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
-import { WorkspaceDirectoryService } from '../workspaceDirectory.js';
+import { WorkspaceDirectoryService, sanitizeBranchForFolder } from '../workspaceDirectory.js';
 import { WorkspaceAlreadyExistsError } from '../errors.js';
 import { createMemFs } from '../../test/test-utils.js';
+
+describe('sanitizeBranchForFolder', () => {
+  it('should replace forward slashes with underscores', () => {
+    expect(sanitizeBranchForFolder('release/123')).toBe('release_123');
+  });
+
+  it('should replace backslashes with underscores', () => {
+    expect(sanitizeBranchForFolder('release\\123')).toBe('release_123');
+  });
+
+  it('should replace colons with underscores', () => {
+    expect(sanitizeBranchForFolder('fix:urgent')).toBe('fix_urgent');
+  });
+
+  it('should replace multiple special characters', () => {
+    expect(sanitizeBranchForFolder('user@domain/feature#1')).toBe('user_domain_feature_1');
+  });
+
+  it('should replace dots with underscores', () => {
+    expect(sanitizeBranchForFolder('my-branch_v1.0')).toBe('my-branch_v1_0');
+  });
+
+  it('should leave simple branch names unchanged', () => {
+    expect(sanitizeBranchForFolder('feature-123')).toBe('feature-123');
+  });
+});
 
 describe('WorkspaceDirectoryService', () => {
   describe('createWorkspaceDir', () => {
@@ -28,6 +54,18 @@ describe('WorkspaceDirectoryService', () => {
 
       expect(vol.existsSync(workspacePath)).toBe(true);
       expect(vol.existsSync(destPath)).toBe(true);
+    });
+
+    it('should sanitize branch names with special characters', () => {
+      const { vol, fs } = createMemFs();
+      const service = new WorkspaceDirectoryService(fs);
+      const destPath = '/workspaces';
+      const branch = 'release/123';
+
+      const workspacePath = service.createWorkspaceDir(destPath, branch);
+
+      expect(workspacePath).toBe(path.join(destPath, 'release_123'));
+      expect(vol.existsSync(workspacePath)).toBe(true);
     });
 
     it('should throw WorkspaceAlreadyExistsError when workspace already exists', () => {
@@ -473,6 +511,24 @@ describe('WorkspaceDirectoryService', () => {
       const workspace = service.findWorkspace(destPath, branchName);
 
       expect(workspace).toBe(null);
+    });
+
+    it('should find workspace using sanitized branch name', () => {
+      const destPath = '/workspaces';
+      const sanitizedName = 'release_123';
+      const { fs } = createMemFs({
+        [path.join(destPath, sanitizedName, 'flow-config.json')]: JSON.stringify({ baseBranches: {} }),
+        [path.join(destPath, sanitizedName, 'repo1', '.git')]: '',
+      });
+      const service = new WorkspaceDirectoryService(fs);
+
+      const workspace = service.findWorkspace(destPath, 'release/123');
+
+      expect(workspace).toEqual({
+        name: sanitizedName,
+        path: path.join(destPath, sanitizedName),
+        repoCount: 1,
+      });
     });
   });
 });

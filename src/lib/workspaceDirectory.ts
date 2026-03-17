@@ -3,6 +3,14 @@ import type { IFileSystem } from '../adapters/types.js';
 import { WorkspaceAlreadyExistsError } from './errors.js';
 
 /**
+ * Replaces characters that could cause filesystem issues with underscores.
+ * e.g. "release/123" → "release_123"
+ */
+export function sanitizeBranchForFolder(branch: string): string {
+  return branch.replace(/[^a-zA-Z0-9_-]/g, '_');
+}
+
+/**
  * WorkspaceDirectoryService handles workspace directory operations.
  * Pure directory management, no orchestration.
  */
@@ -10,7 +18,7 @@ export class WorkspaceDirectoryService {
   constructor(private fs: IFileSystem) {}
 
   createWorkspaceDir(destPath: string, branch: string): string {
-    const workspacePath = path.join(destPath, branch);
+    const workspacePath = path.join(destPath, sanitizeBranchForFolder(branch));
     if (this.fs.existsSync(workspacePath)) {
       throw new WorkspaceAlreadyExistsError(workspacePath);
     }
@@ -119,6 +127,7 @@ export class WorkspaceDirectoryService {
 
   findWorkspace(destPath: string, branchName: string): { name: string; path: string; repoCount: number } | null {
     const workspaces = this.listWorkspaces(destPath);
-    return workspaces.find(ws => ws.name === branchName) || null;
+    const sanitized = sanitizeBranchForFolder(branchName);
+    return workspaces.find(ws => ws.name === sanitized) || null;
   }
 }

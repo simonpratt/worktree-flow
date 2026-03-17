@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { NotInWorkspaceError, WorkspaceNotFoundError } from './errors.js';
 import type { WorkspaceDirectoryService } from './workspaceDirectory.js';
+import { sanitizeBranchForFolder } from './workspaceDirectory.js';
 import type { ConfigService } from './config.js';
 import type { IProcess } from '../adapters/types.js';
 
@@ -32,7 +33,8 @@ export function resolveWorkspace(
 
   if (branchName) {
     // Explicit branch provided
-    const workspacePath = path.join(destPath, branchName);
+    const sanitized = sanitizeBranchForFolder(branchName);
+    const workspacePath = path.join(destPath, sanitized);
     const workspace = workspaceDir.findWorkspace(destPath, branchName);
     if (!workspace) {
       throw new WorkspaceNotFoundError(workspacePath);
