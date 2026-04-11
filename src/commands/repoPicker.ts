@@ -58,6 +58,8 @@ type SearchableRepoPickerConfig = {
   loop?: boolean;
 };
 
+const HIDE_CURSOR = '\x1B[?25l';
+
 type RepoPickerKeypress = {
   name?: string;
   sequence?: string;
@@ -342,5 +344,5 @@ export const searchableRepoCheckbox = createPrompt<string[], SearchableRepoPicke
     .join('\n')
     .trimEnd();
 
-  return lines;
+  return `${lines}${HIDE_CURSOR}`;
 });
