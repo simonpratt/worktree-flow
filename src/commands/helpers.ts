@@ -14,6 +14,12 @@ type WorkspaceStatusInfo = {
   statuses: Array<{ repoName: string; status: WorktreeStatus }>;
 };
 
+export type RepoCheckboxChoice = {
+  name: string;
+  value: string;
+  checked: boolean;
+};
+
 /**
  * Format a single repo's status as a display line, consistent across list and status commands.
  */
@@ -79,12 +85,12 @@ export function logStatus(
  *
  * @param createSeparator - factory from the display layer (e.g. inquirer's Separator constructor)
  */
-export function buildRepoCheckboxChoices(
+export function buildRepoCheckboxChoices<TSeparator>(
   repos: string[],
   services: Pick<Services, 'repos' | 'fetchCache'>,
   preSelected: string[],
-  createSeparator: (label?: string) => unknown
-): unknown[] {
+  createSeparator: (label?: string) => TSeparator
+): Array<RepoCheckboxChoice | TSeparator> {
   const choices = services.repos.formatRepoChoices(repos).map((choice) => ({
     ...choice,
     checked: preSelected.includes(choice.name),
@@ -105,4 +111,3 @@ export function buildRepoCheckboxChoices(
 
   return choices;
 }
-
