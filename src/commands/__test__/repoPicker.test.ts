@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   filterRepoPickerChoices,
   getTypedCharacter,
+  isEscapeKey,
   getNextSelectableRepoValue,
   getSelectedRepoPickerValues,
   normalizeRepoPickerChoices,
@@ -74,5 +75,10 @@ describe('repoPicker', () => {
     expect(getTypedCharacter({ sequence: 'a', ctrl: false, meta: false })).toBe('a');
     expect(getTypedCharacter({ sequence: '\r', ctrl: false, meta: false })).toBe('\r');
     expect(getTypedCharacter({ sequence: 'a', ctrl: true, meta: false })).toBeUndefined();
+  });
+
+  it('recognizes escape as the key used to exit search mode', () => {
+    expect(isEscapeKey({ name: 'escape' })).toBe(true);
+    expect(isEscapeKey({ name: 'enter' })).toBe(false);
   });
 });

@@ -1,7 +1,6 @@
 import chalk from 'chalk';
 import {
   ValidationError,
-  createPrompt,
   isBackspaceKey,
   isDownKey,
   isEnterKey,
@@ -14,6 +13,7 @@ import {
   type Status,
 } from '@inquirer/core';
 import type { RepoCheckboxChoice } from './helpers.js';
+import { createPromptWithEscapeCodeTimeout } from '../lib/createPromptWithEscapeCodeTimeout.js';
 
 export type RepoPickerSeparator = {
   separator?: string;
@@ -59,6 +59,7 @@ type SearchableRepoPickerConfig = {
 };
 
 const HIDE_CURSOR = '\x1B[?25l';
+const ESCAPE_CODE_TIMEOUT_MS = 25;
 
 type RepoPickerKeypress = {
   name?: string;
@@ -188,6 +189,10 @@ export function getTypedCharacter(key: RepoPickerKeypress): string | undefined {
   return key.sequence;
 }
 
+export function isEscapeKey(key: RepoPickerKeypress): boolean {
+  return key.name === 'escape';
+}
+
 function getSelectionSummary(items: ReadonlyArray<NormalizedRepoPickerItem>): string {
   const selectedChoices = items.filter(
     (item): item is NormalizedRepoPickerChoice => isRepoPickerChoice(item) && item.checked
@@ -204,7 +209,7 @@ function getNoMatchesMessage(query: string): string {
   return `No matching repos for "${query}".`;
 }
 
-export const searchableRepoCheckbox = createPrompt<string[], SearchableRepoPickerConfig>((config, done) => {
+export const searchableRepoCheckbox = createPromptWithEscapeCodeTimeout<string[], SearchableRepoPickerConfig>((config, done) => {
   const { loop = true, pageSize = 7 } = config;
   const initialItems = normalizeRepoPickerChoices(config.choices);
 
@@ -242,13 +247,13 @@ export const searchableRepoCheckbox = createPrompt<string[], SearchableRepoPicke
 
     readline.clearLine(0);
 
-    if (isEnterKey(key)) {
-      if (searchMode) {
-        setSearchMode(false);
-        setQuery('');
-        return;
-      }
+    if (searchMode && isEscapeKey(typedKey)) {
+      setSearchMode(false);
+      setQuery('');
+      return;
+    }
 
+    if (isEnterKey(key)) {
       setStatus('done');
       done(getSelectedRepoPickerValues(items));
       return;
@@ -330,7 +335,7 @@ export const searchableRepoCheckbox = createPrompt<string[], SearchableRepoPicke
     : `${prefix} ${chalk.bold(config.message)}`;
 
   const help = searchMode
-    ? chalk.dim('up/down navigate | space select | type filter | enter clear search')
+    ? chalk.dim('up/down navigate | space select | type filter | esc clear search | enter continue')
     : chalk.dim('up/down navigate | space select | / search | enter continue');
 
   const lines = [
@@ -345,4 +350,4 @@ export const searchableRepoCheckbox = createPrompt<string[], SearchableRepoPicke
     .trimEnd();
 
   return `${lines}${HIDE_CURSOR}`;
-});
+}, ESCAPE_CODE_TIMEOUT_MS);
