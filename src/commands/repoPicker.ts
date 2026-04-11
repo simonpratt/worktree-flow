@@ -58,6 +58,14 @@ type SearchableRepoPickerConfig = {
   loop?: boolean;
 };
 
+type RepoPickerKeypress = {
+  name?: string;
+  sequence?: string;
+  ctrl?: boolean;
+  meta?: boolean;
+  shift?: boolean;
+};
+
 function isRepoPickerChoice(item: NormalizedRepoPickerItem | RepoPickerRenderItem): item is NormalizedRepoPickerChoice {
   return item.type === 'choice';
 }
@@ -170,8 +178,12 @@ export function toggleRepoPickerChoice(
   });
 }
 
-function isPrintableCharacterKey(key: { value?: string; ctrl?: boolean; meta?: boolean }): key is { value: string } {
-  return typeof key.value === 'string' && key.value.length === 1 && !key.ctrl && !key.meta;
+export function getTypedCharacter(key: RepoPickerKeypress): string | undefined {
+  if (typeof key.sequence !== 'string' || key.sequence.length !== 1 || key.ctrl || key.meta) {
+    return undefined;
+  }
+
+  return key.sequence;
 }
 
 function getSelectionSummary(items: ReadonlyArray<NormalizedRepoPickerItem>): string {
@@ -223,11 +235,8 @@ export const searchableRepoCheckbox = createPrompt<string[], SearchableRepoPicke
   );
 
   useKeypress((key, readline) => {
-    const typedKey = key as typeof key & {
-      value?: string;
-      ctrl?: boolean;
-      meta?: boolean;
-    };
+    const typedKey = key as typeof key & RepoPickerKeypress;
+    const typedCharacter = getTypedCharacter(typedKey);
 
     readline.clearLine(0);
 
@@ -263,7 +272,7 @@ export const searchableRepoCheckbox = createPrompt<string[], SearchableRepoPicke
       return;
     }
 
-    if (!searchMode && typedKey.value === '/') {
+    if (!searchMode && typedCharacter === '/') {
       setSearchMode(true);
       setQuery('');
       return;
@@ -278,8 +287,8 @@ export const searchableRepoCheckbox = createPrompt<string[], SearchableRepoPicke
       return;
     }
 
-    if (isPrintableCharacterKey(typedKey)) {
-      setQuery(query + typedKey.value);
+    if (typedCharacter) {
+      setQuery(query + typedCharacter);
     }
   });
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   filterRepoPickerChoices,
+  getTypedCharacter,
   getNextSelectableRepoValue,
   getSelectedRepoPickerValues,
   normalizeRepoPickerChoices,
@@ -66,5 +67,12 @@ describe('repoPicker', () => {
     ]);
 
     expect(filterRepoPickerChoices(items, 'mobile')).toEqual([]);
+  });
+
+  it('treats punctuation sequences like slash as typed characters for search mode', () => {
+    expect(getTypedCharacter({ sequence: '/', ctrl: false, meta: false })).toBe('/');
+    expect(getTypedCharacter({ sequence: 'a', ctrl: false, meta: false })).toBe('a');
+    expect(getTypedCharacter({ sequence: '\r', ctrl: false, meta: false })).toBe('\r');
+    expect(getTypedCharacter({ sequence: 'a', ctrl: true, meta: false })).toBeUndefined();
   });
 });
