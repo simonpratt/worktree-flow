@@ -1,6 +1,5 @@
 import path from 'node:path';
 import { Command } from 'commander';
-import checkbox, { Separator } from '@inquirer/checkbox';
 import input from '@inquirer/input';
 import confirm from '@inquirer/confirm';
 import chalk from 'chalk';
@@ -10,6 +9,10 @@ import type { Services } from '../lib/services.js';
 import type { UseCases } from '../usecases/usecases.js';
 import { NoReposFoundError } from '../lib/errors.js';
 import { buildRepoCheckboxChoices } from './helpers.js';
+import {
+  searchableRepoCheckbox,
+  type RepoPickerSeparator,
+} from './repoPicker.js';
 
 export async function runCreate(
   branchName: string,
@@ -30,7 +33,12 @@ export async function runCreate(
   }
 
   // User prompts
-  const checkboxChoices = buildRepoCheckboxChoices(repos, services, config.branchAutoSelectRepos, (label) => new Separator(label));
+  const checkboxChoices = buildRepoCheckboxChoices(
+    repos,
+    services,
+    config.branchAutoSelectRepos,
+    (label): RepoPickerSeparator => ({ separator: label ?? '' })
+  );
 
   const selected = await deps.checkbox({
     message: `Select repos for branch "${branchName}":`,
@@ -157,7 +165,7 @@ export function registerCreateCommand(program: Command): void {
       const useCases = createUseCases(services);
 
       try {
-        await runCreate(branchName, useCases, services, { checkbox, input, confirm });
+        await runCreate(branchName, useCases, services, { checkbox: searchableRepoCheckbox, input, confirm });
       } catch (error: any) {
         services.console.error(error.message);
         services.process.exit(1);
