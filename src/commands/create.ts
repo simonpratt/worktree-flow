@@ -9,7 +9,7 @@ import { createUseCases } from '../usecases/usecases.js';
 import type { Services } from '../lib/services.js';
 import type { UseCases } from '../usecases/usecases.js';
 import { NoReposFoundError } from '../lib/errors.js';
-import { buildRepoCheckboxChoices } from './helpers.js';
+import { buildRepoCheckboxChoices, resolveReposByName } from './helpers.js';
 
 export async function runCreate(
   branchName: string,
@@ -19,7 +19,8 @@ export async function runCreate(
     checkbox: (opts: any) => Promise<string[]>;
     input: (opts: any) => Promise<string>;
     confirm: (opts: { message: string; default: boolean }) => Promise<boolean>;
-  }
+  },
+  options: { repos?: string[] } = {}
 ): Promise<void> {
   const { sourcePath, destPath } = services.config.getRequired();
   const config = services.config.load();
@@ -29,15 +30,20 @@ export async function runCreate(
     throw new NoReposFoundError(sourcePath);
   }
 
-  // User prompts
-  const checkboxChoices = buildRepoCheckboxChoices(repos, services, config.branchAutoSelectRepos, (label) => new Separator(label));
+  // User prompts, unless repos were provided explicitly via --repo
+  let selected: string[];
+  if (options.repos && options.repos.length > 0) {
+    selected = resolveReposByName(repos, options.repos);
+  } else {
+    const checkboxChoices = buildRepoCheckboxChoices(repos, services, config.branchAutoSelectRepos, (label) => new Separator(label));
 
-  const selected = await deps.checkbox({
-    message: `Select repos for branch "${branchName}":`,
-    choices: checkboxChoices,
-    pageSize: 20,
-    loop: false,
-  });
+    selected = await deps.checkbox({
+      message: `Select repos for branch "${branchName}":`,
+      choices: checkboxChoices,
+      pageSize: 20,
+      loop: false,
+    });
+  }
 
   if (selected.length === 0) {
     services.console.log('No repos selected.');
@@ -152,12 +158,13 @@ export function registerCreateCommand(program: Command): void {
     .command('create <branch-name>')
     .helpGroup('Workspaces')
     .description('Create branches and worktrees for selected repos')
-    .action(async (branchName: string) => {
+    .option('-r, --repo <repo>', 'Repo to include (repeatable, skips the interactive picker)', (value: string, previous: string[]) => previous.concat([value]), [] as string[])
+    .action(async (branchName: string, cmdOptions: { repo: string[] }) => {
       const services = createServices();
       const useCases = createUseCases(services);
 
       try {
-        await runCreate(branchName, useCases, services, { checkbox, input, confirm });
+        await runCreate(branchName, useCases, services, { checkbox, input, confirm }, { repos: cmdOptions.repo });
       } catch (error: any) {
         services.console.error(error.message);
         services.process.exit(1);

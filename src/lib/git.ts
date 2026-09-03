@@ -136,6 +136,16 @@ export class GitService {
     }
   }
 
+  async getBranchCheckedOutPath(repoPath: string, branch: string): Promise<string | null> {
+    const output = await this.exec(repoPath, [
+      'for-each-ref',
+      '--format=%(worktreepath)',
+      `refs/heads/${branch}`,
+    ]);
+    const trimmed = output.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+
   async createBranch(repoPath: string, branchName: string, startPoint: string): Promise<void> {
     await this.exec(repoPath, ['branch', '--no-track', branchName, startPoint]);
   }

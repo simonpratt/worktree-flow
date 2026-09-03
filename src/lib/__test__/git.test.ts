@@ -451,6 +451,46 @@ describe('GitService', () => {
     });
   });
 
+  describe('getBranchCheckedOutPath', () => {
+    it('should return worktree path when branch is checked out somewhere', async () => {
+      shell.execFile.resolves({ stdout: '/some/worktree/path\n', stderr: '' });
+
+      const result = await service.getBranchCheckedOutPath('/repo', 'feature');
+
+      sinon.assert.calledOnceWithExactly(
+        shell.execFile,
+        'git',
+        ['-C', '/repo', 'for-each-ref', '--format=%(worktreepath)', 'refs/heads/feature'],
+        { encoding: 'utf-8' }
+      );
+      expect(result).toBe('/some/worktree/path');
+    });
+
+    it('should return null when branch exists but is not checked out', async () => {
+      shell.execFile.resolves({ stdout: '\n', stderr: '' });
+
+      const result = await service.getBranchCheckedOutPath('/repo', 'feature');
+
+      expect(result).toBe(null);
+    });
+
+    it('should return null when branch does not exist (empty output)', async () => {
+      shell.execFile.resolves({ stdout: '', stderr: '' });
+
+      const result = await service.getBranchCheckedOutPath('/repo', 'feature');
+
+      expect(result).toBe(null);
+    });
+
+    it('should handle whitespace in output', async () => {
+      shell.execFile.resolves({ stdout: '  /some/path  \n', stderr: '' });
+
+      const result = await service.getBranchCheckedOutPath('/repo', 'feature');
+
+      expect(result).toBe('/some/path');
+    });
+  });
+
   describe('pushWithRetry', () => {
     it('should return "pushed" on successful push', async () => {
       shell.execFile.resolves({ stdout: '', stderr: '' });

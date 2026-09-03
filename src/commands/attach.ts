@@ -10,7 +10,7 @@ import type { Services } from '../lib/services.js';
 import type { UseCases } from '../usecases/usecases.js';
 import { NoReposFoundError } from '../lib/errors.js';
 import { resolveWorkspace } from '../lib/workspaceResolver.js';
-import { buildRepoCheckboxChoices } from './helpers.js';
+import { buildRepoCheckboxChoices, resolveReposByName } from './helpers.js';
 
 export async function runAttach(
   branchName: string | undefined,
@@ -20,7 +20,8 @@ export async function runAttach(
     checkbox: (opts: any) => Promise<string[]>;
     input: (opts: any) => Promise<string>;
     confirm: (opts: { message: string; default: boolean }) => Promise<boolean>;
-  }
+  },
+  options: { repos?: string[] } = {}
 ): Promise<void> {
   // 1. Resolve workspace (from arg or cwd)
   const { workspacePath, displayName } = resolveWorkspace(
@@ -54,15 +55,20 @@ export async function runAttach(
     return;
   }
 
-  // 4. Repo picker (same pattern as branch command)
-  const checkboxChoices = buildRepoCheckboxChoices(availableRepos, services, [], (label) => new Separator(label));
+  // 4. Repo picker (same pattern as branch command), unless repos were provided explicitly via --repo
+  let selected: string[];
+  if (options.repos && options.repos.length > 0) {
+    selected = resolveReposByName(availableRepos, options.repos);
+  } else {
+    const checkboxChoices = buildRepoCheckboxChoices(availableRepos, services, [], (label) => new Separator(label));
 
-  const selected = await deps.checkbox({
-    message: `Select repos to attach to "${displayName}":`,
-    choices: checkboxChoices,
-    pageSize: 20,
-    loop: false,
-  });
+    selected = await deps.checkbox({
+      message: `Select repos to attach to "${displayName}":`,
+      choices: checkboxChoices,
+      pageSize: 20,
+      loop: false,
+    });
+  }
 
   if (selected.length === 0) {
     services.console.log('No repos selected.');
@@ -164,12 +170,13 @@ export function registerAttachCommand(program: Command): void {
     .command('attach [branch-name]')
     .helpGroup('Workspaces')
     .description('Attach repos to an existing workspace (auto-detects from current directory if branch not provided)')
-    .action(async (branchName?: string) => {
+    .option('-r, --repo <repo>', 'Repo to include (repeatable, skips the interactive picker)', (value: string, previous: string[]) => previous.concat([value]), [] as string[])
+    .action(async (branchName: string | undefined, cmdOptions: { repo: string[] }) => {
       const services = createServices();
       const useCases = createUseCases(services);
 
       try {
-        await runAttach(branchName, useCases, services, { checkbox, input, confirm });
+        await runAttach(branchName, useCases, services, { checkbox, input, confirm }, { repos: cmdOptions.repo });
       } catch (error: any) {
         services.console.error(error.message);
         services.process.exit(1);

@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import sinon from 'sinon';
 import { runAttach } from '../attach.js';
-import { NotInWorkspaceError, WorkspaceNotFoundError } from '../../lib/errors.js';
+import { NotInWorkspaceError, WorkspaceNotFoundError, RepoNotFoundError } from '../../lib/errors.js';
 import {
   createTempDir,
   initGitRepo,
@@ -167,6 +167,64 @@ describe('attach integration', () => {
     const repoNames = choices.filter((c: any) => c.name !== undefined).map((c: any) => c.name);
     expect(repoNames).toEqual(['repo2']);
     expect(repoNames).not.toContain('repo1');
+  });
+
+  it('should attach repos passed via --repo, skipping the picker', async () => {
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+    await initGitRepo(sourcePath, 'repo2');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+
+    // Create workspace with repo1
+    const branchCheckboxStub = sinon.stub().resolves([repo1]);
+    const { runCreate } = await import('../create.js');
+    await runCreate('feature', integration.useCases, integration.services, {
+      checkbox: branchCheckboxStub,
+      input: inputStub,
+      confirm: confirmStub,
+    });
+
+    const attachCheckboxStub = sinon.stub().resolves([]);
+    (integration.stubs.process.cwd as sinon.SinonStub).returns(path.join(destPath, 'feature'));
+
+    await runAttach(
+      undefined,
+      integration.useCases,
+      integration.services,
+      { checkbox: attachCheckboxStub, input: inputStub, confirm: confirmStub },
+      { repos: ['repo2'] }
+    );
+
+    expect(attachCheckboxStub.called).toBe(false);
+    expect(fs.existsSync(path.join(destPath, 'feature', 'repo2'))).toBe(true);
+  });
+
+  it('should throw RepoNotFoundError when --repo names a repo already in the workspace', async () => {
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+    await initGitRepo(sourcePath, 'repo2');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+
+    const branchCheckboxStub = sinon.stub().resolves([repo1]);
+    const { runCreate } = await import('../create.js');
+    await runCreate('feature', integration.useCases, integration.services, {
+      checkbox: branchCheckboxStub,
+      input: inputStub,
+      confirm: confirmStub,
+    });
+
+    const attachCheckboxStub = sinon.stub().resolves([]);
+    (integration.stubs.process.cwd as sinon.SinonStub).returns(path.join(destPath, 'feature'));
+
+    await expect(
+      runAttach(
+        undefined,
+        integration.useCases,
+        integration.services,
+        { checkbox: attachCheckboxStub, input: inputStub, confirm: confirmStub },
+        { repos: ['repo1'] }
+      )
+    ).rejects.toThrow(RepoNotFoundError);
   });
 
   it('should do nothing when no repos are selected', async () => {

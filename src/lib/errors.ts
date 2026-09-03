@@ -37,6 +37,13 @@ export class WorkspaceHasIssuesError extends Error {
   }
 }
 
+export class RepoNotFoundError extends Error {
+  constructor(repoName: string, availableRepos: string[]) {
+    super(`Repo "${repoName}" not found. Available repos: ${availableRepos.join(', ')}`);
+    this.name = 'RepoNotFoundError';
+  }
+}
+
 export class NotInWorkspaceError extends Error {
   constructor(destPath: string) {
     super(`Not inside a flow workspace.\nNavigate to a directory under ${destPath}/.`);

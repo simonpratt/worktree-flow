@@ -1,7 +1,9 @@
+import path from 'node:path';
 import chalk from 'chalk';
 import { StatusService, type WorktreeStatus } from '../lib/status.js';
 import type { IConsole } from '../adapters/types.js';
 import type { Services } from '../lib/services.js';
+import { RepoNotFoundError } from '../lib/errors.js';
 
 
 type WorkspaceLoadingInfo = { name: string; repoCount: number };
@@ -104,5 +106,22 @@ export function buildRepoCheckboxChoices(
   }
 
   return choices;
+}
+
+/**
+ * Resolve repo names (as passed via `--repo`) to their full repo paths, matching
+ * against the given candidate repo paths by basename. Throws RepoNotFoundError
+ * if a requested name doesn't match any candidate.
+ */
+export function resolveReposByName(candidateRepoPaths: string[], repoNames: string[]): string[] {
+  const byName = new Map(candidateRepoPaths.map((repoPath) => [path.basename(repoPath), repoPath]));
+
+  return repoNames.map((name) => {
+    const repoPath = byName.get(name);
+    if (!repoPath) {
+      throw new RepoNotFoundError(name, Array.from(byName.keys()).sort());
+    }
+    return repoPath;
+  });
 }
 

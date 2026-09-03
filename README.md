@@ -50,7 +50,7 @@ Working on features that span multiple repositories means manually creating bran
 
 ### `flow create <name>`
 
-Create a new branch across selected repos. Interactively select which repos to include, then creates branches and worktrees in a new workspace directory.
+Create a new branch across selected repos. Interactively select which repos to include, then creates branches and worktrees in a new workspace directory. Pass `--repo <name>` (repeatable) to specify repos directly and skip the interactive picker, e.g. `flow create TICKET-123 --repo api --repo web`.
 
 ### `flow checkout <name>`
 
@@ -58,7 +58,7 @@ Checkout an existing branch. Fetches all repos, detects which have the branch, a
 
 ### `flow attach [name]`
 
-Attach repos to an existing workspace. Discovers available repos not yet in the workspace, presents an interactive picker, creates worktrees with new branches, copies config files, and runs post-checkout commands. Auto-detects the workspace from the current directory, or specify a branch name explicitly.
+Attach repos to an existing workspace. Discovers available repos not yet in the workspace, presents an interactive picker, creates worktrees with new branches, copies config files, and runs post-checkout commands. Auto-detects the workspace from the current directory, or specify a branch name explicitly. Pass `--repo <name>` (repeatable) to specify repos directly and skip the interactive picker.
 
 ### `flow pull`
 

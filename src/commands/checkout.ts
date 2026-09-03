@@ -46,6 +46,25 @@ export async function runCheckout(
       throw new Error(`Branch "${branchName}" not found in any repo.`);
     }
 
+    // 4b. Abort if branch is already checked out in any matching repo
+    const checkedOutRepos: { repoName: string; checkedOutPath: string }[] = [];
+    for (const repoPath of discoverResult.matchingRepos) {
+      const checkedOutAt = await services.git.getBranchCheckedOutPath(repoPath, branchName);
+      if (checkedOutAt) {
+        checkedOutRepos.push({ repoName: path.basename(repoPath), checkedOutPath: checkedOutAt });
+      }
+    }
+    if (checkedOutRepos.length > 0) {
+      for (const { repoName, checkedOutPath } of checkedOutRepos) {
+        services.console.error(
+          `${repoName}: branch "${branchName}" is already checked out at "${checkedOutPath}"`
+        );
+      }
+      throw new Error(
+        `Cannot create worktrees: branch "${branchName}" is already checked out in ${checkedOutRepos.length} repo(s).`
+      );
+    }
+
     // 5. Prompt for post-checkout
     let shouldRunPostCheckout = false;
     if (config.postCheckout) {
@@ -106,6 +125,19 @@ export async function runCheckout(
     const successCount = results.filter((r) => r.status === 'fulfilled').length;
     const totalCount = results.length;
 
+    // Report per-repo failures
+    const failures = results
+      .map((r, i) => ({ result: r, repoPath: discoverResult.matchingRepos[i] }))
+      .filter((entry): entry is { result: PromiseRejectedResult; repoPath: string } =>
+        entry.result.status === 'rejected'
+      );
+
+    for (const { result, repoPath } of failures) {
+      const repoName = path.basename(repoPath);
+      const errorMsg = result.reason?.stderr || result.reason?.message || 'unknown error';
+      services.console.error(`${repoName}: ${errorMsg}`);
+    }
+
     const postCheckoutResults = results
       .filter((r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof useCases.addToWorkspace.execute>>> =>
         r.status === 'fulfilled'
@@ -132,6 +164,11 @@ export async function runCheckout(
     } else if (!config.postCheckout) {
       services.console.log('\nTip: Configure a post-checkout command to run automatically after branching/checkout.');
       services.console.log('  Example: flow config set post-checkout "npm ci"');
+    }
+
+    // Exit non-zero if any repos failed
+    if (successCount < totalCount) {
+      services.process.exit(1);
     }
   } catch (error: any) {
     services.console.error(error.message);

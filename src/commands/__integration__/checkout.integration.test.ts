@@ -224,6 +224,79 @@ describe('checkout integration', () => {
     expect(content3).toBe('repo3-custom'); // Per-repo override
   });
 
+  it('should abort with error when branch is already checked out in a repo', async () => {
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+    const repo2 = await initGitRepo(sourcePath, 'repo2');
+    await createRemoteBranchRef(repo1, 'feature');
+    await createRemoteBranchRef(repo2, 'feature');
+
+    // Check out the target branch in repo1's main working tree
+    const { NodeShell } = await import('../../adapters/node.js');
+    const shell = new NodeShell();
+    await shell.execFile('git', ['-C', repo1, 'checkout', 'feature']);
+
+    integration = createIntegrationServices(sourcePath, destPath);
+    (integration.stubs.process.exit as sinon.SinonStub).throws(new Error('exit'));
+
+    await expect(
+      runCheckout('feature', integration.useCases, integration.services, { confirm: confirmStub })
+    ).rejects.toThrow('exit');
+
+    // Should exit non-zero
+    sinon.assert.calledWith(integration.stubs.process.exit as any, 1);
+
+    // Should report the offending repo
+    const errorCalls = integration.stubs.console.error.args.map((a: any[]) => a[0]);
+    const hasRepoError = errorCalls.some((msg: string) =>
+      msg.includes('repo1') && msg.includes('already checked out')
+    );
+    expect(hasRepoError).toBe(true);
+
+    // Workspace directory should NOT have been created
+    expect(fs.existsSync(path.join(destPath, 'feature'))).toBe(false);
+  });
+
+  it('should report per-repo worktree failures and exit non-zero', async () => {
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+    const repo2 = await initGitRepo(sourcePath, 'repo2');
+    await createRemoteBranchRef(repo1, 'feature');
+    await createRemoteBranchRef(repo2, 'feature');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+    (integration.stubs.process.exit as sinon.SinonStub).throws(new Error('exit'));
+
+    // Stub worktree.createWorktreeCheckout to fail for repo2 only
+    const originalCreateWorktreeCheckout = integration.services.worktree.createWorktreeCheckout.bind(integration.services.worktree);
+    sinon.stub(integration.services.worktree, 'createWorktreeCheckout').callsFake(
+      async (repoPath: string, worktreePath: string, branchName: string) => {
+        if (repoPath.endsWith('repo2')) {
+          const err: any = new Error('worktree add failed');
+          err.stderr = "fatal: unable to create worktree for 'repo2'";
+          throw err;
+        }
+        return originalCreateWorktreeCheckout(repoPath, worktreePath, branchName);
+      }
+    );
+
+    await expect(
+      runCheckout('feature', integration.useCases, integration.services, { confirm: confirmStub })
+    ).rejects.toThrow('exit');
+
+    // Should exit non-zero
+    sinon.assert.calledWith(integration.stubs.process.exit as any, 1);
+
+    // repo1 should have succeeded — worktree created
+    const wt1 = path.join(destPath, 'feature', 'repo1');
+    expect(fs.existsSync(wt1)).toBe(true);
+
+    // Should report repo2's failure with its name and the git error
+    const errorCalls = integration.stubs.console.error.args.map((a: any[]) => a[0]);
+    const hasRepo2Error = errorCalls.some((msg: string) =>
+      msg.includes('repo2')
+    );
+    expect(hasRepo2Error).toBe(true);
+  });
+
   it('should checkout local branches that have not been pushed to origin', async () => {
     const { NodeShell } = await import('../../adapters/node.js');
     const shell = new NodeShell();

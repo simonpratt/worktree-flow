@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.0.24] 2026-09-03
+
+### Added
+
+- `--repo <name>` flag (repeatable) for `flow create` and `flow attach` — specify repos directly and skip the interactive picker
+
 ## [0.0.23] 2026-03-16
 
 ### Fixed

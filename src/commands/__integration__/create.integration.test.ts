@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import sinon from 'sinon';
 import { runCreate } from '../create.js';
-import { WorkspaceAlreadyExistsError } from '../../lib/errors.js';
+import { WorkspaceAlreadyExistsError, RepoNotFoundError } from '../../lib/errors.js';
 import {
   createTempDir,
   initGitRepo,
@@ -61,6 +61,45 @@ describe('create integration', () => {
     const { stdout: branch2 } = await shell.execFile('git', ['-C', wt2, 'branch', '--show-current']);
     expect(branch1.trim()).toBe('new-feature');
     expect(branch2.trim()).toBe('new-feature');
+  });
+
+  it('should create worktrees for repos passed via --repo, skipping the picker', async () => {
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+    await initGitRepo(sourcePath, 'repo2');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+
+    const checkboxStub = sinon.stub().resolves([repo1]);
+
+    await runCreate(
+      'new-feature',
+      integration.useCases,
+      integration.services,
+      { checkbox: checkboxStub, input: inputStub, confirm: confirmStub },
+      { repos: ['repo1'] }
+    );
+
+    expect(checkboxStub.called).toBe(false);
+    expect(fs.existsSync(path.join(destPath, 'new-feature', 'repo1'))).toBe(true);
+    expect(fs.existsSync(path.join(destPath, 'new-feature', 'repo2'))).toBe(false);
+  });
+
+  it('should throw RepoNotFoundError when --repo names an unknown repo', async () => {
+    await initGitRepo(sourcePath, 'repo1');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+
+    const checkboxStub = sinon.stub().resolves([]);
+
+    await expect(
+      runCreate(
+        'new-feature',
+        integration.useCases,
+        integration.services,
+        { checkbox: checkboxStub, input: inputStub, confirm: confirmStub },
+        { repos: ['does-not-exist'] }
+      )
+    ).rejects.toThrow(RepoNotFoundError);
   });
 
   it('should throw WorkspaceAlreadyExistsError when workspace dir exists', async () => {

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import sinon from 'sinon';
-import { buildRepoCheckboxChoices } from '../helpers.js';
+import { buildRepoCheckboxChoices, resolveReposByName } from '../helpers.js';
+import { RepoNotFoundError } from '../../lib/errors.js';
 
 function makeSeparator(label?: string) {
   return { isSeparator: true, label };
@@ -131,5 +132,20 @@ describe('buildRepoCheckboxChoices', () => {
     );
 
     expect(separators).toEqual(['Recently Used', undefined]);
+  });
+});
+
+describe('resolveReposByName', () => {
+  const candidates = ['/source/repo1', '/source/repo2', '/source/repo3'];
+
+  it('resolves matching repo names to their full paths, preserving requested order', () => {
+    const result = resolveReposByName(candidates, ['repo3', 'repo1']);
+
+    expect(result).toEqual(['/source/repo3', '/source/repo1']);
+  });
+
+  it('throws RepoNotFoundError listing available repos when a name does not match', () => {
+    expect(() => resolveReposByName(candidates, ['repo1', 'nope'])).toThrow(RepoNotFoundError);
+    expect(() => resolveReposByName(candidates, ['nope'])).toThrow(/repo1, repo2, repo3/);
   });
 });
