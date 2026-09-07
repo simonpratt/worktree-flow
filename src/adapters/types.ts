@@ -13,6 +13,7 @@ export interface IFileSystem {
   copyFileSync(src: string, dest: string): void;
   cpSync(src: string, dest: string, options?: { recursive?: boolean }): void;
   rmSync(path: string, options?: { recursive?: boolean; force?: boolean }): void;
+  renameSync(oldPath: string, newPath: string): void;
 }
 
 export interface IShell {

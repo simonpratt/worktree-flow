@@ -410,6 +410,76 @@ describe('GitService', () => {
     });
   });
 
+  describe('repairWorktree', () => {
+    it('should execute worktree repair with the worktree path', async () => {
+      shell.execFile.resolves({ stdout: '', stderr: '' });
+
+      await service.repairWorktree('/repo', '/new/worktree');
+
+      sinon.assert.calledOnceWithExactly(
+        shell.execFile,
+        'git',
+        ['-C', '/repo', 'worktree', 'repair', '/new/worktree'],
+        { encoding: 'utf-8' }
+      );
+    });
+
+    it('should propagate errors from worktree repair', async () => {
+      shell.execFile.rejects(new Error('fatal: not a valid path'));
+
+      await expect(service.repairWorktree('/repo', '/new/worktree')).rejects.toThrow(
+        'fatal: not a valid path'
+      );
+    });
+  });
+
+  describe('checkout', () => {
+    it('should execute git checkout in the worktree directory', async () => {
+      shell.execFile.resolves({ stdout: '', stderr: '' });
+
+      await service.checkout('/worktree', 'feature');
+
+      sinon.assert.calledOnceWithExactly(
+        shell.execFile,
+        'git',
+        ['-C', '/worktree', 'checkout', 'feature'],
+        { encoding: 'utf-8' }
+      );
+    });
+
+    it('should propagate errors from git checkout', async () => {
+      shell.execFile.rejects(new Error('fatal: branch already checked out'));
+
+      await expect(service.checkout('/worktree', 'feature')).rejects.toThrow(
+        'fatal: branch already checked out'
+      );
+    });
+  });
+
+  describe('hasLocalBranch', () => {
+    it('should return true when local branch exists', async () => {
+      shell.execFile.resolves({ stdout: 'abc123', stderr: '' });
+
+      const result = await service.hasLocalBranch('/repo', 'feature');
+
+      sinon.assert.calledOnceWithExactly(
+        shell.execFile,
+        'git',
+        ['-C', '/repo', 'rev-parse', '--verify', 'refs/heads/feature'],
+        { encoding: 'utf-8' }
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should return false when local branch does not exist', async () => {
+      shell.execFile.rejects(new Error('fatal: needed a single revision'));
+
+      const result = await service.hasLocalBranch('/repo', 'feature');
+
+      expect(result).toBe(false);
+    });
+  });
+
   describe('getLastCommitDate', () => {
     it('should execute git log to get last commit date', async () => {
       shell.execFile.resolves({ stdout: '2026-01-15T10:30:45+00:00\n', stderr: '' });

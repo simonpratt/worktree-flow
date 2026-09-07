@@ -43,6 +43,10 @@ export class NodeFileSystem implements IFileSystem {
   rmSync(path: string, options?: { recursive?: boolean; force?: boolean }): void {
     fs.rmSync(path, options);
   }
+
+  renameSync(oldPath: string, newPath: string): void {
+    fs.renameSync(oldPath, newPath);
+  }
 }
 
 export class NodeShell implements IShell {

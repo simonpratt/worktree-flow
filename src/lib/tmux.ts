@@ -88,4 +88,17 @@ export class TmuxService {
       }
     }
   }
+
+  async sessionExists(sessionName: string): Promise<boolean> {
+    try {
+      await this.shell.execFile('tmux', ['has-session', '-t', sessionName]);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async renameSession(oldName: string, newName: string): Promise<void> {
+    await this.shell.execFile('tmux', ['rename-session', '-t', oldName, newName]);
+  }
 }

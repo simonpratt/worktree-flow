@@ -22,6 +22,15 @@ export class GitService {
     return output.length > 0;
   }
 
+  async hasLocalBranch(repoPath: string, branch: string): Promise<boolean> {
+    try {
+      await this.exec(repoPath, ['rev-parse', '--verify', `refs/heads/${branch}`]);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async localRemoteBranchExists(repoPath: string, branch: string): Promise<boolean> {
     // Check for local branch first
     try {
@@ -152,6 +161,19 @@ export class GitService {
 
   async removeWorktree(repoPath: string, worktreePath: string): Promise<void> {
     await this.exec(repoPath, ['worktree', 'remove', worktreePath]);
+  }
+
+  /**
+   * Fixes up a worktree's administrative links after it has been physically
+   * moved outside of git (e.g. by renaming its parent directory), so
+   * `git worktree list`/`remove`/`prune` see it at its new location.
+   */
+  async repairWorktree(repoPath: string, worktreePath: string): Promise<void> {
+    await this.exec(repoPath, ['worktree', 'repair', worktreePath]);
+  }
+
+  async checkout(worktreePath: string, branch: string): Promise<void> {
+    await this.exec(worktreePath, ['checkout', branch]);
   }
 
   async getLastCommitDate(repoPath: string): Promise<Date> {

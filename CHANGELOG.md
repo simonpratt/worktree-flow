@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.0.25] 2026-09-05
+
+### Added
+
+- `flow rename <old-name> <new-name>` (or `flow rename <new-name>` from inside a workspace) — renames the workspace directory in a single filesystem move (so a shell already inside it, e.g. a tmux pane, keeps working at the new location), repairs each repo's worktree admin data (`git worktree repair`) to match, branches from the head of the current branch, switches the worktree onto the new branch, and renames the tmux session if one exists. If a repo fails (e.g. its source repo is missing), the workspace has still moved — that repo's worktree just stays on its previous branch, and the command exits non-zero.
+
 ## [0.0.24] 2026-09-03
 
 ### Added

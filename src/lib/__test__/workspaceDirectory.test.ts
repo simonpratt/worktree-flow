@@ -469,6 +469,65 @@ describe('WorkspaceDirectoryService', () => {
     });
   });
 
+  describe('renameWorkspaceDir', () => {
+    it('should rename the workspace directory in place, preserving nested contents', () => {
+      const destPath = '/workspaces';
+      const oldWorkspacePath = path.join(destPath, 'feature-123');
+      const { vol, fs } = createMemFs({
+        [path.join(oldWorkspacePath, 'flow-config.json')]: '{"baseBranches":{}}',
+        [path.join(oldWorkspacePath, 'AGENTS.md')]: '# Agents',
+        [path.join(oldWorkspacePath, '.devcontainer', 'devcontainer.json')]: '{}',
+        [path.join(oldWorkspacePath, 'repo1', '.git')]: '',
+        [path.join(oldWorkspacePath, 'repo1', 'README.md')]: '# Repo1',
+      });
+      const service = new WorkspaceDirectoryService(fs);
+
+      const newWorkspacePath = service.renameWorkspaceDir(oldWorkspacePath, destPath, 'feature-456');
+
+      expect(newWorkspacePath).toBe(path.join(destPath, 'feature-456'));
+      expect(vol.existsSync(oldWorkspacePath)).toBe(false);
+      expect(vol.readFileSync(path.join(newWorkspacePath, 'flow-config.json'), 'utf-8')).toBe(
+        '{"baseBranches":{}}'
+      );
+      expect(vol.readFileSync(path.join(newWorkspacePath, 'AGENTS.md'), 'utf-8')).toBe('# Agents');
+      expect(
+        vol.readFileSync(path.join(newWorkspacePath, '.devcontainer', 'devcontainer.json'), 'utf-8')
+      ).toBe('{}');
+      expect(vol.readFileSync(path.join(newWorkspacePath, 'repo1', 'README.md'), 'utf-8')).toBe(
+        '# Repo1'
+      );
+    });
+
+    it('should sanitize the new branch name', () => {
+      const destPath = '/workspaces';
+      const oldWorkspacePath = path.join(destPath, 'feature-123');
+      const { vol, fs } = createMemFs({
+        [path.join(oldWorkspacePath, '.gitkeep')]: '',
+      });
+      const service = new WorkspaceDirectoryService(fs);
+
+      const newWorkspacePath = service.renameWorkspaceDir(oldWorkspacePath, destPath, 'release/456');
+
+      expect(newWorkspacePath).toBe(path.join(destPath, 'release_456'));
+      expect(vol.existsSync(newWorkspacePath)).toBe(true);
+    });
+
+    it('should throw WorkspaceAlreadyExistsError and leave the old directory untouched when the new name already exists', () => {
+      const destPath = '/workspaces';
+      const oldWorkspacePath = path.join(destPath, 'feature-123');
+      const { vol, fs } = createMemFs({
+        [path.join(oldWorkspacePath, '.gitkeep')]: '',
+        [path.join(destPath, 'feature-456', '.gitkeep')]: '',
+      });
+      const service = new WorkspaceDirectoryService(fs);
+
+      expect(() => service.renameWorkspaceDir(oldWorkspacePath, destPath, 'feature-456')).toThrow(
+        WorkspaceAlreadyExistsError
+      );
+      expect(vol.existsSync(oldWorkspacePath)).toBe(true);
+    });
+  });
+
   describe('findWorkspace', () => {
     it('should return workspace when it exists', () => {
       const destPath = '/workspaces';

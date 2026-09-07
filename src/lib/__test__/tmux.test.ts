@@ -188,6 +188,51 @@ describe('TmuxService', () => {
     });
   });
 
+  describe('sessionExists', () => {
+    it('should return true when has-session succeeds', async () => {
+      shell.execFile.resolves({ stdout: '', stderr: '' });
+
+      const result = await service.sessionExists('feature-branch');
+
+      sinon.assert.calledOnceWithExactly(
+        shell.execFile,
+        'tmux',
+        ['has-session', '-t', 'feature-branch']
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should return false when has-session fails', async () => {
+      shell.execFile.rejects(new Error("can't find session"));
+
+      const result = await service.sessionExists('feature-branch');
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('renameSession', () => {
+    it('should execute tmux rename-session with old and new names', async () => {
+      shell.execFile.resolves({ stdout: '', stderr: '' });
+
+      await service.renameSession('old-name', 'new-name');
+
+      sinon.assert.calledOnceWithExactly(
+        shell.execFile,
+        'tmux',
+        ['rename-session', '-t', 'old-name', 'new-name']
+      );
+    });
+
+    it('should propagate errors from rename-session', async () => {
+      shell.execFile.rejects(new Error("can't find session"));
+
+      await expect(service.renameSession('old-name', 'new-name')).rejects.toThrow(
+        "can't find session"
+      );
+    });
+  });
+
   describe('sendKeysToPane', () => {
     it('should send command to specified pane', async () => {
       shell.execFile.resolves({ stdout: '', stderr: '' });

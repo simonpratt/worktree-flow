@@ -60,6 +60,10 @@ Checkout an existing branch. Fetches all repos, detects which have the branch, a
 
 Attach repos to an existing workspace. Discovers available repos not yet in the workspace, presents an interactive picker, creates worktrees with new branches, copies config files, and runs post-checkout commands. Auto-detects the workspace from the current directory, or specify a branch name explicitly. Pass `--repo <name>` (repeatable) to specify repos directly and skip the interactive picker.
 
+### `flow rename <old-name> <new-name>` (or `flow rename <new-name>` from inside a workspace)
+
+Rename a workspace to a new branch name. Renames the workspace directory in a single filesystem move (so any shell already inside it, e.g. a tmux pane, keeps working at the new location instead of being left in a deleted one), then for each repo: repairs the worktree's git admin data to match its new path (`git worktree repair`), branches from the head of the current branch, and switches the worktree onto the new branch. Also renames the tmux session if one exists. If a repo fails (e.g. its source repo is missing), the workspace directory has still moved — that repo's worktree simply stays on its previous branch, and the command exits non-zero.
+
 ### `flow pull`
 
 Pull latest changes for all repos in the current workspace. Run from anywhere inside a workspace.

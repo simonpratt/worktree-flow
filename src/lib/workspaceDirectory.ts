@@ -125,6 +125,24 @@ export class WorkspaceDirectoryService {
     this.fs.rmSync(workspacePath, { recursive: true, force: true });
   }
 
+  /**
+   * Renames a workspace directory to a new branch name via a single filesystem
+   * rename. A rename preserves inodes for every file and subdirectory it
+   * contains, so a shell (e.g. a tmux pane) already sitting inside the old path
+   * keeps working against the same directory at its new location — unlike
+   * copying everything to a new directory and deleting the old one, which would
+   * leave such a shell sitting in a deleted directory.
+   * @throws WorkspaceAlreadyExistsError if a workspace already exists at the new name
+   */
+  renameWorkspaceDir(oldWorkspacePath: string, destPath: string, newBranch: string): string {
+    const newWorkspacePath = path.join(destPath, sanitizeBranchForFolder(newBranch));
+    if (this.fs.existsSync(newWorkspacePath)) {
+      throw new WorkspaceAlreadyExistsError(newWorkspacePath);
+    }
+    this.fs.renameSync(oldWorkspacePath, newWorkspacePath);
+    return newWorkspacePath;
+  }
+
   findWorkspace(destPath: string, branchName: string): { name: string; path: string; repoCount: number } | null {
     const workspaces = this.listWorkspaces(destPath);
     const sanitized = sanitizeBranchForFolder(branchName);

@@ -160,6 +160,8 @@ export function createIntegrationServices(sourcePath: string, destPath: string):
     killSession: sinon.stub(),
     addPane: sinon.stub().resolves(1),
     sendKeysToPane: sinon.stub().resolves(),
+    sessionExists: sinon.stub().resolves(false),
+    renameSession: sinon.stub().resolves(),
   } as any;
   const repos = new RepoService(nodeFs, gitService);
   const postCheckout = new PostCheckoutService(nodeShell);

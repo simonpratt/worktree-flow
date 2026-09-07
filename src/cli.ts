@@ -9,6 +9,7 @@ import { registerListCommand } from './commands/list.js';
 import { registerPullCommand } from './commands/pull.js';
 import { registerPushCommand } from './commands/push.js';
 import { registerDropCommand } from './commands/drop.js';
+import { registerRenameCommand } from './commands/rename.js';
 import { registerStatusCommand } from './commands/status.js';
 import { registerPruneCommand } from './commands/prune.js';
 import { registerFetchCommand } from './commands/fetch.js';
@@ -31,6 +32,7 @@ registerCreateCommand(program);
 registerCheckoutCommand(program);
 registerListCommand(program);
 registerAttachCommand(program);
+registerRenameCommand(program);
 registerDropCommand(program);
 registerPruneCommand(program);
 
