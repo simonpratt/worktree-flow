@@ -21,7 +21,7 @@ export async function runAttach(
     input: (opts: any) => Promise<string>;
     confirm: (opts: { message: string; default: boolean }) => Promise<boolean>;
   },
-  options: { repos?: string[] } = {}
+  options: { repos?: string[]; sourceBranch?: string; postCheckout?: boolean } = {}
 ): Promise<void> {
   // 1. Resolve workspace (from arg or cwd)
   const { workspacePath, displayName } = resolveWorkspace(
@@ -76,18 +76,18 @@ export async function runAttach(
   }
 
   // 5. Ask for source branch
-  const sourceBranch = await deps.input({
+  const sourceBranch = options.sourceBranch ?? (await deps.input({
     message: 'Branch from which branch?',
     default: 'master',
-  });
+  }));
 
   // 6. Post-checkout confirmation
   let shouldRunPostCheckout = false;
   if (config.postCheckout) {
-    shouldRunPostCheckout = await deps.confirm({
+    shouldRunPostCheckout = options.postCheckout ?? (await deps.confirm({
       message: `Run "${config.postCheckout}" in new workspaces?`,
       default: true,
-    });
+    }));
   }
 
   services.console.log('\nAttaching repos to workspace...');
@@ -171,12 +171,21 @@ export function registerAttachCommand(program: Command): void {
     .helpGroup('Workspaces')
     .description('Attach repos to an existing workspace (auto-detects from current directory if branch not provided)')
     .option('-r, --repo <repo>', 'Repo to include (repeatable, skips the interactive picker)', (value: string, previous: string[]) => previous.concat([value]), [] as string[])
-    .action(async (branchName: string | undefined, cmdOptions: { repo: string[] }) => {
+    .option('-f, --from <branch>', 'Branch to create from, skips the interactive prompt')
+    .option('--post-checkout', 'Run the post-checkout command without prompting')
+    .option('--no-post-checkout', 'Skip the post-checkout command without prompting')
+    .action(async (branchName: string | undefined, cmdOptions: { repo: string[]; from?: string; postCheckout?: boolean }) => {
       const services = createServices();
       const useCases = createUseCases(services);
 
       try {
-        await runAttach(branchName, useCases, services, { checkbox, input, confirm }, { repos: cmdOptions.repo });
+        await runAttach(
+          branchName,
+          useCases,
+          services,
+          { checkbox, input, confirm },
+          { repos: cmdOptions.repo, sourceBranch: cmdOptions.from, postCheckout: cmdOptions.postCheckout }
+        );
       } catch (error: any) {
         services.console.error(error.message);
         services.process.exit(1);

@@ -20,7 +20,7 @@ export async function runCreate(
     input: (opts: any) => Promise<string>;
     confirm: (opts: { message: string; default: boolean }) => Promise<boolean>;
   },
-  options: { repos?: string[] } = {}
+  options: { repos?: string[]; sourceBranch?: string; postCheckout?: boolean } = {}
 ): Promise<void> {
   const { sourcePath, destPath } = services.config.getRequired();
   const config = services.config.load();
@@ -50,17 +50,17 @@ export async function runCreate(
     return;
   }
 
-  const sourceBranch = await deps.input({
+  const sourceBranch = options.sourceBranch ?? (await deps.input({
     message: 'Branch from which branch?',
     default: 'master',
-  });
+  }));
 
   let shouldRunPostCheckout = false;
   if (config.postCheckout) {
-    shouldRunPostCheckout = await deps.confirm({
+    shouldRunPostCheckout = options.postCheckout ?? (await deps.confirm({
       message: `Run "${config.postCheckout}" in all workspaces?`,
       default: true,
-    });
+    }));
   }
 
   services.console.log('\nCreating workspace...');
@@ -159,12 +159,21 @@ export function registerCreateCommand(program: Command): void {
     .helpGroup('Workspaces')
     .description('Create branches and worktrees for selected repos')
     .option('-r, --repo <repo>', 'Repo to include (repeatable, skips the interactive picker)', (value: string, previous: string[]) => previous.concat([value]), [] as string[])
-    .action(async (branchName: string, cmdOptions: { repo: string[] }) => {
+    .option('-f, --from <branch>', 'Branch to create from, skips the interactive prompt')
+    .option('--post-checkout', 'Run the post-checkout command without prompting')
+    .option('--no-post-checkout', 'Skip the post-checkout command without prompting')
+    .action(async (branchName: string, cmdOptions: { repo: string[]; from?: string; postCheckout?: boolean }) => {
       const services = createServices();
       const useCases = createUseCases(services);
 
       try {
-        await runCreate(branchName, useCases, services, { checkbox, input, confirm }, { repos: cmdOptions.repo });
+        await runCreate(
+          branchName,
+          useCases,
+          services,
+          { checkbox, input, confirm },
+          { repos: cmdOptions.repo, sourceBranch: cmdOptions.from, postCheckout: cmdOptions.postCheckout }
+        );
       } catch (error: any) {
         services.console.error(error.message);
         services.process.exit(1);

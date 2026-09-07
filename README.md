@@ -50,7 +50,13 @@ Working on features that span multiple repositories means manually creating bran
 
 ### `flow create <name>`
 
-Create a new branch across selected repos. Interactively select which repos to include, then creates branches and worktrees in a new workspace directory. Pass `--repo <name>` (repeatable) to specify repos directly and skip the interactive picker, e.g. `flow create TICKET-123 --repo api --repo web`.
+Create a new branch across selected repos. Interactively select which repos to include, then creates branches and worktrees in a new workspace directory. Every interactive prompt has a matching flag so the command can run fully non-interactively:
+
+- `--repo <name>` (repeatable) — repos to include, skips the interactive picker
+- `-f, --from <branch>` — branch to create from, skips the source-branch prompt
+- `--post-checkout` / `--no-post-checkout` — run or skip the post-checkout command without prompting
+
+e.g. `flow create TICKET-123 --repo api --repo web --from master --post-checkout`.
 
 ### `flow checkout <name>`
 
@@ -58,7 +64,7 @@ Checkout an existing branch. Fetches all repos, detects which have the branch, a
 
 ### `flow attach [name]`
 
-Attach repos to an existing workspace. Discovers available repos not yet in the workspace, presents an interactive picker, creates worktrees with new branches, copies config files, and runs post-checkout commands. Auto-detects the workspace from the current directory, or specify a branch name explicitly. Pass `--repo <name>` (repeatable) to specify repos directly and skip the interactive picker.
+Attach repos to an existing workspace. Discovers available repos not yet in the workspace, presents an interactive picker, creates worktrees with new branches, copies config files, and runs post-checkout commands. Auto-detects the workspace from the current directory, or specify a branch name explicitly. Supports the same `--repo <name>` (repeatable), `-f, --from <branch>`, and `--post-checkout` / `--no-post-checkout` flags as `flow create` to skip the interactive prompts.
 
 ### `flow rename <old-name> <new-name>` (or `flow rename <new-name>` from inside a workspace)
 

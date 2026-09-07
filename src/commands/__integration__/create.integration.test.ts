@@ -84,6 +84,87 @@ describe('create integration', () => {
     expect(fs.existsSync(path.join(destPath, 'new-feature', 'repo2'))).toBe(false);
   });
 
+  it('should use --from to skip the source branch prompt', async () => {
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+
+    const checkboxStub = sinon.stub().resolves([repo1]);
+
+    await runCreate(
+      'new-feature',
+      integration.useCases,
+      integration.services,
+      { checkbox: checkboxStub, input: inputStub, confirm: confirmStub },
+      { repos: ['repo1'], sourceBranch: 'master' }
+    );
+
+    expect(inputStub.called).toBe(false);
+    expect(fs.existsSync(path.join(destPath, 'new-feature', 'repo1'))).toBe(true);
+  });
+
+  it('should use --post-checkout to skip the post-checkout prompt and run it', async () => {
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+
+    integration.services.config.load = sinon.stub().returns({
+      sourcePath,
+      destPath,
+      copyFiles: '.env',
+      tmux: false,
+      postCheckout: 'echo "ran" > postcheckout.txt',
+      perRepoPostCheckout: {},
+      fetchCacheTtlSeconds: 300,
+      branchAutoSelectRepos: [],
+    });
+
+    const checkboxStub = sinon.stub().resolves([repo1]);
+
+    await runCreate(
+      'new-feature',
+      integration.useCases,
+      integration.services,
+      { checkbox: checkboxStub, input: inputStub, confirm: confirmStub },
+      { repos: ['repo1'], sourceBranch: 'master', postCheckout: true }
+    );
+
+    expect(confirmStub.called).toBe(false);
+    const wt1 = path.join(destPath, 'new-feature', 'repo1');
+    expect(fs.readFileSync(path.join(wt1, 'postcheckout.txt'), 'utf-8').trim()).toBe('ran');
+  });
+
+  it('should use --no-post-checkout to skip the post-checkout prompt and not run it', async () => {
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+
+    integration.services.config.load = sinon.stub().returns({
+      sourcePath,
+      destPath,
+      copyFiles: '.env',
+      tmux: false,
+      postCheckout: 'echo "ran" > postcheckout.txt',
+      perRepoPostCheckout: {},
+      fetchCacheTtlSeconds: 300,
+      branchAutoSelectRepos: [],
+    });
+
+    const checkboxStub = sinon.stub().resolves([repo1]);
+
+    await runCreate(
+      'new-feature',
+      integration.useCases,
+      integration.services,
+      { checkbox: checkboxStub, input: inputStub, confirm: confirmStub },
+      { repos: ['repo1'], sourceBranch: 'master', postCheckout: false }
+    );
+
+    expect(confirmStub.called).toBe(false);
+    const wt1 = path.join(destPath, 'new-feature', 'repo1');
+    expect(fs.existsSync(path.join(wt1, 'postcheckout.txt'))).toBe(false);
+  });
+
   it('should throw RepoNotFoundError when --repo names an unknown repo', async () => {
     await initGitRepo(sourcePath, 'repo1');
 
