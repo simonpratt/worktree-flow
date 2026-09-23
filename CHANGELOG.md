@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.0.26] 2026-09-23
+
+### Fixed
+
+- `flow checkout` (and `flow attach`) no longer leave a worktree without upstream tracking when the local branch already existed in the source repo without one (e.g. left over from a prior create/checkout/remove cycle) — `git worktree add` only auto-configures tracking for branches that don't already exist locally, so `git pull` in the new worktree failed with "no tracking information"
+
 ## [0.0.25] 2026-09-05
 
 ### Added

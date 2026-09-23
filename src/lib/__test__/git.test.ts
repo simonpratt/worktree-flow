@@ -181,16 +181,80 @@ describe('GitService', () => {
 
   describe('addWorktree', () => {
     it('should execute worktree add for existing branch', async () => {
-      shell.execFile.resolves({ stdout: '', stderr: '' });
+      // hasLocalBranch check: branch does not already exist locally
+      shell.execFile.onFirstCall().rejects(new Error('not found'));
+      shell.execFile.onSecondCall().resolves({ stdout: '', stderr: '' });
 
       await service.addWorktree('/repo', '/worktree', 'feature');
 
-      sinon.assert.calledOnceWithExactly(
-        shell.execFile,
+      expect(shell.execFile.callCount).toBe(2);
+      sinon.assert.calledWith(
+        shell.execFile.firstCall,
+        'git',
+        ['-C', '/repo', 'rev-parse', '--verify', 'refs/heads/feature'],
+        { encoding: 'utf-8' }
+      );
+      sinon.assert.calledWith(
+        shell.execFile.secondCall,
         'git',
         ['-C', '/repo', 'worktree', 'add', '/worktree', 'feature'],
         { encoding: 'utf-8' }
       );
+    });
+
+    it('should fix up missing upstream tracking when the local branch already existed', async () => {
+      shell.execFile.onCall(0).resolves({ stdout: 'abc123', stderr: '' }); // hasLocalBranch -> true
+      shell.execFile.onCall(1).resolves({ stdout: '', stderr: '' }); // worktree add
+      shell.execFile.onCall(2).rejects(new Error('no upstream')); // getUpstreamBranch -> none
+      shell.execFile.onCall(3).resolves({ stdout: 'abc123', stderr: '' }); // remoteTrackingBranchExists -> true
+      shell.execFile.onCall(4).resolves({ stdout: '', stderr: '' }); // branch --set-upstream-to
+
+      await service.addWorktree('/repo', '/worktree', 'feature');
+
+      expect(shell.execFile.callCount).toBe(5);
+      sinon.assert.calledWith(
+        shell.execFile.getCall(3),
+        'git',
+        ['-C', '/repo', 'rev-parse', '--verify', 'origin/feature']
+      );
+      sinon.assert.calledWith(
+        shell.execFile.getCall(4),
+        'git',
+        ['-C', '/worktree', 'branch', '--set-upstream-to=origin/feature', 'feature']
+      );
+    });
+
+    it('should not touch tracking when the pre-existing local branch already has an upstream', async () => {
+      shell.execFile.onCall(0).resolves({ stdout: 'abc123', stderr: '' }); // hasLocalBranch -> true
+      shell.execFile.onCall(1).resolves({ stdout: '', stderr: '' }); // worktree add
+      shell.execFile.onCall(2).resolves({ stdout: 'origin/feature', stderr: '' }); // getUpstreamBranch -> exists
+
+      await service.addWorktree('/repo', '/worktree', 'feature');
+
+      expect(shell.execFile.callCount).toBe(3);
+    });
+
+    it('should not attempt to set tracking when no matching remote branch exists', async () => {
+      shell.execFile.onCall(0).resolves({ stdout: 'abc123', stderr: '' }); // hasLocalBranch -> true
+      shell.execFile.onCall(1).resolves({ stdout: '', stderr: '' }); // worktree add
+      shell.execFile.onCall(2).rejects(new Error('no upstream')); // getUpstreamBranch -> none
+      shell.execFile.onCall(3).rejects(new Error('not found')); // remoteTrackingBranchExists -> false
+
+      await service.addWorktree('/repo', '/worktree', 'feature');
+
+      expect(shell.execFile.callCount).toBe(4);
+    });
+
+    it('should not fail worktree add if setting upstream tracking fails', async () => {
+      shell.execFile.onCall(0).resolves({ stdout: 'abc123', stderr: '' }); // hasLocalBranch -> true
+      shell.execFile.onCall(1).resolves({ stdout: '', stderr: '' }); // worktree add
+      shell.execFile.onCall(2).rejects(new Error('no upstream')); // getUpstreamBranch -> none
+      shell.execFile.onCall(3).resolves({ stdout: 'abc123', stderr: '' }); // remoteTrackingBranchExists -> true
+      shell.execFile.onCall(4).rejects(new Error('set-upstream-to failed'));
+
+      await expect(
+        service.addWorktree('/repo', '/worktree', 'feature')
+      ).resolves.not.toThrow();
     });
   });
 

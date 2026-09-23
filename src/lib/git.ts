@@ -85,7 +85,34 @@ export class GitService {
     worktreePath: string,
     branch: string
   ): Promise<void> {
+    // Git only auto-configures upstream tracking (DWIM) when the local branch
+    // doesn't already exist. If it does (e.g. leftover from a prior
+    // create/checkout/remove cycle), `worktree add` checks it out as-is with
+    // no tracking info, so `git pull` fails afterwards. Detect that case
+    // beforehand so we can fix tracking up once the worktree exists.
+    const hadLocalBranch = await this.hasLocalBranch(repoPath, branch);
     await this.exec(repoPath, ['worktree', 'add', worktreePath, branch]);
+    if (hadLocalBranch) {
+      await this.ensureUpstreamTracking(repoPath, worktreePath, branch);
+    }
+  }
+
+  private async ensureUpstreamTracking(
+    repoPath: string,
+    worktreePath: string,
+    branch: string
+  ): Promise<void> {
+    const upstream = await this.getUpstreamBranch(worktreePath);
+    if (upstream) return;
+
+    const hasRemoteBranch = await this.remoteTrackingBranchExists(repoPath, branch);
+    if (!hasRemoteBranch) return;
+
+    try {
+      await this.exec(worktreePath, ['branch', `--set-upstream-to=origin/${branch}`, branch]);
+    } catch {
+      // Non-fatal: worktree is still usable without automatic tracking.
+    }
   }
 
   async pull(worktreePath: string): Promise<void> {
