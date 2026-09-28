@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import sinon from 'sinon';
 import { runQuickstart } from '../quickstart.js';
+import { PromptCancelledError } from '../../lib/errors.js';
 import {
   createIntegrationServices,
   type IntegrationServices,
@@ -149,7 +150,7 @@ describe('quickstart integration', () => {
   });
 
   it('should not save config if a prompt throws', async () => {
-    inputStub.onCall(0).rejects(new Error('ExitPromptError'));
+    inputStub.onCall(0).rejects(new PromptCancelledError());
 
     await runQuickstart(integration.services, { input: inputStub, shell: shellStub }).catch(() => {});
 
@@ -269,7 +270,7 @@ describe('quickstart integration', () => {
     it('should not save config if user exits during source-path retry', async () => {
       discoverReposStub.onFirstCall().returns([]);
       inputStub.onCall(0).resolves('/wrong/path');
-      inputStub.onCall(1).rejects(Object.assign(new Error('ExitPromptError'), { name: 'ExitPromptError' }));
+      inputStub.onCall(1).rejects(new PromptCancelledError());
 
       await runQuickstart(integration.services, { input: inputStub, shell: shellStub }).catch(() => {});
 

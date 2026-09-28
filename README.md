@@ -50,7 +50,7 @@ Working on features that span multiple repositories means manually creating bran
 
 ### `flow create <name>`
 
-Create a new branch across selected repos. Interactively select which repos to include, then creates branches and worktrees in a new workspace directory. Every interactive prompt has a matching flag so the command can run fully non-interactively:
+Create a new branch across selected repos. Interactively select which repos to include (type to filter, Tab to toggle), then creates branches and worktrees in a new workspace directory. Every interactive prompt has a matching flag so the command can run fully non-interactively:
 
 - `--repo <name>` (repeatable) — repos to include, skips the interactive picker
 - `-f, --from <branch>` — branch to create from, skips the source-branch prompt

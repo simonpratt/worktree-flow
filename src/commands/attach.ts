@@ -1,8 +1,5 @@
 import path from 'node:path';
 import { Command } from 'commander';
-import checkbox, { Separator } from '@inquirer/checkbox';
-import input from '@inquirer/input';
-import confirm from '@inquirer/confirm';
 import chalk from 'chalk';
 import { createServices } from '../lib/services.js';
 import { createUseCases } from '../usecases/usecases.js';
@@ -10,15 +7,16 @@ import type { Services } from '../lib/services.js';
 import type { UseCases } from '../usecases/usecases.js';
 import { NoReposFoundError } from '../lib/errors.js';
 import { resolveWorkspace } from '../lib/workspaceResolver.js';
-import { buildRepoCheckboxChoices, resolveReposByName } from './helpers.js';
+import { buildRepoOptions, handleCommandError, resolveReposByName } from './helpers.js';
+import { confirm, input, pickRepos, type InputOptions, type RepoPickerOptions } from './prompts.js';
 
 export async function runAttach(
   branchName: string | undefined,
   useCases: UseCases,
   services: Services,
   deps: {
-    checkbox: (opts: any) => Promise<string[]>;
-    input: (opts: any) => Promise<string>;
+    pickRepos: (opts: RepoPickerOptions) => Promise<string[]>;
+    input: (opts: InputOptions) => Promise<string>;
     confirm: (opts: { message: string; default: boolean }) => Promise<boolean>;
   },
   options: { repos?: string[]; sourceBranch?: string; postCheckout?: boolean } = {}
@@ -60,13 +58,9 @@ export async function runAttach(
   if (options.repos && options.repos.length > 0) {
     selected = resolveReposByName(availableRepos, options.repos);
   } else {
-    const checkboxChoices = buildRepoCheckboxChoices(availableRepos, services, [], (label) => new Separator(label));
-
-    selected = await deps.checkbox({
+    selected = await deps.pickRepos({
       message: `Select repos to attach to "${displayName}":`,
-      choices: checkboxChoices,
-      pageSize: 20,
-      loop: false,
+      ...buildRepoOptions(availableRepos, services, []),
     });
   }
 
@@ -183,12 +177,11 @@ export function registerAttachCommand(program: Command): void {
           branchName,
           useCases,
           services,
-          { checkbox, input, confirm },
+          { pickRepos, input, confirm },
           { repos: cmdOptions.repo, sourceBranch: cmdOptions.from, postCheckout: cmdOptions.postCheckout }
         );
       } catch (error: any) {
-        services.console.error(error.message);
-        services.process.exit(1);
+        handleCommandError(error, services);
       }
     });
 }

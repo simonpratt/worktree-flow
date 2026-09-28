@@ -1,11 +1,12 @@
 import path from 'node:path';
 import { Command } from 'commander';
-import confirm from '@inquirer/confirm';
 import chalk from 'chalk';
 import { createServices } from '../lib/services.js';
 import { createUseCases } from '../usecases/usecases.js';
 import type { Services } from '../lib/services.js';
 import type { UseCases } from '../usecases/usecases.js';
+import { handleCommandError } from './helpers.js';
+import { confirm } from './prompts.js';
 
 export async function runCheckout(
   branchName: string,
@@ -171,8 +172,7 @@ export async function runCheckout(
       services.process.exit(1);
     }
   } catch (error: any) {
-    services.console.error(error.message);
-    services.process.exit(1);
+    handleCommandError(error, services);
   }
 }
 

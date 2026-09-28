@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import sinon from 'sinon';
 import { runCheckout } from '../checkout.js';
+import { PromptCancelledError } from '../../lib/errors.js';
 import {
   createTempDir,
   initGitRepo,
@@ -68,6 +69,29 @@ describe('checkout integration', () => {
     ).rejects.toThrow('exit');
 
     sinon.assert.calledWith(integration.stubs.process.exit as any, 1);
+  });
+
+  it('should exit quietly without creating a workspace when the post-checkout prompt is cancelled', async () => {
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+    await createRemoteBranchRef(repo1, 'feature');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+    integration.services.config.load = sinon.stub().returns({
+      sourcePath,
+      destPath,
+      copyFiles: '.env',
+      tmux: false,
+      postCheckout: 'npm ci',
+      perRepoPostCheckout: {},
+      fetchCacheTtlSeconds: 300,
+    });
+    confirmStub.rejects(new PromptCancelledError());
+
+    await runCheckout('feature', integration.useCases, integration.services, { confirm: confirmStub });
+
+    expect(fs.existsSync(path.join(destPath, 'feature'))).toBe(false);
+    sinon.assert.notCalled(integration.stubs.console.error);
+    sinon.assert.notCalled(integration.stubs.process.exit as sinon.SinonStub);
   });
 
   it('should copy config files (.env) to each worktree', async () => {

@@ -67,7 +67,7 @@ export class RepoService {
   }
 
   /**
-   * Format repo choices for checkbox selection
+   * Format repo choices for the repo picker
    */
   formatRepoChoices(repos: string[]): Array<{ name: string; value: string }> {
     return repos

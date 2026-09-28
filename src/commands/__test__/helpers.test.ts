@@ -1,137 +1,71 @@
 import { describe, it, expect } from 'vitest';
 import sinon from 'sinon';
-import { buildRepoCheckboxChoices, resolveReposByName } from '../helpers.js';
-import { RepoNotFoundError } from '../../lib/errors.js';
+import { buildRepoOptions, handleCommandError, resolveReposByName } from '../helpers.js';
+import { PromptCancelledError, RepoNotFoundError } from '../../lib/errors.js';
 
-function makeSeparator(label?: string) {
-  return { isSeparator: true, label };
-}
-
-function makeServices(repoChoices: Array<{ name: string; value: string }>, recentlyUsed: string[]) {
+function makeServices(repoChoices: Array<{ name: string; value: string }>) {
   return {
     repos: {
       formatRepoChoices: sinon.stub().returns(repoChoices),
     },
-    fetchCache: {
-      getRecentlyUsedRepos: sinon.stub().returns(recentlyUsed),
-    },
   };
 }
 
-describe('buildRepoCheckboxChoices', () => {
-  it('returns flat choices when no recently used repos', () => {
-    const services = makeServices(
-      [
-        { name: 'repo1', value: '/source/repo1' },
-        { name: 'repo2', value: '/source/repo2' },
-      ],
-      []
-    );
+describe('buildRepoOptions', () => {
+  it('labels each repo by name, keeping the sorted order from formatRepoChoices', () => {
+    const services = makeServices([
+      { name: 'repo1', value: '/source/repo1' },
+      { name: 'repo2', value: '/source/repo2' },
+    ]);
 
-    const result = buildRepoCheckboxChoices(
-      ['/source/repo1', '/source/repo2'],
-      services as any,
-      [],
-      makeSeparator
-    );
+    const { options } = buildRepoOptions(['/source/repo2', '/source/repo1'], services as any, []);
 
-    expect(result).toEqual([
-      { name: 'repo1', value: '/source/repo1', checked: false },
-      { name: 'repo2', value: '/source/repo2', checked: false },
+    expect(options).toEqual([
+      { value: '/source/repo1', label: 'repo1' },
+      { value: '/source/repo2', label: 'repo2' },
     ]);
   });
 
-  it('groups recently used repos under a separator when present', () => {
-    const services = makeServices(
-      [
-        { name: 'repo1', value: '/source/repo1' },
-        { name: 'repo2', value: '/source/repo2' },
-        { name: 'repo3', value: '/source/repo3' },
-      ],
-      ['repo1', 'repo3']
-    );
+  it('pre-selects the paths of repos listed in branchAutoSelectRepos', () => {
+    const services = makeServices([
+      { name: 'repo1', value: '/source/repo1' },
+      { name: 'repo2', value: '/source/repo2' },
+    ]);
 
-    const result = buildRepoCheckboxChoices(
-      ['/source/repo1', '/source/repo2', '/source/repo3'],
-      services as any,
-      [],
-      makeSeparator
-    ) as any[];
-
-    expect(result[0]).toEqual(makeSeparator('Recently Used'));
-    expect(result[1]).toMatchObject({ name: 'repo1' });
-    expect(result[2]).toMatchObject({ name: 'repo3' });
-    // divider before remaining
-    expect(result[3]).toEqual(makeSeparator(undefined));
-    expect(result[4]).toMatchObject({ name: 'repo2' });
-  });
-
-  it('omits the trailing separator when all repos are recently used', () => {
-    const services = makeServices(
-      [
-        { name: 'repo1', value: '/source/repo1' },
-        { name: 'repo2', value: '/source/repo2' },
-      ],
-      ['repo1', 'repo2']
-    );
-
-    const result = buildRepoCheckboxChoices(
+    const { initialValues } = buildRepoOptions(
       ['/source/repo1', '/source/repo2'],
       services as any,
-      [],
-      makeSeparator
-    ) as any[];
-
-    // Only the "Recently Used" separator + 2 repo choices — no trailing separator
-    expect(result).toHaveLength(3);
-    expect(result[0]).toEqual(makeSeparator('Recently Used'));
-    expect(result[1]).toMatchObject({ name: 'repo1' });
-    expect(result[2]).toMatchObject({ name: 'repo2' });
-  });
-
-  it('pre-checks repos listed in branchAutoSelectRepos', () => {
-    const services = makeServices(
-      [
-        { name: 'repo1', value: '/source/repo1' },
-        { name: 'repo2', value: '/source/repo2' },
-      ],
-      []
+      ['repo2', 'not-a-repo']
     );
 
-    const result = buildRepoCheckboxChoices(
-      ['/source/repo1', '/source/repo2'],
-      services as any,
-      ['repo1'],
-      makeSeparator
-    ) as any[];
-
-    expect(result.find((c) => c.name === 'repo1').checked).toBe(true);
-    expect(result.find((c) => c.name === 'repo2').checked).toBe(false);
+    expect(initialValues).toEqual(['/source/repo2']);
   });
+});
 
-  it('uses the provided createSeparator factory for all separators', () => {
-    const separators: Array<string | undefined> = [];
-    const trackingSeparator = (label?: string) => {
-      separators.push(label);
-      return makeSeparator(label);
+describe('handleCommandError', () => {
+  function makeCommandServices() {
+    return {
+      console: { error: sinon.stub() },
+      process: { exit: sinon.stub() },
     };
+  }
 
-    const services = makeServices(
-      [
-        { name: 'repo1', value: '/source/repo1' },
-        { name: 'repo2', value: '/source/repo2' },
-      ],
-      ['repo1']
-    );
+  it('exits quietly when a prompt was cancelled', () => {
+    const services = makeCommandServices();
 
-    buildRepoCheckboxChoices(
-      ['/source/repo1', '/source/repo2'],
-      services as any,
-      [],
-      trackingSeparator
-    );
+    handleCommandError(new PromptCancelledError(), services as any);
 
-    expect(separators).toEqual(['Recently Used', undefined]);
+    sinon.assert.notCalled(services.console.error);
+    sinon.assert.notCalled(services.process.exit);
+  });
+
+  it('prints the message and exits non-zero for other errors', () => {
+    const services = makeCommandServices();
+
+    handleCommandError(new Error('boom'), services as any);
+
+    sinon.assert.calledWith(services.console.error, 'boom');
+    sinon.assert.calledWith(services.process.exit, 1);
   });
 });
 

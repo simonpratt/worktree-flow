@@ -50,3 +50,10 @@ export class NotInWorkspaceError extends Error {
     this.name = 'NotInWorkspaceError';
   }
 }
+
+export class PromptCancelledError extends Error {
+  constructor() {
+    super('Prompt cancelled');
+    this.name = 'PromptCancelledError';
+  }
+}

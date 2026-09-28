@@ -38,11 +38,11 @@ describe('attach integration', () => {
     integration = createIntegrationServices(sourcePath, destPath);
     (integration.stubs.process.cwd as sinon.SinonStub).returns('/tmp/nowhere');
 
-    const checkboxStub = sinon.stub().resolves([]);
+    const pickReposStub = sinon.stub().resolves([]);
 
     await expect(
       runAttach(undefined, integration.useCases, integration.services, {
-        checkbox: checkboxStub,
+        pickRepos: pickReposStub,
         input: inputStub,
         confirm: confirmStub,
       })
@@ -52,11 +52,11 @@ describe('attach integration', () => {
   it('should throw WorkspaceNotFoundError when explicit branch does not exist', async () => {
     integration = createIntegrationServices(sourcePath, destPath);
 
-    const checkboxStub = sinon.stub().resolves([]);
+    const pickReposStub = sinon.stub().resolves([]);
 
     await expect(
       runAttach('nonexistent', integration.useCases, integration.services, {
-        checkbox: checkboxStub,
+        pickRepos: pickReposStub,
         input: inputStub,
         confirm: confirmStub,
       })
@@ -71,10 +71,10 @@ describe('attach integration', () => {
     integration = createIntegrationServices(sourcePath, destPath);
 
     // First create a workspace with repo1 only
-    const branchCheckboxStub = sinon.stub().resolves([repo1]);
+    const branchPickReposStub = sinon.stub().resolves([repo1]);
     const { runCreate } = await import('../create.js');
     await runCreate('feature', integration.useCases, integration.services, {
-      checkbox: branchCheckboxStub,
+      pickRepos: branchPickReposStub,
       input: inputStub,
       confirm: confirmStub,
     });
@@ -85,11 +85,11 @@ describe('attach integration', () => {
     expect(fs.existsSync(path.join(workspacePath, 'repo2'))).toBe(false);
 
     // Now attach repo2 and repo3 via the attach command
-    const attachCheckboxStub = sinon.stub().resolves([repo2, repo3]);
+    const attachPickReposStub = sinon.stub().resolves([repo2, repo3]);
     (integration.stubs.process.cwd as sinon.SinonStub).returns(workspacePath);
 
     await runAttach(undefined, integration.useCases, integration.services, {
-      checkbox: attachCheckboxStub,
+      pickRepos: attachPickReposStub,
       input: inputStub,
       confirm: confirmStub,
     });
@@ -115,20 +115,20 @@ describe('attach integration', () => {
     integration = createIntegrationServices(sourcePath, destPath);
 
     // Create workspace with repo1
-    const branchCheckboxStub = sinon.stub().resolves([repo1]);
+    const branchPickReposStub = sinon.stub().resolves([repo1]);
     const { runCreate } = await import('../create.js');
     await runCreate('feature', integration.useCases, integration.services, {
-      checkbox: branchCheckboxStub,
+      pickRepos: branchPickReposStub,
       input: inputStub,
       confirm: confirmStub,
     });
 
     // Attach repo2 using explicit branch name (cwd doesn't matter)
-    const attachCheckboxStub = sinon.stub().resolves([repo2]);
+    const attachPickReposStub = sinon.stub().resolves([repo2]);
     (integration.stubs.process.cwd as sinon.SinonStub).returns('/tmp/somewhere-else');
 
     await runAttach('feature', integration.useCases, integration.services, {
-      checkbox: attachCheckboxStub,
+      pickRepos: attachPickReposStub,
       input: inputStub,
       confirm: confirmStub,
     });
@@ -144,27 +144,27 @@ describe('attach integration', () => {
     integration = createIntegrationServices(sourcePath, destPath);
 
     // Create workspace with repo1
-    const branchCheckboxStub = sinon.stub().resolves([repo1]);
+    const branchPickReposStub = sinon.stub().resolves([repo1]);
     const { runCreate } = await import('../create.js');
     await runCreate('feature', integration.useCases, integration.services, {
-      checkbox: branchCheckboxStub,
+      pickRepos: branchPickReposStub,
       input: inputStub,
       confirm: confirmStub,
     });
 
-    // Run attach - checkbox should only show repo2
-    const attachCheckboxStub = sinon.stub().resolves([repo2]);
+    // Run attach - picker should only show repo2
+    const attachPickReposStub = sinon.stub().resolves([repo2]);
     (integration.stubs.process.cwd as sinon.SinonStub).returns(path.join(destPath, 'feature'));
 
     await runAttach(undefined, integration.useCases, integration.services, {
-      checkbox: attachCheckboxStub,
+      pickRepos: attachPickReposStub,
       input: inputStub,
       confirm: confirmStub,
     });
 
-    // Verify checkbox choices only contained repo2
-    const choices = attachCheckboxStub.firstCall.args[0].choices;
-    const repoNames = choices.filter((c: any) => c.name !== undefined).map((c: any) => c.name);
+    // Verify picker options only contained repo2
+    const options = attachPickReposStub.firstCall.args[0].options;
+    const repoNames = options.map((o: any) => o.label);
     expect(repoNames).toEqual(['repo2']);
     expect(repoNames).not.toContain('repo1');
   });
@@ -176,26 +176,26 @@ describe('attach integration', () => {
     integration = createIntegrationServices(sourcePath, destPath);
 
     // Create workspace with repo1
-    const branchCheckboxStub = sinon.stub().resolves([repo1]);
+    const branchPickReposStub = sinon.stub().resolves([repo1]);
     const { runCreate } = await import('../create.js');
     await runCreate('feature', integration.useCases, integration.services, {
-      checkbox: branchCheckboxStub,
+      pickRepos: branchPickReposStub,
       input: inputStub,
       confirm: confirmStub,
     });
 
-    const attachCheckboxStub = sinon.stub().resolves([]);
+    const attachPickReposStub = sinon.stub().resolves([]);
     (integration.stubs.process.cwd as sinon.SinonStub).returns(path.join(destPath, 'feature'));
 
     await runAttach(
       undefined,
       integration.useCases,
       integration.services,
-      { checkbox: attachCheckboxStub, input: inputStub, confirm: confirmStub },
+      { pickRepos: attachPickReposStub, input: inputStub, confirm: confirmStub },
       { repos: ['repo2'] }
     );
 
-    expect(attachCheckboxStub.called).toBe(false);
+    expect(attachPickReposStub.called).toBe(false);
     expect(fs.existsSync(path.join(destPath, 'feature', 'repo2'))).toBe(true);
   });
 
@@ -205,15 +205,15 @@ describe('attach integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    const branchCheckboxStub = sinon.stub().resolves([repo1]);
+    const branchPickReposStub = sinon.stub().resolves([repo1]);
     const { runCreate } = await import('../create.js');
     await runCreate('feature', integration.useCases, integration.services, {
-      checkbox: branchCheckboxStub,
+      pickRepos: branchPickReposStub,
       input: inputStub,
       confirm: confirmStub,
     });
 
-    const attachCheckboxStub = sinon.stub().resolves([repo2]);
+    const attachPickReposStub = sinon.stub().resolves([repo2]);
     (integration.stubs.process.cwd as sinon.SinonStub).returns(path.join(destPath, 'feature'));
     inputStub.resetHistory();
 
@@ -221,7 +221,7 @@ describe('attach integration', () => {
       undefined,
       integration.useCases,
       integration.services,
-      { checkbox: attachCheckboxStub, input: inputStub, confirm: confirmStub },
+      { pickRepos: attachPickReposStub, input: inputStub, confirm: confirmStub },
       { sourceBranch: 'master' }
     );
 
@@ -235,10 +235,10 @@ describe('attach integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    const branchCheckboxStub = sinon.stub().resolves([repo1]);
+    const branchPickReposStub = sinon.stub().resolves([repo1]);
     const { runCreate } = await import('../create.js');
     await runCreate('feature', integration.useCases, integration.services, {
-      checkbox: branchCheckboxStub,
+      pickRepos: branchPickReposStub,
       input: inputStub,
       confirm: confirmStub,
     });
@@ -254,14 +254,14 @@ describe('attach integration', () => {
       branchAutoSelectRepos: [],
     });
 
-    const attachCheckboxStub = sinon.stub().resolves([repo2]);
+    const attachPickReposStub = sinon.stub().resolves([repo2]);
     (integration.stubs.process.cwd as sinon.SinonStub).returns(path.join(destPath, 'feature'));
 
     await runAttach(
       undefined,
       integration.useCases,
       integration.services,
-      { checkbox: attachCheckboxStub, input: inputStub, confirm: confirmStub },
+      { pickRepos: attachPickReposStub, input: inputStub, confirm: confirmStub },
       { sourceBranch: 'master', postCheckout: false }
     );
 
@@ -276,15 +276,15 @@ describe('attach integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    const branchCheckboxStub = sinon.stub().resolves([repo1]);
+    const branchPickReposStub = sinon.stub().resolves([repo1]);
     const { runCreate } = await import('../create.js');
     await runCreate('feature', integration.useCases, integration.services, {
-      checkbox: branchCheckboxStub,
+      pickRepos: branchPickReposStub,
       input: inputStub,
       confirm: confirmStub,
     });
 
-    const attachCheckboxStub = sinon.stub().resolves([]);
+    const attachPickReposStub = sinon.stub().resolves([]);
     (integration.stubs.process.cwd as sinon.SinonStub).returns(path.join(destPath, 'feature'));
 
     await expect(
@@ -292,7 +292,7 @@ describe('attach integration', () => {
         undefined,
         integration.useCases,
         integration.services,
-        { checkbox: attachCheckboxStub, input: inputStub, confirm: confirmStub },
+        { pickRepos: attachPickReposStub, input: inputStub, confirm: confirmStub },
         { repos: ['repo1'] }
       )
     ).rejects.toThrow(RepoNotFoundError);
@@ -305,20 +305,20 @@ describe('attach integration', () => {
     integration = createIntegrationServices(sourcePath, destPath);
 
     // Create workspace with repo1
-    const branchCheckboxStub = sinon.stub().resolves([repo1]);
+    const branchPickReposStub = sinon.stub().resolves([repo1]);
     const { runCreate } = await import('../create.js');
     await runCreate('feature', integration.useCases, integration.services, {
-      checkbox: branchCheckboxStub,
+      pickRepos: branchPickReposStub,
       input: inputStub,
       confirm: confirmStub,
     });
 
     // Run attach but select nothing (repo2 is available but not selected)
-    const attachCheckboxStub = sinon.stub().resolves([]);
+    const attachPickReposStub = sinon.stub().resolves([]);
     (integration.stubs.process.cwd as sinon.SinonStub).returns(path.join(destPath, 'feature'));
 
     await runAttach(undefined, integration.useCases, integration.services, {
-      checkbox: attachCheckboxStub,
+      pickRepos: attachPickReposStub,
       input: inputStub,
       confirm: confirmStub,
     });
@@ -336,10 +336,10 @@ describe('attach integration', () => {
     integration = createIntegrationServices(sourcePath, destPath);
 
     // Create workspace with repo1 (no post-checkout)
-    const branchCheckboxStub = sinon.stub().resolves([repo1]);
+    const branchPickReposStub = sinon.stub().resolves([repo1]);
     const { runCreate } = await import('../create.js');
     await runCreate('feature', integration.useCases, integration.services, {
-      checkbox: branchCheckboxStub,
+      pickRepos: branchPickReposStub,
       input: inputStub,
       confirm: confirmStub,
     });
@@ -356,12 +356,12 @@ describe('attach integration', () => {
       branchAutoSelectRepos: [],
     });
 
-    const attachCheckboxStub = sinon.stub().resolves([repo2]);
+    const attachPickReposStub = sinon.stub().resolves([repo2]);
     const attachConfirmStub = sinon.stub().resolves(true);
     (integration.stubs.process.cwd as sinon.SinonStub).returns(path.join(destPath, 'feature'));
 
     await runAttach(undefined, integration.useCases, integration.services, {
-      checkbox: attachCheckboxStub,
+      pickRepos: attachPickReposStub,
       input: inputStub,
       confirm: attachConfirmStub,
     });
@@ -385,10 +385,10 @@ describe('attach integration', () => {
     integration = createIntegrationServices(sourcePath, destPath);
 
     // Create workspace with repo1 first (no post-checkout)
-    const branchCheckboxStub = sinon.stub().resolves([repo1]);
+    const branchPickReposStub = sinon.stub().resolves([repo1]);
     const { runCreate } = await import('../create.js');
     await runCreate('feature', integration.useCases, integration.services, {
-      checkbox: branchCheckboxStub,
+      pickRepos: branchPickReposStub,
       input: inputStub,
       confirm: confirmStub,
     });
@@ -411,12 +411,12 @@ describe('attach integration', () => {
       branchAutoSelectRepos: [],
     });
 
-    const attachCheckboxStub = sinon.stub().resolves([repo2, repo3, repo4]);
+    const attachPickReposStub = sinon.stub().resolves([repo2, repo3, repo4]);
     const attachConfirmStub = sinon.stub().resolves(true);
     (integration.stubs.process.cwd as sinon.SinonStub).returns(path.join(destPath, 'feature'));
 
     await runAttach(undefined, integration.useCases, integration.services, {
-      checkbox: attachCheckboxStub,
+      pickRepos: attachPickReposStub,
       input: inputStub,
       confirm: attachConfirmStub,
     });

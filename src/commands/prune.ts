@@ -1,19 +1,18 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import checkbox from '@inquirer/checkbox';
-import confirm from '@inquirer/confirm';
 import { createServices } from '../lib/services.js';
 import { createUseCases } from '../usecases/usecases.js';
 import type { Services } from '../lib/services.js';
 import type { UseCases } from '../usecases/usecases.js';
-import { logStatusFetching, logStatus } from './helpers.js';
+import { handleCommandError, logStatusFetching, logStatus } from './helpers.js';
+import { confirm, multiselect, type MultiselectOptions } from './prompts.js';
 import { StatusService } from '../lib/status.js';
 
 export async function runPrune(
   useCases: UseCases,
   services: Services,
   deps: {
-    checkbox: (opts: any) => Promise<string[]>;
+    multiselect: (opts: MultiselectOptions) => Promise<string[]>;
     confirm: (opts: { message: string; default: boolean }) => Promise<boolean>;
   }
 ): Promise<void> {
@@ -80,21 +79,20 @@ export async function runPrune(
     services.process.exit(0);
   }
 
-  // Format choices for checkbox prompt (only prunable workspaces)
-  const choices = prunableWorkspaces.map(workspace => {
+  // Format options for the workspace picker (only prunable workspaces)
+  const options = prunableWorkspaces.map(workspace => {
     const repoCount = chalk.dim(`(${workspace.repoCount} repo${workspace.repoCount === 1 ? '' : 's'})`);
 
     return {
-      name: `${chalk.cyan(workspace.name)} ${repoCount}`,
+      label: `${chalk.cyan(workspace.name)} ${repoCount}`,
       value: workspace.name,
     };
   });
 
   // Let user select workspaces to prune
-  const selected = await deps.checkbox({
+  const selected = await deps.multiselect({
     message: 'Select workspaces to prune:',
-    choices,
-    pageSize: 20,
+    options,
   });
 
   if (selected.length === 0) {
@@ -161,10 +159,9 @@ export function registerPruneCommand(program: Command): void {
       const useCases = createUseCases(services);
 
       try {
-        await runPrune(useCases, services, { checkbox, confirm });
+        await runPrune(useCases, services, { multiselect, confirm });
       } catch (error: any) {
-        services.console.error(error.message);
-        services.process.exit(1);
+        handleCommandError(error, services);
       }
     });
 }

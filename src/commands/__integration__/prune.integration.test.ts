@@ -18,7 +18,7 @@ describe('prune integration', () => {
   let destPath: string;
   let integration: IntegrationServices;
   let confirmStub: sinon.SinonStub;
-  let checkboxStub: sinon.SinonStub;
+  let multiselectStub: sinon.SinonStub;
 
   beforeEach(async () => {
     tempDir = createTempDir();
@@ -27,7 +27,7 @@ describe('prune integration', () => {
     fs.mkdirSync(sourcePath, { recursive: true });
     fs.mkdirSync(destPath, { recursive: true });
     confirmStub = sinon.stub().resolves(true);
-    checkboxStub = sinon.stub();
+    multiselectStub = sinon.stub();
   });
 
   afterEach(() => {
@@ -40,7 +40,7 @@ describe('prune integration', () => {
 
     // Process.exit throws ProcessExitError in tests
     try {
-      await runPrune(integration.useCases, integration.services, { checkbox: checkboxStub, confirm: confirmStub });
+      await runPrune(integration.useCases, integration.services, { multiselect: multiselectStub, confirm: confirmStub });
       expect.fail('Should have thrown ProcessExitError');
     } catch (error) {
       expect(error).toBeInstanceOf(ProcessExitError);
@@ -68,11 +68,11 @@ describe('prune integration', () => {
     });
 
     // User selects nothing
-    checkboxStub.resolves([]);
+    multiselectStub.resolves([]);
 
     // Process.exit throws ProcessExitError in tests
     try {
-      await runPrune(integration.useCases, integration.services, { checkbox: checkboxStub, confirm: confirmStub });
+      await runPrune(integration.useCases, integration.services, { multiselect: multiselectStub, confirm: confirmStub });
       expect.fail('Should have thrown ProcessExitError');
     } catch (error) {
       expect(error).toBeInstanceOf(ProcessExitError);
@@ -82,7 +82,7 @@ describe('prune integration', () => {
     expect(logs.some((log) => log.includes('No workspaces selected'))).toBe(true);
   });
 
-  it('should display full workspace status before checkbox prompt', async () => {
+  it('should display full workspace status before the workspace picker', async () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
 
     integration = createIntegrationServices(sourcePath, destPath);
@@ -97,9 +97,9 @@ describe('prune integration', () => {
       tmux: false,
     });
 
-    checkboxStub.resolves(['old-feature']);
+    multiselectStub.resolves(['old-feature']);
 
-    await runPrune(integration.useCases, integration.services, { checkbox: checkboxStub, confirm: confirmStub });
+    await runPrune(integration.useCases, integration.services, { multiselect: multiselectStub, confirm: confirmStub });
 
     // Verify status was displayed (logStatus writes header via console.log)
     const logs = (integration.stubs.console.log as sinon.SinonStub).getCalls().map((call) => call.args[0]);
@@ -129,16 +129,16 @@ describe('prune integration', () => {
     expect(fs.existsSync(workspacePath)).toBe(true);
 
     // User selects the workspace to prune
-    checkboxStub.resolves(['old-feature']);
+    multiselectStub.resolves(['old-feature']);
 
     // Run prune
-    await runPrune(integration.useCases, integration.services, { checkbox: checkboxStub, confirm: confirmStub });
+    await runPrune(integration.useCases, integration.services, { multiselect: multiselectStub, confirm: confirmStub });
 
     // Workspace should be removed
     expect(fs.existsSync(workspacePath)).toBe(false);
   });
 
-  it('should exclude workspace with uncommitted changes from checkbox choices', async () => {
+  it('should exclude workspace with uncommitted changes from the workspace picker', async () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
 
     integration = createIntegrationServices(sourcePath, destPath);
@@ -169,17 +169,17 @@ describe('prune integration', () => {
     fs.writeFileSync(path.join(dirtyWorktree, 'dirty.txt'), 'uncommitted\n');
 
     // User selects the clean one
-    checkboxStub.resolves(['clean-feature']);
+    multiselectStub.resolves(['clean-feature']);
 
-    await runPrune(integration.useCases, integration.services, { checkbox: checkboxStub, confirm: confirmStub });
+    await runPrune(integration.useCases, integration.services, { multiselect: multiselectStub, confirm: confirmStub });
 
     // Verify the skip message was logged for the dirty workspace
     const logs = (integration.stubs.console.log as sinon.SinonStub).getCalls().map((call) => call.args[0]);
     expect(logs.some((log: string) => log.includes('Skipping') && log.includes('dirty-feature'))).toBe(true);
 
-    // Verify the checkbox was NOT offered the dirty workspace
-    const checkboxCall = checkboxStub.getCall(0);
-    const choiceValues = checkboxCall.args[0].choices.map((c: any) => c.value);
+    // Verify the picker was NOT offered the dirty workspace
+    const pickerCall = multiselectStub.getCall(0);
+    const choiceValues = pickerCall.args[0].options.map((c: any) => c.value);
     expect(choiceValues).not.toContain('dirty-feature');
     expect(choiceValues).toContain('clean-feature');
 
@@ -208,7 +208,7 @@ describe('prune integration', () => {
     fs.writeFileSync(path.join(worktreePath, 'dirty.txt'), 'uncommitted\n');
 
     try {
-      await runPrune(integration.useCases, integration.services, { checkbox: checkboxStub, confirm: confirmStub });
+      await runPrune(integration.useCases, integration.services, { multiselect: multiselectStub, confirm: confirmStub });
       expect.fail('Should have thrown ProcessExitError');
     } catch (error) {
       expect(error).toBeInstanceOf(ProcessExitError);
@@ -220,7 +220,7 @@ describe('prune integration', () => {
     expect(logs.some((log: string) => log.includes('All workspaces have uncommitted changes or errors'))).toBe(true);
 
     // Checkbox should NOT have been called
-    expect(checkboxStub.called).toBe(false);
+    expect(multiselectStub.called).toBe(false);
 
     // Workspace should still exist
     expect(fs.existsSync(result.workspacePath)).toBe(true);
@@ -246,11 +246,11 @@ describe('prune integration', () => {
     const workspacePath = result.workspacePath;
 
     // User selects the workspace but declines confirmation
-    checkboxStub.resolves(['old-feature']);
+    multiselectStub.resolves(['old-feature']);
 
     // Process.exit throws ProcessExitError in tests to simulate stopping execution
     try {
-      await runPrune(integration.useCases, integration.services, { checkbox: checkboxStub, confirm: confirmStub });
+      await runPrune(integration.useCases, integration.services, { multiselect: multiselectStub, confirm: confirmStub });
       expect.fail('Should have thrown ProcessExitError');
     } catch (error) {
       expect(error).toBeInstanceOf(ProcessExitError);
@@ -292,9 +292,9 @@ describe('prune integration', () => {
     });
 
     // User selects both workspaces to prune
-    checkboxStub.resolves(['old-feature-1', 'old-feature-2']);
+    multiselectStub.resolves(['old-feature-1', 'old-feature-2']);
 
-    await runPrune(integration.useCases, integration.services, { checkbox: checkboxStub, confirm: confirmStub });
+    await runPrune(integration.useCases, integration.services, { multiselect: multiselectStub, confirm: confirmStub });
 
     // Both workspaces should be removed
     expect(fs.existsSync(result1.workspacePath)).toBe(false);

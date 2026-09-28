@@ -1,12 +1,13 @@
 import os from 'node:os';
 import path from 'node:path';
 import { Command } from 'commander';
-import input from '@inquirer/input';
 import chalk from 'chalk';
 import { createServices } from '../lib/services.js';
 import type { Services } from '../lib/services.js';
 import { NodeShell } from '../adapters/node.js';
 import type { IShell } from '../adapters/types.js';
+import { handleCommandError } from './helpers.js';
+import { input, type InputOptions } from './prompts.js';
 
 const DIVIDER = chalk.dim('  ─────────────────────────────────────────────────');
 const DEFAULT_DEST_PATH = '~/dev/workspaces';
@@ -36,7 +37,7 @@ async function isTmuxInstalled(shell: IShell): Promise<boolean> {
 export async function runQuickstart(
   services: Services,
   deps: {
-    input: (opts: any) => Promise<string>;
+    input: (opts: InputOptions) => Promise<string>;
     shell: IShell;
   }
 ): Promise<void> {
@@ -176,12 +177,7 @@ export function registerQuickstartCommand(program: Command): void {
       try {
         await runQuickstart(services, { input, shell: new NodeShell() });
       } catch (error: any) {
-        // Suppress ExitPromptError — user Ctrl-C'd a prompt, exit silently
-        if (error?.name === 'ExitPromptError') {
-          return;
-        }
-        services.console.error(error.message);
-        services.process.exit(1);
+        handleCommandError(error, services);
       }
     });
 }

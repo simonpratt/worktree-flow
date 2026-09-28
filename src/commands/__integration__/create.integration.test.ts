@@ -40,10 +40,10 @@ describe('create integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    const checkboxStub = sinon.stub().resolves([repo1, repo2]);
+    const pickReposStub = sinon.stub().resolves([repo1, repo2]);
 
     await runCreate('new-feature', integration.useCases, integration.services, {
-      checkbox: checkboxStub,
+      pickRepos: pickReposStub,
       input: inputStub,
       confirm: confirmStub,
     });
@@ -69,17 +69,17 @@ describe('create integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    const checkboxStub = sinon.stub().resolves([repo1]);
+    const pickReposStub = sinon.stub().resolves([repo1]);
 
     await runCreate(
       'new-feature',
       integration.useCases,
       integration.services,
-      { checkbox: checkboxStub, input: inputStub, confirm: confirmStub },
+      { pickRepos: pickReposStub, input: inputStub, confirm: confirmStub },
       { repos: ['repo1'] }
     );
 
-    expect(checkboxStub.called).toBe(false);
+    expect(pickReposStub.called).toBe(false);
     expect(fs.existsSync(path.join(destPath, 'new-feature', 'repo1'))).toBe(true);
     expect(fs.existsSync(path.join(destPath, 'new-feature', 'repo2'))).toBe(false);
   });
@@ -89,13 +89,13 @@ describe('create integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    const checkboxStub = sinon.stub().resolves([repo1]);
+    const pickReposStub = sinon.stub().resolves([repo1]);
 
     await runCreate(
       'new-feature',
       integration.useCases,
       integration.services,
-      { checkbox: checkboxStub, input: inputStub, confirm: confirmStub },
+      { pickRepos: pickReposStub, input: inputStub, confirm: confirmStub },
       { repos: ['repo1'], sourceBranch: 'master' }
     );
 
@@ -119,13 +119,13 @@ describe('create integration', () => {
       branchAutoSelectRepos: [],
     });
 
-    const checkboxStub = sinon.stub().resolves([repo1]);
+    const pickReposStub = sinon.stub().resolves([repo1]);
 
     await runCreate(
       'new-feature',
       integration.useCases,
       integration.services,
-      { checkbox: checkboxStub, input: inputStub, confirm: confirmStub },
+      { pickRepos: pickReposStub, input: inputStub, confirm: confirmStub },
       { repos: ['repo1'], sourceBranch: 'master', postCheckout: true }
     );
 
@@ -150,13 +150,13 @@ describe('create integration', () => {
       branchAutoSelectRepos: [],
     });
 
-    const checkboxStub = sinon.stub().resolves([repo1]);
+    const pickReposStub = sinon.stub().resolves([repo1]);
 
     await runCreate(
       'new-feature',
       integration.useCases,
       integration.services,
-      { checkbox: checkboxStub, input: inputStub, confirm: confirmStub },
+      { pickRepos: pickReposStub, input: inputStub, confirm: confirmStub },
       { repos: ['repo1'], sourceBranch: 'master', postCheckout: false }
     );
 
@@ -170,14 +170,14 @@ describe('create integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    const checkboxStub = sinon.stub().resolves([]);
+    const pickReposStub = sinon.stub().resolves([]);
 
     await expect(
       runCreate(
         'new-feature',
         integration.useCases,
         integration.services,
-        { checkbox: checkboxStub, input: inputStub, confirm: confirmStub },
+        { pickRepos: pickReposStub, input: inputStub, confirm: confirmStub },
         { repos: ['does-not-exist'] }
       )
     ).rejects.toThrow(RepoNotFoundError);
@@ -191,11 +191,11 @@ describe('create integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    const checkboxStub = sinon.stub().resolves([repo1]);
+    const pickReposStub = sinon.stub().resolves([repo1]);
 
     await expect(
       runCreate('new-feature', integration.useCases, integration.services, {
-        checkbox: checkboxStub,
+        pickRepos: pickReposStub,
         input: inputStub,
         confirm: confirmStub,
       })
@@ -219,52 +219,40 @@ describe('create integration', () => {
       branchAutoSelectRepos: ['repo1'],
     });
 
-    const checkboxStub = sinon.stub().resolves([repo1]);
+    const pickReposStub = sinon.stub().resolves([repo1]);
 
     await runCreate('feature', integration.useCases, integration.services, {
-      checkbox: checkboxStub,
+      pickRepos: pickReposStub,
       input: inputStub,
       confirm: confirmStub,
     });
 
-    const choices = checkboxStub.firstCall.args[0].choices;
-    const repo1Choice = choices.find((c: any) => c.name === 'repo1');
-    const repo2Choice = choices.find((c: any) => c.name === 'repo2');
-    expect(repo1Choice.checked).toBe(true);
-    expect(repo2Choice.checked).toBe(false);
+    expect(pickReposStub.firstCall.args[0].initialValues).toEqual([repo1]);
   });
 
-  it('should list commonly used repos at the top of checkbox choices with a heading', async () => {
+  it('should list all repos alphabetically regardless of recent usage', async () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
     const repo2 = await initGitRepo(sourcePath, 'repo2');
     const repo3 = await initGitRepo(sourcePath, 'repo3');
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    // repo1 and repo3 have been branched from before, repo2 has not
-    integration.services.fetchCache.getRecentlyUsedRepos = sinon.stub().returns(['repo1', 'repo3']);
+    // repo3 was branched from most recently, but should not be promoted
+    integration.services.fetchCache.getRecentlyUsedRepos = sinon.stub().returns(['repo3']);
 
-    const checkboxStub = sinon.stub().resolves([repo1]);
+    const pickReposStub = sinon.stub().resolves([repo1]);
 
     await runCreate('feature', integration.useCases, integration.services, {
-      checkbox: checkboxStub,
+      pickRepos: pickReposStub,
       input: inputStub,
       confirm: confirmStub,
     });
 
-    const choices = checkboxStub.firstCall.args[0].choices;
-
-    // First item should be a separator with "Recently Used" heading
-    expect(choices[0].separator).toBeDefined();
-    expect(choices[0].separator).toMatch(/recently used/i);
-
-    // Commonly used repos (alphabetical: repo1, repo3) should come before repo2
-    const repoChoices = choices.filter((c: any) => c.name !== undefined);
-    const commonlyUsedChoices = repoChoices.slice(0, 2);
-    const remainingChoices = repoChoices.slice(2);
-
-    expect(commonlyUsedChoices.map((c: any) => c.name)).toEqual(['repo1', 'repo3']);
-    expect(remainingChoices.map((c: any) => c.name)).toEqual(['repo2']);
+    expect(pickReposStub.firstCall.args[0].options).toEqual([
+      { value: repo1, label: 'repo1' },
+      { value: repo2, label: 'repo2' },
+      { value: repo3, label: 'repo3' },
+    ]);
   });
 
   it('should track branch usage for selected repos after creation', async () => {
@@ -273,10 +261,10 @@ describe('create integration', () => {
 
     integration = createIntegrationServices(sourcePath, destPath);
 
-    const checkboxStub = sinon.stub().resolves([repo1, repo2]);
+    const pickReposStub = sinon.stub().resolves([repo1, repo2]);
 
     await runCreate('feature', integration.useCases, integration.services, {
-      checkbox: checkboxStub,
+      pickRepos: pickReposStub,
       input: inputStub,
       confirm: confirmStub,
     });
@@ -314,11 +302,11 @@ describe('create integration', () => {
       branchAutoSelectRepos: [],
     });
 
-    const checkboxStub = sinon.stub().resolves([repo1, repo2, repo3]);
+    const pickReposStub = sinon.stub().resolves([repo1, repo2, repo3]);
     confirmStub.resolves(true);
 
     await runCreate('feature', integration.useCases, integration.services, {
-      checkbox: checkboxStub,
+      pickRepos: pickReposStub,
       input: inputStub,
       confirm: confirmStub,
     });
@@ -362,11 +350,11 @@ describe('create integration', () => {
       branchAutoSelectRepos: [],
     });
 
-    const checkboxStub = sinon.stub().resolves([repo1, repo2, repo3]);
+    const pickReposStub = sinon.stub().resolves([repo1, repo2, repo3]);
     confirmStub.resolves(true); // Confirm running post-checkout
 
     await runCreate('feature-test', integration.useCases, integration.services, {
-      checkbox: checkboxStub,
+      pickRepos: pickReposStub,
       input: inputStub,
       confirm: confirmStub,
     });

@@ -3,7 +3,8 @@ import chalk from 'chalk';
 import { StatusService, type WorktreeStatus } from '../lib/status.js';
 import type { IConsole } from '../adapters/types.js';
 import type { Services } from '../lib/services.js';
-import { RepoNotFoundError } from '../lib/errors.js';
+import { PromptCancelledError, RepoNotFoundError } from '../lib/errors.js';
+import type { RepoPickerOptions } from './prompts.js';
 
 
 type WorkspaceLoadingInfo = { name: string; repoCount: number };
@@ -76,36 +77,31 @@ export function logStatus(
 }
 
 /**
- * Build the ordered list of checkbox choices for a repo picker, grouping recently used
- * repos under a "Recently Used" separator and placing the rest below.
- *
- * @param createSeparator - factory from the display layer (e.g. inquirer's Separator constructor)
+ * Build the options for the repo picker, pre-selecting the paths of repos named in `preSelected`.
  */
-export function buildRepoCheckboxChoices(
+export function buildRepoOptions(
   repos: string[],
-  services: Pick<Services, 'repos' | 'fetchCache'>,
-  preSelected: string[],
-  createSeparator: (label?: string) => unknown
-): unknown[] {
-  const choices = services.repos.formatRepoChoices(repos).map((choice) => ({
-    ...choice,
-    checked: preSelected.includes(choice.name),
-  }));
+  services: Pick<Services, 'repos'>,
+  preSelected: string[]
+): Pick<RepoPickerOptions, 'options' | 'initialValues'> {
+  const choices = services.repos.formatRepoChoices(repos);
 
-  const recentlyUsed = new Set(services.fetchCache.getRecentlyUsedRepos(8));
-  const commonlyUsed = choices.filter((c) => recentlyUsed.has(c.name));
+  return {
+    options: choices.map((choice) => ({ value: choice.value, label: choice.name })),
+    initialValues: choices.filter((choice) => preSelected.includes(choice.name)).map((choice) => choice.value),
+  };
+}
 
-  if (commonlyUsed.length > 0) {
-    const commonlyUsedNames = new Set(commonlyUsed.map((c) => c.name));
-    const remaining = choices.filter((c) => !commonlyUsedNames.has(c.name));
-    return [
-      createSeparator('Recently Used'),
-      ...commonlyUsed,
-      ...(remaining.length > 0 ? [createSeparator(), ...remaining] : []),
-    ];
+/**
+ * Report a command failure: exit quietly if the user cancelled a prompt, otherwise
+ * print the error and exit non-zero.
+ */
+export function handleCommandError(error: any, services: Pick<Services, 'console' | 'process'>): void {
+  if (error instanceof PromptCancelledError) {
+    return;
   }
-
-  return choices;
+  services.console.error(error.message);
+  services.process.exit(1);
 }
 
 /**
