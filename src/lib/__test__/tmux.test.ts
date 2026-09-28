@@ -65,7 +65,8 @@ describe('TmuxService', () => {
         ['select-layout', '-t', 'feature-branch', 'tiled']
       );
 
-      expect(shell.execFile.callCount).toBe(4);
+      // new-session + (split-window + select-layout) per worktree
+      expect(shell.execFile.callCount).toBe(5);
     });
 
     it('should create session with split panes for multiple worktrees', async () => {
@@ -78,15 +79,18 @@ describe('TmuxService', () => {
         '/workspace/feature/repo4'
       ]);
 
-      // Base session + 4 split-windows + select-layout = 6 calls
-      expect(shell.execFile.callCount).toBe(6);
+      // Base session + (split-window + select-layout) for each of 4 worktrees = 9 calls
+      expect(shell.execFile.callCount).toBe(9);
 
-      // Verify layout is applied
-      sinon.assert.calledWith(
-        shell.execFile,
-        'tmux',
-        ['select-layout', '-t', 'feature-branch', 'tiled']
-      );
+      // Re-tiles after every split so panes don't keep halving and run out of space
+      const commands = shell.execFile.getCalls().map((c: any) => c.args[1][0]);
+      expect(commands).toEqual([
+        'new-session',
+        'split-window', 'select-layout',
+        'split-window', 'select-layout',
+        'split-window', 'select-layout',
+        'split-window', 'select-layout',
+      ]);
     });
 
     it('should ignore duplicate session errors', async () => {
@@ -185,6 +189,48 @@ describe('TmuxService', () => {
       await expect(
         service.addPane('feature-branch', '/workspace/feature/repo1')
       ).rejects.toThrow('no space for new pane');
+    });
+
+    it('should re-tile after each split when panes are added concurrently', async () => {
+      let paneCount = 0;
+      shell.execFile.callsFake(async (_cmd: string, args: string[]) => {
+        // Yield so concurrent callers could interleave if not serialised
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        if (args[0] === 'split-window') {
+          paneCount++;
+          return { stdout: `${paneCount}\n`, stderr: '' };
+        }
+        return { stdout: '', stderr: '' };
+      });
+
+      const paneIndexes = await Promise.all(
+        ['repo1', 'repo2', 'repo3', 'repo4'].map((repo) =>
+          service.addPane('feature-branch', `/workspace/feature/${repo}`)
+        )
+      );
+
+      expect(paneIndexes).toEqual([1, 2, 3, 4]);
+      const commands = shell.execFile.getCalls().map((c: any) => c.args[1][0]);
+      expect(commands).toEqual([
+        'split-window', 'select-layout',
+        'split-window', 'select-layout',
+        'split-window', 'select-layout',
+        'split-window', 'select-layout',
+      ]);
+    });
+
+    it('should continue adding panes after an earlier concurrent split fails', async () => {
+      shell.execFile.onFirstCall().rejects(new Error('no space for new pane'));
+      shell.execFile.onSecondCall().resolves({ stdout: '2\n', stderr: '' });
+      shell.execFile.onThirdCall().resolves({ stdout: '', stderr: '' });
+
+      const [first, second] = await Promise.allSettled([
+        service.addPane('feature-branch', '/workspace/feature/repo1'),
+        service.addPane('feature-branch', '/workspace/feature/repo2'),
+      ]);
+
+      expect(first.status).toBe('rejected');
+      expect(second).toEqual({ status: 'fulfilled', value: 2 });
     });
   });
 

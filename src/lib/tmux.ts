@@ -4,7 +4,38 @@ import type { IShell } from '../adapters/types.js';
  * TmuxService handles tmux session operations.
  */
 export class TmuxService {
+  // Pane splits are serialised: split-window halves the active pane, so concurrent
+  // splits without a re-tile in between shrink panes until tmux runs out of space.
+  private paneQueue: Promise<unknown> = Promise.resolve();
+
   constructor(private shell: IShell) {}
+
+  private serialise<T>(task: () => Promise<T>): Promise<T> {
+    const result = this.paneQueue.then(task);
+    this.paneQueue = result.catch(() => {});
+    return result;
+  }
+
+  private async splitAndTile(sessionName: string, worktreePath: string, extraArgs: string[] = []): Promise<string> {
+    const { stdout } = await this.shell.execFile('tmux', [
+      'split-window',
+      '-t',
+      sessionName,
+      '-c',
+      worktreePath,
+      ...extraArgs,
+    ]);
+
+    // Re-tile after every split so the next split has room to work with
+    await this.shell.execFile('tmux', [
+      'select-layout',
+      '-t',
+      sessionName,
+      'tiled',
+    ]);
+
+    return stdout;
+  }
 
   async createSession(workspacePath: string, sessionName: string, worktreePaths: string[] = []): Promise<void> {
     try {
@@ -20,23 +51,7 @@ export class TmuxService {
 
       // Create split panes for each worktree
       for (const worktreePath of worktreePaths) {
-        await this.shell.execFile('tmux', [
-          'split-window',
-          '-t',
-          sessionName,
-          '-c',
-          worktreePath,
-        ]);
-      }
-
-      // Apply tiled layout if we have multiple panes (root + worktrees)
-      if (worktreePaths.length > 0) {
-        await this.shell.execFile('tmux', [
-          'select-layout',
-          '-t',
-          sessionName,
-          'tiled',
-        ]);
+        await this.serialise(() => this.splitAndTile(sessionName, worktreePath));
       }
     } catch (error: any) {
       // If session already exists, ignore the error
@@ -57,23 +72,9 @@ export class TmuxService {
   }
 
   async addPane(sessionName: string, worktreePath: string): Promise<number> {
-    const { stdout } = await this.shell.execFile('tmux', [
-      'split-window',
-      '-t',
-      sessionName,
-      '-c',
-      worktreePath,
-      '-P',
-      '-F',
-      '#{pane_index}',
-    ]);
-
-    await this.shell.execFile('tmux', [
-      'select-layout',
-      '-t',
-      sessionName,
-      'tiled',
-    ]);
+    const stdout = await this.serialise(() =>
+      this.splitAndTile(sessionName, worktreePath, ['-P', '-F', '#{pane_index}'])
+    );
 
     return parseInt(stdout.trim(), 10);
   }
