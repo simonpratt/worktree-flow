@@ -116,6 +116,83 @@ describe('WorkspaceDirectoryService', () => {
     });
   });
 
+  describe('copyRootMarkdownFiles', () => {
+    it('should copy all top-level .md files from source path', () => {
+      const sourcePath = '/source';
+      const workspacePath = '/workspaces/feature-123';
+      const { vol, fs } = createMemFs({
+        [path.join(sourcePath, 'README.md')]: '# Readme',
+        [path.join(sourcePath, 'CONTRIBUTING.md')]: '# Contributing',
+        [path.join(workspacePath, '.gitkeep')]: '',
+      });
+      const service = new WorkspaceDirectoryService(fs);
+
+      service.copyRootMarkdownFiles(sourcePath, workspacePath);
+
+      expect(vol.readFileSync(path.join(workspacePath, 'README.md'), 'utf-8')).toBe('# Readme');
+      expect(vol.readFileSync(path.join(workspacePath, 'CONTRIBUTING.md'), 'utf-8')).toBe(
+        '# Contributing'
+      );
+    });
+
+    it('should skip AGENTS.md since it is handled by copyAgentsMd', () => {
+      const sourcePath = '/source';
+      const workspacePath = '/workspaces/feature-123';
+      const { vol, fs } = createMemFs({
+        [path.join(sourcePath, 'AGENTS.md')]: '# Agents',
+        [path.join(sourcePath, 'NOTES.md')]: '# Notes',
+        [path.join(workspacePath, '.gitkeep')]: '',
+      });
+      const service = new WorkspaceDirectoryService(fs);
+
+      service.copyRootMarkdownFiles(sourcePath, workspacePath);
+
+      expect(vol.existsSync(path.join(workspacePath, 'AGENTS.md'))).toBe(false);
+      expect(vol.existsSync(path.join(workspacePath, 'NOTES.md'))).toBe(true);
+    });
+
+    it('should not copy non-markdown files or recurse into subdirectories', () => {
+      const sourcePath = '/source';
+      const workspacePath = '/workspaces/feature-123';
+      const { vol, fs } = createMemFs({
+        [path.join(sourcePath, 'NOTES.md')]: '# Notes',
+        [path.join(sourcePath, 'notes.txt')]: 'text',
+        [path.join(sourcePath, 'repo1', 'README.md')]: '# Repo1',
+        [path.join(sourcePath, 'docs.md', 'inner.md')]: '# Inner',
+        [path.join(workspacePath, '.gitkeep')]: '',
+      });
+      const service = new WorkspaceDirectoryService(fs);
+
+      service.copyRootMarkdownFiles(sourcePath, workspacePath);
+
+      expect(vol.readdirSync(workspacePath).sort()).toEqual(['.gitkeep', 'NOTES.md']);
+    });
+
+    it('should do nothing when no .md files exist in source path', () => {
+      const sourcePath = '/source';
+      const workspacePath = '/workspaces/feature-123';
+      const { vol, fs } = createMemFs({
+        [path.join(sourcePath, 'repo1', '.git', 'HEAD')]: '',
+        [path.join(workspacePath, '.gitkeep')]: '',
+      });
+      const service = new WorkspaceDirectoryService(fs);
+
+      service.copyRootMarkdownFiles(sourcePath, workspacePath);
+
+      expect(vol.readdirSync(workspacePath)).toEqual(['.gitkeep']);
+    });
+
+    it('should not throw when source path does not exist', () => {
+      const workspacePath = '/workspaces/feature-123';
+      const { fs } = createMemFs({
+        [path.join(workspacePath, '.gitkeep')]: '',
+      });
+      const service = new WorkspaceDirectoryService(fs);
+
+      expect(() => service.copyRootMarkdownFiles('/missing', workspacePath)).not.toThrow();
+    });
+  });
+
   describe('copyDevcontainer', () => {
     it('should copy .devcontainer folder when it exists in source path', () => {
       const sourcePath = '/source';

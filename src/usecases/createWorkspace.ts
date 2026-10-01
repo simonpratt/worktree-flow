@@ -15,7 +15,7 @@ export type CreateWorkspaceResult = {
 };
 
 /**
- * Use case for creating a new workspace directory with initial config, AGENTS.md copy,
+ * Use case for creating a new workspace directory with initial config, root .md file copies,
  * .devcontainer copy, and an optional tmux session (root pane only, no worktrees yet).
  */
 export class CreateWorkspaceUseCase {
@@ -37,6 +37,9 @@ export class CreateWorkspaceUseCase {
 
     // 3. Copy AGENTS.md if it exists in source-path
     this.workspaceDir.copyAgentsMd(params.sourcePath, workspacePath);
+
+    // 3b. Copy all other top-level .md files from source-path
+    this.workspaceDir.copyRootMarkdownFiles(params.sourcePath, workspacePath);
 
     // 4. Copy .devcontainer if it exists in source-path
     this.workspaceDir.copyDevcontainer(params.sourcePath, workspacePath);

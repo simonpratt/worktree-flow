@@ -202,6 +202,26 @@ describe('create integration', () => {
     ).rejects.toThrow(WorkspaceAlreadyExistsError);
   });
 
+  it('should copy all top-level .md files from source path into the workspace', async () => {
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+    fs.writeFileSync(path.join(sourcePath, 'AGENTS.md'), '# Agents');
+    fs.writeFileSync(path.join(sourcePath, 'NOTES.md'), '# Notes');
+    fs.writeFileSync(path.join(sourcePath, 'notes.txt'), 'not markdown');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+
+    await runCreate('new-feature', integration.useCases, integration.services, {
+      pickRepos: sinon.stub().resolves([repo1]),
+      input: inputStub,
+      confirm: confirmStub,
+    });
+
+    const workspacePath = path.join(destPath, 'new-feature');
+    expect(fs.readFileSync(path.join(workspacePath, 'AGENTS.md'), 'utf-8')).toBe('# Agents');
+    expect(fs.readFileSync(path.join(workspacePath, 'NOTES.md'), 'utf-8')).toBe('# Notes');
+    expect(fs.existsSync(path.join(workspacePath, 'notes.txt'))).toBe(false);
+  });
+
   it('should pre-check repos configured in branch-repos', async () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
     const repo2 = await initGitRepo(sourcePath, 'repo2');

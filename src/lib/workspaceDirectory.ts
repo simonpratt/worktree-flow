@@ -33,6 +33,26 @@ export class WorkspaceDirectoryService {
     }
   }
 
+  /**
+   * Copies every top-level .md file in the source-path root into the workspace,
+   * except AGENTS.md (handled separately by copyAgentsMd). Does not recurse.
+   */
+  copyRootMarkdownFiles(sourcePath: string, workspacePath: string): void {
+    if (!this.fs.existsSync(sourcePath)) {
+      return;
+    }
+    const entries = this.fs.readdirSync(sourcePath, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isFile() || !entry.name.endsWith('.md') || entry.name === 'AGENTS.md') {
+        continue;
+      }
+      this.fs.copyFileSync(
+        path.join(sourcePath, entry.name),
+        path.join(workspacePath, entry.name)
+      );
+    }
+  }
+
   copyDevcontainer(sourcePath: string, workspacePath: string): void {
     const devcontainerPath = path.join(sourcePath, '.devcontainer');
     if (this.fs.existsSync(devcontainerPath)) {

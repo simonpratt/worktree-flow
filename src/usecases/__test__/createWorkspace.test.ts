@@ -15,6 +15,7 @@ describe('CreateWorkspaceUseCase', () => {
     workspaceDir = {
       createWorkspaceDir: sinon.stub(),
       copyAgentsMd: sinon.stub(),
+      copyRootMarkdownFiles: sinon.stub(),
       copyDevcontainer: sinon.stub(),
     } as any;
     workspaceConfig = {
@@ -58,6 +59,23 @@ describe('CreateWorkspaceUseCase', () => {
     });
 
     sinon.assert.calledOnceWithExactly(workspaceDir.copyAgentsMd, '/source', '/dest/feature');
+  });
+
+  it('should copy other root markdown files from source path', async () => {
+    workspaceDir.createWorkspaceDir.returns('/dest/feature');
+
+    await useCase.execute({
+      branchName: 'feature',
+      sourcePath: '/source',
+      destPath: '/dest',
+      tmux: false,
+    });
+
+    sinon.assert.calledOnceWithExactly(
+      workspaceDir.copyRootMarkdownFiles,
+      '/source',
+      '/dest/feature'
+    );
   });
 
   it('should copy .devcontainer from source path', async () => {

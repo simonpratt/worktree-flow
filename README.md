@@ -13,7 +13,7 @@ Stop juggling branches across repos. `flow` creates isolated workspaces with git
 ~/repos/                              ~/workspaces/TICKET-123/
 ├── api-1/     (main)                 ├── api-1/     (TICKET-123 branch)
 ├── api-2/     (main)       flow      ├── client/    (TICKET-123 branch)
-├── client/    (main)     -------->   └── AGENTS.md  (copied from ~/repos)
+├── client/    (main)     -------->   └── *.md       (copied from ~/repos)
 └── AGENTS.md
 ```
 
@@ -160,9 +160,9 @@ Both fields are optional. Precedence (highest to lowest):
 - **post-checkout**: repo's `flow-config.json` > global `post-checkout`
 - **copy-files**: repo's `flow-config.json` > global `copy-files`
 
-## AGENTS.md
+## Markdown files (AGENTS.md etc.)
 
-If an `AGENTS.md` file exists at the root of your source-path, it will be copied into each workspace. This is useful for providing AI coding agents with context about your multi-repo setup.
+All `.md` files at the root of your source-path (e.g. `AGENTS.md`, `CLAUDE.md`) are copied into each workspace (subdirectories are not scanned). This is useful for providing AI coding agents with context about your multi-repo setup.
 
 ## License
 
