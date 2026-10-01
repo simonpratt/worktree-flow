@@ -34,8 +34,8 @@ export class CreateWorkspaceUseCase {
       params.branchName
     );
 
-    // 2. Save placeholder config
-    this.workspaceConfig.savePlaceholder(workspacePath);
+    // 2. Save placeholder config, persisting the real branch name (the folder name is sanitized)
+    this.workspaceConfig.savePlaceholder(workspacePath, params.branchName);
 
     // 3. Copy AGENTS.md if it exists in source-path, stripping lines about excluded repos
     this.workspaceDir.copyAgentsMd(

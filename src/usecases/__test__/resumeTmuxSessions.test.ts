@@ -3,10 +3,12 @@ import sinon from 'sinon';
 import { ResumeTmuxSessionsUseCase } from '../resumeTmuxSessions.js';
 import type { WorkspaceDirectoryService } from '../../lib/workspaceDirectory.js';
 import type { TmuxService } from '../../lib/tmux.js';
+import type { WorkspaceConfigService } from '../../lib/workspaceConfig.js';
 
 describe('ResumeTmuxSessionsUseCase', () => {
   let workspaceDir: sinon.SinonStubbedInstance<WorkspaceDirectoryService>;
   let tmux: sinon.SinonStubbedInstance<TmuxService>;
+  let workspaceConfig: sinon.SinonStubbedInstance<WorkspaceConfigService>;
   let useCase: ResumeTmuxSessionsUseCase;
 
   beforeEach(() => {
@@ -19,7 +21,11 @@ describe('ResumeTmuxSessionsUseCase', () => {
       createSession: sinon.stub(),
     } as any;
 
-    useCase = new ResumeTmuxSessionsUseCase(workspaceDir, tmux);
+    workspaceConfig = {
+      getBranchName: sinon.stub().returns(undefined),
+    } as any;
+
+    useCase = new ResumeTmuxSessionsUseCase(workspaceDir, workspaceConfig, tmux);
   });
 
   it('should return zero counts when no workspaces exist', async () => {
@@ -73,6 +79,24 @@ describe('ResumeTmuxSessionsUseCase', () => {
       '/dest/feature-b',
       'feature-b',
       ['/dest/feature-b/repo1']
+    );
+  });
+
+  it('should name sessions after the persisted branch name rather than the sanitized folder name', async () => {
+    workspaceDir.listWorkspaces.returns([
+      { name: 'feature_ABC-123', path: '/dest/feature_ABC-123', repoCount: 1 },
+    ]);
+    workspaceDir.getWorktreeDirs.returns(['/dest/feature_ABC-123/repo1']);
+    workspaceConfig.getBranchName.withArgs('/dest/feature_ABC-123').returns('feature/ABC-123');
+    tmux.createSession.resolves();
+
+    await useCase.execute({ destPath: '/dest' });
+
+    sinon.assert.calledOnceWithExactly(
+      tmux.createSession,
+      '/dest/feature_ABC-123',
+      'feature/ABC-123',
+      ['/dest/feature_ABC-123/repo1']
     );
   });
 

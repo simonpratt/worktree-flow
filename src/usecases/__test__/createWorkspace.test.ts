@@ -44,8 +44,23 @@ describe('CreateWorkspaceUseCase', () => {
     });
 
     sinon.assert.calledOnceWithExactly(workspaceDir.createWorkspaceDir, '/dest', 'feature');
-    sinon.assert.calledOnceWithExactly(workspaceConfig.savePlaceholder, '/dest/feature');
+    sinon.assert.calledOnceWithExactly(workspaceConfig.savePlaceholder, '/dest/feature', 'feature');
     expect(result.workspacePath).toBe('/dest/feature');
+  });
+
+  it('should persist the unsanitized branch name, which the tmux session is also named after', async () => {
+    workspaceDir.createWorkspaceDir.returns('/dest/feature_ABC-123');
+    tmux.createSession.resolves();
+
+    await useCase.execute({
+      branchName: 'feature/ABC-123',
+      sourcePath: '/source',
+      destPath: '/dest',
+      tmux: true,
+    });
+
+    sinon.assert.calledOnceWithExactly(workspaceConfig.savePlaceholder, '/dest/feature_ABC-123', 'feature/ABC-123');
+    sinon.assert.calledOnceWithExactly(tmux.createSession, '/dest/feature_ABC-123', 'feature/ABC-123', []);
   });
 
   it('should copy AGENTS.md from source path', async () => {

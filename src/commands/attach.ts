@@ -25,6 +25,7 @@ export async function runAttach(
   const { workspacePath, displayName } = resolveWorkspace(
     branchName,
     services.workspaceDir,
+    services.workspaceConfig,
     services.config,
     services.process
   );

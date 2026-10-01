@@ -108,6 +108,34 @@ describe('attach integration', () => {
     expect(branch3.trim()).toBe('feature');
   });
 
+  it('should check out the real branch name when auto-detecting a workspace whose branch name was sanitized', async () => {
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+    const repo2 = await initGitRepo(sourcePath, 'repo2');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+
+    const { runCreate } = await import('../create.js');
+    await runCreate('feature/ABC-123', integration.useCases, integration.services, {
+      pickRepos: sinon.stub().resolves([repo1]),
+      input: inputStub,
+      confirm: confirmStub,
+    });
+
+    const workspacePath = path.join(destPath, 'feature_ABC-123');
+    (integration.stubs.process.cwd as sinon.SinonStub).returns(workspacePath);
+
+    await runAttach(undefined, integration.useCases, integration.services, {
+      pickRepos: sinon.stub().resolves([repo2]),
+      input: inputStub,
+      confirm: confirmStub,
+    });
+
+    const { NodeShell } = await import('../../adapters/node.js');
+    const shell = new NodeShell();
+    const { stdout: branch2 } = await shell.execFile('git', ['-C', path.join(workspacePath, 'repo2'), 'branch', '--show-current']);
+    expect(branch2.trim()).toBe('feature/ABC-123');
+  });
+
   it('should use explicit branch name to resolve workspace', async () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
     const repo2 = await initGitRepo(sourcePath, 'repo2');

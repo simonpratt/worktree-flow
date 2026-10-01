@@ -62,6 +62,7 @@ export function createUseCases(services: Services) {
     ),
     resumeTmuxSessions: new ResumeTmuxSessionsUseCase(
       services.workspaceDir,
+      services.workspaceConfig,
       services.tmux
     ),
     createWorkspace: new CreateWorkspaceUseCase(
@@ -80,6 +81,7 @@ export function createUseCases(services: Services) {
     discoverReposWithBranch: new DiscoverReposWithBranchUseCase(services.repos),
     renameWorkspace: new RenameWorkspaceUseCase(
       services.workspaceDir,
+      services.workspaceConfig,
       services.git,
       services.tmux,
       services.repos

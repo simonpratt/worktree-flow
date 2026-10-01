@@ -22,6 +22,7 @@ export async function runDrop(
   const { workspacePath, displayName: branchNameForDisplay } = resolveWorkspace(
     branchName,
     services.workspaceDir,
+    services.workspaceConfig,
     services.config,
     services.process
   );

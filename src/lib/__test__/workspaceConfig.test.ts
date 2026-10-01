@@ -70,15 +70,15 @@ describe('WorkspaceConfigService', () => {
   });
 
   describe('savePlaceholder', () => {
-    it('should create flow-config.json with empty baseBranches', () => {
+    it('should create flow-config.json with the real branch name and empty baseBranches', () => {
       const { vol, fs } = createMemFs();
       const service = new WorkspaceConfigService(fs);
 
       fs.mkdirSync(workspacePath, { recursive: true });
-      service.savePlaceholder(workspacePath);
+      service.savePlaceholder(workspacePath, 'feature/x');
 
       const written = JSON.parse(vol.readFileSync(configPath, 'utf-8') as string);
-      expect(written).toEqual({ baseBranches: {} });
+      expect(written).toEqual({ branchName: 'feature/x', baseBranches: {} });
     });
   });
 
@@ -128,6 +128,19 @@ describe('WorkspaceConfigService', () => {
 
       const written = JSON.parse(vol.readFileSync(configPath, 'utf-8') as string);
       expect(written).toEqual({ baseBranches: { 'repo-1': 'master', 'repo-2': 'main' } });
+    });
+
+    it('should preserve the persisted branch name when saving base branches', () => {
+      const { vol, fs } = createMemFs({
+        [configPath]: JSON.stringify({ branchName: 'feature/x', baseBranches: {} }),
+      });
+      const service = new WorkspaceConfigService(fs);
+
+      service.save(workspacePath, { baseBranches: { 'repo-1': 'main' } });
+
+      expect(service.getBranchName(workspacePath)).toBe('feature/x');
+      const written = JSON.parse(vol.readFileSync(configPath, 'utf-8') as string);
+      expect(written).toEqual({ branchName: 'feature/x', baseBranches: { 'repo-1': 'main' } });
     });
 
     it('should overwrite existing values for the same repo key', () => {
@@ -182,6 +195,42 @@ describe('WorkspaceConfigService', () => {
       const branch = service.getBaseBranch(workspacePath, 'repo-2');
 
       expect(branch).toBe('master');
+    });
+  });
+
+  describe('getBranchName', () => {
+    it('should return the persisted branch name', () => {
+      const { fs } = createMemFs({
+        [configPath]: JSON.stringify({ branchName: 'feature/x', baseBranches: {} }),
+      });
+      const service = new WorkspaceConfigService(fs);
+
+      expect(service.getBranchName(workspacePath)).toBe('feature/x');
+    });
+
+    it('should return undefined for workspaces created before the branch name was persisted', () => {
+      const { fs } = createMemFs({
+        [configPath]: JSON.stringify({ baseBranches: { 'repo-1': 'main' } }),
+      });
+      const service = new WorkspaceConfigService(fs);
+
+      expect(service.getBranchName(workspacePath)).toBeUndefined();
+    });
+  });
+
+  describe('setBranchName', () => {
+    it('should update the branch name while keeping base branches', () => {
+      const { fs } = createMemFs({
+        [configPath]: JSON.stringify({ branchName: 'feature/old', baseBranches: { 'repo-1': 'main' } }),
+      });
+      const service = new WorkspaceConfigService(fs);
+
+      service.setBranchName(workspacePath, 'feature/new');
+
+      expect(service.load(workspacePath)).toEqual({
+        branchName: 'feature/new',
+        baseBranches: { 'repo-1': 'main' },
+      });
     });
   });
 });

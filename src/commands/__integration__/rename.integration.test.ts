@@ -291,4 +291,48 @@ describe('rename integration', () => {
       true
     );
   });
+
+  it('should rename the real tmux session when auto-detecting a workspace whose branch name was sanitized', async () => {
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+    (integration.services.config.load as sinon.SinonStub).returns({
+      sourcePath,
+      destPath,
+      copyFiles: '.env',
+      tmux: true,
+      postCheckout: undefined,
+      perRepoPostCheckout: {},
+      fetchCacheTtlSeconds: 300,
+      branchAutoSelectRepos: [],
+      branchRepoUsage: {},
+    });
+    const tmuxStub = integration.services.tmux as sinon.SinonStubbedInstance<any>;
+
+    const { workspacePath } = await createTestWorkspace(integration.useCases, {
+      repos: [repo1],
+      branchName: 'feature/old',
+      sourceBranch: 'master',
+      sourcePath,
+      destPath,
+      copyFiles: '.env',
+      tmux: true,
+    });
+    const createdSessionName = tmuxStub.createSession.firstCall.args[1];
+    tmuxStub.sessionExists.callsFake(async (name: string) => name === createdSessionName);
+
+    (integration.stubs.process.cwd as sinon.SinonStub).returns(workspacePath);
+    await runRename(undefined, 'feature/new', integration.useCases, integration.services);
+
+    sinon.assert.calledOnceWithExactly(tmuxStub.renameSession, createdSessionName, 'feature/new');
+
+    // The renamed workspace now resolves to the new branch name, so a later
+    // auto-detected drop targets the renamed session.
+    const newWorkspacePath = path.join(destPath, 'feature_new');
+    (integration.stubs.process.cwd as sinon.SinonStub).returns(newWorkspacePath);
+    const { runDrop } = await import('../drop.js');
+    await runDrop(undefined, integration.useCases, integration.services, { confirm: sinon.stub().resolves(true) });
+
+    sinon.assert.calledOnceWithExactly(tmuxStub.killSession, 'feature/new');
+  });
 });

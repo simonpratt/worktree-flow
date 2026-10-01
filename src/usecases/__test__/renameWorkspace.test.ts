@@ -5,6 +5,7 @@ import type { WorkspaceDirectoryService } from '../../lib/workspaceDirectory.js'
 import type { GitService } from '../../lib/git.js';
 import type { TmuxService } from '../../lib/tmux.js';
 import type { RepoService } from '../../lib/repos.js';
+import type { WorkspaceConfigService } from '../../lib/workspaceConfig.js';
 
 describe('RenameWorkspaceUseCase', () => {
   let useCase: RenameWorkspaceUseCase;
@@ -12,6 +13,7 @@ describe('RenameWorkspaceUseCase', () => {
   let gitStub: sinon.SinonStubbedInstance<GitService>;
   let tmuxStub: sinon.SinonStubbedInstance<TmuxService>;
   let reposStub: sinon.SinonStubbedInstance<RepoService>;
+  let workspaceConfigStub: sinon.SinonStubbedInstance<WorkspaceConfigService>;
 
   const sourcePath = '/source';
   const destPath = '/dest';
@@ -41,8 +43,13 @@ describe('RenameWorkspaceUseCase', () => {
       discoverRepos: sinon.stub().returns(['/source/repo1', '/source/repo2']),
     } as any;
 
+    workspaceConfigStub = {
+      setBranchName: sinon.stub(),
+    } as any;
+
     useCase = new RenameWorkspaceUseCase(
       workspaceDirStub as any,
+      workspaceConfigStub as any,
       gitStub as any,
       tmuxStub as any,
       reposStub as any
@@ -154,6 +161,21 @@ describe('RenameWorkspaceUseCase', () => {
     ]);
     expect(gitStub.repairWorktree.called).toBe(false);
     expect(gitStub.getCurrentBranch.called).toBe(false);
+  });
+
+  it('should persist the new branch name in the renamed workspace config', async () => {
+    workspaceDirStub.getWorktreeDirs.returns([]);
+
+    await useCase.execute({
+      workspacePath,
+      oldBranchName: 'old-feature',
+      newBranchName: 'feature/new',
+      sourcePath,
+      destPath,
+      tmux: false,
+    });
+
+    sinon.assert.calledOnceWithExactly(workspaceConfigStub.setBranchName, newWorkspacePath, 'feature/new');
   });
 
   it('should rename the tmux session when tmux is enabled and a session exists', async () => {

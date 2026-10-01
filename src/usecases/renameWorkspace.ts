@@ -1,5 +1,6 @@
 import path from 'node:path';
 import type { WorkspaceDirectoryService } from '../lib/workspaceDirectory.js';
+import type { WorkspaceConfigService } from '../lib/workspaceConfig.js';
 import type { GitService } from '../lib/git.js';
 import type { TmuxService } from '../lib/tmux.js';
 import type { RepoService } from '../lib/repos.js';
@@ -35,6 +36,7 @@ export type RenameWorkspaceResult = {
 export class RenameWorkspaceUseCase {
   constructor(
     private workspaceDir: WorkspaceDirectoryService,
+    private workspaceConfig: WorkspaceConfigService,
     private git: GitService,
     private tmux: TmuxService,
     private repos: RepoService
@@ -50,6 +52,7 @@ export class RenameWorkspaceUseCase {
       params.destPath,
       params.newBranchName
     );
+    this.workspaceConfig.setBranchName(newWorkspacePath, params.newBranchName);
 
     // 2. For each repo: repair the worktree's admin data now that it has
     // physically moved, branch from its current HEAD, then switch it onto the

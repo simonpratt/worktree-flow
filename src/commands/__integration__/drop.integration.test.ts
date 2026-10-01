@@ -183,6 +183,43 @@ describe('drop integration', () => {
     expect(fs.existsSync(result.workspacePath)).toBe(false);
   });
 
+  it('should kill the real tmux session when auto-detecting a workspace whose branch name was sanitized', async () => {
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+    (integration.services.config.load as sinon.SinonStub).returns({
+      sourcePath,
+      destPath,
+      copyFiles: '.env',
+      tmux: true,
+      postCheckout: undefined,
+      perRepoPostCheckout: {},
+      fetchCacheTtlSeconds: 300,
+      branchAutoSelectRepos: [],
+      branchRepoUsage: {},
+    });
+    const tmuxStub = integration.services.tmux as sinon.SinonStubbedInstance<any>;
+
+    const result = await createTestWorkspace(integration.useCases, {
+      repos: [repo1],
+      branchName: 'feature/ABC-123',
+      sourceBranch: 'master',
+      sourcePath,
+      destPath,
+      copyFiles: '.env',
+      tmux: true,
+    });
+    expect(path.basename(result.workspacePath)).toBe('feature_ABC-123');
+    const createdSessionName = tmuxStub.createSession.firstCall.args[1];
+
+    (integration.stubs.process.cwd as sinon.SinonStub).returns(path.join(result.workspacePath, 'repo1'));
+
+    await runDrop(undefined, integration.useCases, integration.services, { confirm: confirmStub });
+
+    expect(fs.existsSync(result.workspacePath)).toBe(false);
+    sinon.assert.calledOnceWithExactly(tmuxStub.killSession, createdSessionName);
+  });
+
   it('should allow dropping when worktree has unpushed commits (but no uncommitted changes)', async () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
 

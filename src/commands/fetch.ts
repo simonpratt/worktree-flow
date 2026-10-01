@@ -16,6 +16,7 @@ export async function runFetch(
   const workspace = tryResolveWorkspace(
     branchName,
     services.workspaceDir,
+    services.workspaceConfig,
     services.config,
     services.process
   );

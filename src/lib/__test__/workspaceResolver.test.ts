@@ -4,6 +4,7 @@ import * as sinon from 'sinon';
 import { resolveWorkspace, tryResolveWorkspace } from '../workspaceResolver.js';
 import { NotInWorkspaceError, WorkspaceNotFoundError } from '../errors.js';
 import { WorkspaceDirectoryService } from '../workspaceDirectory.js';
+import { WorkspaceConfigService } from '../workspaceConfig.js';
 import { ConfigService } from '../config.js';
 import type { IProcess } from '../../adapters/types.js';
 import { createMemFs, createMockProcess } from '../../test/test-utils.js';
@@ -27,9 +28,10 @@ describe('resolveWorkspace', () => {
 
       const config = new ConfigService(fs);
       const workspaceDir = new WorkspaceDirectoryService(fs);
+      const workspaceConfig = new WorkspaceConfigService(fs);
       const mockProcess = createMockProcess();
 
-      const result = resolveWorkspace(branchName, workspaceDir, config, mockProcess);
+      const result = resolveWorkspace(branchName, workspaceDir, workspaceConfig, config, mockProcess);
 
       expect(result).toEqual({
         workspacePath,
@@ -50,9 +52,10 @@ describe('resolveWorkspace', () => {
 
       const config = new ConfigService(fs);
       const workspaceDir = new WorkspaceDirectoryService(fs);
+      const workspaceConfig = new WorkspaceConfigService(fs);
       const mockProcess = createMockProcess();
 
-      expect(() => resolveWorkspace(branchName, workspaceDir, config, mockProcess)).toThrow(
+      expect(() => resolveWorkspace(branchName, workspaceDir, workspaceConfig, config, mockProcess)).toThrow(
         WorkspaceNotFoundError
       );
     });
@@ -72,9 +75,10 @@ describe('resolveWorkspace', () => {
 
       const config = new ConfigService(fs);
       const workspaceDir = new WorkspaceDirectoryService(fs);
+      const workspaceConfig = new WorkspaceConfigService(fs);
       const mockProcess = createMockProcess();
 
-      expect(() => resolveWorkspace(branchName, workspaceDir, config, mockProcess)).toThrow(
+      expect(() => resolveWorkspace(branchName, workspaceDir, workspaceConfig, config, mockProcess)).toThrow(
         WorkspaceNotFoundError
       );
     });
@@ -98,10 +102,11 @@ describe('resolveWorkspace', () => {
 
       const config = new ConfigService(fs);
       const workspaceDir = new WorkspaceDirectoryService(fs);
+      const workspaceConfig = new WorkspaceConfigService(fs);
       const mockProcess = createMockProcess();
       mockProcess.cwd.returns(cwd);
 
-      const result = resolveWorkspace(undefined, workspaceDir, config, mockProcess);
+      const result = resolveWorkspace(undefined, workspaceDir, workspaceConfig, config, mockProcess);
 
       expect(result).toEqual({
         workspacePath,
@@ -125,10 +130,11 @@ describe('resolveWorkspace', () => {
 
       const config = new ConfigService(fs);
       const workspaceDir = new WorkspaceDirectoryService(fs);
+      const workspaceConfig = new WorkspaceConfigService(fs);
       const mockProcess = createMockProcess();
       mockProcess.cwd.returns(workspacePath);
 
-      const result = resolveWorkspace(undefined, workspaceDir, config, mockProcess);
+      const result = resolveWorkspace(undefined, workspaceDir, workspaceConfig, config, mockProcess);
 
       expect(result).toEqual({
         workspacePath,
@@ -153,10 +159,11 @@ describe('resolveWorkspace', () => {
 
       const config = new ConfigService(fs);
       const workspaceDir = new WorkspaceDirectoryService(fs);
+      const workspaceConfig = new WorkspaceConfigService(fs);
       const mockProcess = createMockProcess();
       mockProcess.cwd.returns(cwd);
 
-      const result = resolveWorkspace(undefined, workspaceDir, config, mockProcess);
+      const result = resolveWorkspace(undefined, workspaceDir, workspaceConfig, config, mockProcess);
 
       expect(result).toEqual({
         workspacePath,
@@ -177,10 +184,11 @@ describe('resolveWorkspace', () => {
 
       const config = new ConfigService(fs);
       const workspaceDir = new WorkspaceDirectoryService(fs);
+      const workspaceConfig = new WorkspaceConfigService(fs);
       const mockProcess = createMockProcess();
       mockProcess.cwd.returns(cwd);
 
-      expect(() => resolveWorkspace(undefined, workspaceDir, config, mockProcess)).toThrow(
+      expect(() => resolveWorkspace(undefined, workspaceDir, workspaceConfig, config, mockProcess)).toThrow(
         NotInWorkspaceError
       );
     });
@@ -198,10 +206,11 @@ describe('resolveWorkspace', () => {
 
       const config = new ConfigService(fs);
       const workspaceDir = new WorkspaceDirectoryService(fs);
+      const workspaceConfig = new WorkspaceConfigService(fs);
       const mockProcess = createMockProcess();
       mockProcess.cwd.returns(destPath);
 
-      expect(() => resolveWorkspace(undefined, workspaceDir, config, mockProcess)).toThrow(
+      expect(() => resolveWorkspace(undefined, workspaceDir, workspaceConfig, config, mockProcess)).toThrow(
         NotInWorkspaceError
       );
     });
@@ -219,10 +228,11 @@ describe('resolveWorkspace', () => {
 
       const config = new ConfigService(fs);
       const workspaceDir = new WorkspaceDirectoryService(fs);
+      const workspaceConfig = new WorkspaceConfigService(fs);
       const mockProcess = createMockProcess();
       mockProcess.cwd.returns(cwd);
 
-      expect(() => resolveWorkspace(undefined, workspaceDir, config, mockProcess)).toThrow(
+      expect(() => resolveWorkspace(undefined, workspaceDir, workspaceConfig, config, mockProcess)).toThrow(
         NotInWorkspaceError
       );
     });
@@ -245,11 +255,12 @@ describe('resolveWorkspace', () => {
 
       const config = new ConfigService(fs);
       const workspaceDir = new WorkspaceDirectoryService(fs);
+      const workspaceConfig = new WorkspaceConfigService(fs);
       const mockProcess = createMockProcess();
       mockProcess.cwd.returns('/some/other/path');
 
       // Should not use cwd when branch name is provided
-      const result = resolveWorkspace(branchName, workspaceDir, config, mockProcess);
+      const result = resolveWorkspace(branchName, workspaceDir, workspaceConfig, config, mockProcess);
 
       expect(result.workspacePath).toBe(workspacePath);
       expect(mockProcess.cwd.called).toBe(false);
@@ -272,13 +283,60 @@ describe('resolveWorkspace', () => {
 
       const config = new ConfigService(fs);
       const workspaceDir = new WorkspaceDirectoryService(fs);
+      const workspaceConfig = new WorkspaceConfigService(fs);
       const mockProcess = createMockProcess();
       mockProcess.cwd.returns(cwd);
 
-      const result = resolveWorkspace(undefined, workspaceDir, config, mockProcess);
+      const result = resolveWorkspace(undefined, workspaceDir, workspaceConfig, config, mockProcess);
 
       expect(result.displayName).toBe(branchName);
     });
+  });
+});
+
+describe('resolveWorkspace with a persisted branch name', () => {
+  const destPath = '/workspaces';
+  const branchName = 'feature/ABC-1.2';
+  const workspacePath = path.join(destPath, 'feature_ABC-1_2');
+
+  function setup(flowConfig: object) {
+    const { fs } = createMemFs({
+      [getConfigPath()]: JSON.stringify({ 'source-path': '/source', 'dest-path': destPath }),
+      [path.join(workspacePath, 'flow-config.json')]: JSON.stringify(flowConfig),
+      [path.join(workspacePath, 'repo1', '.git')]: '',
+    });
+    const mockProcess = createMockProcess();
+    mockProcess.cwd.returns(path.join(workspacePath, 'repo1'));
+    return {
+      workspaceDir: new WorkspaceDirectoryService(fs),
+      workspaceConfig: new WorkspaceConfigService(fs),
+      config: new ConfigService(fs),
+      mockProcess,
+    };
+  }
+
+  it('should return the real branch name, not the sanitized folder name, when auto-detecting', () => {
+    const { workspaceDir, workspaceConfig, config, mockProcess } = setup({ branchName, baseBranches: {} });
+
+    const result = resolveWorkspace(undefined, workspaceDir, workspaceConfig, config, mockProcess);
+
+    expect(result).toEqual({ workspacePath, displayName: branchName });
+  });
+
+  it('should return the real branch name when the workspace is named by its folder name', () => {
+    const { workspaceDir, workspaceConfig, config, mockProcess } = setup({ branchName, baseBranches: {} });
+
+    const result = resolveWorkspace('feature_ABC-1_2', workspaceDir, workspaceConfig, config, mockProcess);
+
+    expect(result).toEqual({ workspacePath, displayName: branchName });
+  });
+
+  it('should fall back to the folder name for workspaces without a persisted branch name', () => {
+    const { workspaceDir, workspaceConfig, config, mockProcess } = setup({ baseBranches: {} });
+
+    const result = resolveWorkspace(undefined, workspaceDir, workspaceConfig, config, mockProcess);
+
+    expect(result.displayName).toBe('feature_ABC-1_2');
   });
 });
 
@@ -299,9 +357,10 @@ describe('tryResolveWorkspace', () => {
 
     const config = new ConfigService(fs);
     const workspaceDir = new WorkspaceDirectoryService(fs);
+    const workspaceConfig = new WorkspaceConfigService(fs);
     const mockProcess = createMockProcess();
 
-    const result = tryResolveWorkspace(branchName, workspaceDir, config, mockProcess);
+    const result = tryResolveWorkspace(branchName, workspaceDir, workspaceConfig, config, mockProcess);
 
     expect(result).toEqual({ workspacePath, displayName: branchName });
   });
@@ -318,9 +377,10 @@ describe('tryResolveWorkspace', () => {
 
     const config = new ConfigService(fs);
     const workspaceDir = new WorkspaceDirectoryService(fs);
+    const workspaceConfig = new WorkspaceConfigService(fs);
     const mockProcess = createMockProcess();
 
-    const result = tryResolveWorkspace('non-existent', workspaceDir, config, mockProcess);
+    const result = tryResolveWorkspace('non-existent', workspaceDir, workspaceConfig, config, mockProcess);
 
     expect(result).toBeNull();
   });
@@ -337,10 +397,11 @@ describe('tryResolveWorkspace', () => {
 
     const config = new ConfigService(fs);
     const workspaceDir = new WorkspaceDirectoryService(fs);
+    const workspaceConfig = new WorkspaceConfigService(fs);
     const mockProcess = createMockProcess();
     mockProcess.cwd.returns('/home/user/projects');
 
-    const result = tryResolveWorkspace(undefined, workspaceDir, config, mockProcess);
+    const result = tryResolveWorkspace(undefined, workspaceDir, workspaceConfig, config, mockProcess);
 
     expect(result).toBeNull();
   });

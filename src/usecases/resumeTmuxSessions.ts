@@ -1,5 +1,6 @@
 import type { WorkspaceDirectoryService } from '../lib/workspaceDirectory.js';
 import type { TmuxService } from '../lib/tmux.js';
+import type { WorkspaceConfigService } from '../lib/workspaceConfig.js';
 
 export type ResumeTmuxSessionsParams = {
   destPath: string;
@@ -20,6 +21,7 @@ export type ResumeTmuxSessionsResult = {
 export class ResumeTmuxSessionsUseCase {
   constructor(
     private workspaceDir: WorkspaceDirectoryService,
+    private workspaceConfig: WorkspaceConfigService,
     private tmux: TmuxService
   ) {}
 
@@ -47,8 +49,12 @@ export class ResumeTmuxSessionsUseCase {
         // Get all git directories (getWorktreeDirs now filters to only include dirs with .git)
         const worktreeDirs = this.workspaceDir.getWorktreeDirs(workspace.path);
 
+        // Sessions are named after the workspace's real branch name (as at creation),
+        // falling back to the folder name for workspaces that predate it being persisted
+        const sessionName = this.workspaceConfig.getBranchName(workspace.path) ?? workspace.name;
+
         // Try to create session - will throw on duplicate session
-        await this.tmux.createSession(workspace.path, workspace.name, worktreeDirs);
+        await this.tmux.createSession(workspace.path, sessionName, worktreeDirs);
         sessionsCreated++;
       } catch (error: any) {
         // Check if session already exists

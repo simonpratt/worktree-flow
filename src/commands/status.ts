@@ -17,6 +17,7 @@ export async function runStatus(
   const { workspacePath } = resolveWorkspace(
     branchName,
     services.workspaceDir,
+    services.workspaceConfig,
     services.config,
     services.process
   );

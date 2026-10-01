@@ -19,6 +19,7 @@ export async function runRename(
   const { workspacePath, displayName: oldDisplayName } = resolveWorkspace(
     oldBranchName,
     services.workspaceDir,
+    services.workspaceConfig,
     services.config,
     services.process
   );

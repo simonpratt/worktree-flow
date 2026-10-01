@@ -4,6 +4,8 @@ import type { IFileSystem } from '../adapters/types.js';
 
 // Schema for workspace config
 const WorkspaceConfigSchema = z.object({
+  /** The workspace's real (unsanitized) branch name — the folder name is sanitized, so it can't be derived from that. Absent in workspaces created before it was persisted. */
+  branchName: z.string().optional(),
   baseBranches: z.record(z.string(), z.string()),
 });
 
@@ -11,7 +13,7 @@ export type WorkspaceConfig = z.infer<typeof WorkspaceConfigSchema>;
 
 /**
  * WorkspaceConfigService manages flow-config.json files in workspace directories.
- * These files track the base branch used for each repository in a workspace.
+ * These files track the workspace's branch name and the base branch used for each repository in it.
  */
 export class WorkspaceConfigService {
   constructor(private fs: IFileSystem) {}
@@ -35,19 +37,30 @@ export class WorkspaceConfigService {
     return WorkspaceConfigSchema.parse(parsed);
   }
 
-  savePlaceholder(workspacePath: string): void {
-    const configPath = this.getConfigPath(workspacePath);
-    this.fs.writeFileSync(configPath, JSON.stringify({ baseBranches: {} }, null, 2) + '\n');
+  savePlaceholder(workspacePath: string, branchName: string): void {
+    this.write(workspacePath, { branchName, baseBranches: {} });
   }
 
   save(workspacePath: string, config: WorkspaceConfig): void {
-    const configPath = this.getConfigPath(workspacePath);
     const validated = WorkspaceConfigSchema.parse(config);
     const existing = this.load(workspacePath);
     const merged: WorkspaceConfig = {
+      branchName: validated.branchName ?? existing.branchName,
       baseBranches: { ...existing.baseBranches, ...validated.baseBranches },
     };
-    this.fs.writeFileSync(configPath, JSON.stringify(merged, null, 2) + '\n');
+    this.write(workspacePath, merged);
+  }
+
+  getBranchName(workspacePath: string): string | undefined {
+    return this.load(workspacePath).branchName;
+  }
+
+  setBranchName(workspacePath: string, branchName: string): void {
+    this.write(workspacePath, { ...this.load(workspacePath), branchName });
+  }
+
+  private write(workspacePath: string, config: WorkspaceConfig): void {
+    this.fs.writeFileSync(this.getConfigPath(workspacePath), JSON.stringify(config, null, 2) + '\n');
   }
 
   getBaseBranch(workspacePath: string, repoName: string): string {
