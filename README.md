@@ -162,7 +162,7 @@ Both fields are optional. Precedence (highest to lowest):
 
 ## Markdown files (AGENTS.md etc.)
 
-All `.md` files at the root of your source-path (e.g. `AGENTS.md`, `CLAUDE.md`) are copied into each workspace (subdirectories are not scanned). This is useful for providing AI coding agents with context about your multi-repo setup.
+All `.md` files at the root of your source-path (e.g. `AGENTS.md`, `CLAUDE.md`) are copied into each workspace (subdirectories are not scanned). This is useful for providing AI coding agents with context about your multi-repo setup. When copying `AGENTS.md`, any line mentioning a repo not included in the workspace is removed.
 
 ## License
 

@@ -114,6 +114,70 @@ describe('WorkspaceDirectoryService', () => {
       expect(() => service.copyAgentsMd(sourcePath, workspacePath)).not.toThrow();
       expect(vol.existsSync(path.join(workspacePath, 'AGENTS.md'))).toBe(false);
     });
+
+    it('should drop lines mentioning excluded folder names and keep all other lines in order', () => {
+      const sourcePath = '/source';
+      const workspacePath = '/workspaces/feature-123';
+      const agentsContent = [
+        '# Repos',
+        '',
+        '- api-1: the first API',
+        '- api-2: the second API',
+        '- client: the web client',
+        'client talks to api-2 over HTTP',
+        'api-1 and api-2 share a schema',
+        'Run tests with npm test.',
+        '',
+      ].join('\n');
+      const { vol, fs } = createMemFs({
+        [path.join(sourcePath, 'AGENTS.md')]: agentsContent,
+        [path.join(workspacePath, '.gitkeep')]: '',
+      });
+      const service = new WorkspaceDirectoryService(fs);
+
+      service.copyAgentsMd(sourcePath, workspacePath, ['api-1']);
+
+      const copiedContent = vol.readFileSync(path.join(workspacePath, 'AGENTS.md'), 'utf-8');
+      expect(copiedContent).toBe(
+        [
+          '# Repos',
+          '',
+          '- api-2: the second API',
+          '- client: the web client',
+          'client talks to api-2 over HTTP',
+          'Run tests with npm test.',
+          '',
+        ].join('\n')
+      );
+    });
+
+    it('should drop lines mentioning any of multiple excluded folder names', () => {
+      const sourcePath = '/source';
+      const workspacePath = '/workspaces/feature-123';
+      const { vol, fs } = createMemFs({
+        [path.join(sourcePath, 'AGENTS.md')]: '- api-1\n- api-2\n- client\n',
+        [path.join(workspacePath, '.gitkeep')]: '',
+      });
+      const service = new WorkspaceDirectoryService(fs);
+
+      service.copyAgentsMd(sourcePath, workspacePath, ['api-1', 'client']);
+
+      expect(vol.readFileSync(path.join(workspacePath, 'AGENTS.md'), 'utf-8')).toBe('- api-2\n');
+    });
+
+    it('should preserve CRLF line endings when filtering', () => {
+      const sourcePath = '/source';
+      const workspacePath = '/workspaces/feature-123';
+      const { vol, fs } = createMemFs({
+        [path.join(sourcePath, 'AGENTS.md')]: '- api-1\r\n- client\r\n',
+        [path.join(workspacePath, '.gitkeep')]: '',
+      });
+      const service = new WorkspaceDirectoryService(fs);
+
+      service.copyAgentsMd(sourcePath, workspacePath, ['api-1']);
+
+      expect(vol.readFileSync(path.join(workspacePath, 'AGENTS.md'), 'utf-8')).toBe('- client\r\n');
+    });
   });
 
   describe('copyRootMarkdownFiles', () => {

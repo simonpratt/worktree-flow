@@ -7,6 +7,8 @@ export type CreateWorkspaceParams = {
   sourcePath: string;
   destPath: string;
   tmux: boolean;
+  /** Repo folder names under source-path not included in this workspace; lines mentioning them are stripped from AGENTS.md. */
+  excludedFolderNames?: string[];
 };
 
 export type CreateWorkspaceResult = {
@@ -35,8 +37,12 @@ export class CreateWorkspaceUseCase {
     // 2. Save placeholder config
     this.workspaceConfig.savePlaceholder(workspacePath);
 
-    // 3. Copy AGENTS.md if it exists in source-path
-    this.workspaceDir.copyAgentsMd(params.sourcePath, workspacePath);
+    // 3. Copy AGENTS.md if it exists in source-path, stripping lines about excluded repos
+    this.workspaceDir.copyAgentsMd(
+      params.sourcePath,
+      workspacePath,
+      params.excludedFolderNames ?? []
+    );
 
     // 3b. Copy all other top-level .md files from source-path
     this.workspaceDir.copyRootMarkdownFiles(params.sourcePath, workspacePath);

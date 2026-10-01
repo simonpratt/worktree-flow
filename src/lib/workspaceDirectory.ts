@@ -26,11 +26,27 @@ export class WorkspaceDirectoryService {
     return workspacePath;
   }
 
-  copyAgentsMd(sourcePath: string, workspacePath: string): void {
+  /**
+   * Copies AGENTS.md from source-path into the workspace, dropping any line that
+   * mentions one of `excludedFolderNames` (repos not included in this workspace).
+   * @example copyAgentsMd('/src', '/ws', ['api-1']) → '- api-1: ...' lines are removed
+   */
+  copyAgentsMd(sourcePath: string, workspacePath: string, excludedFolderNames: string[] = []): void {
     const agentsPath = path.join(sourcePath, 'AGENTS.md');
-    if (this.fs.existsSync(agentsPath)) {
-      this.fs.copyFileSync(agentsPath, path.join(workspacePath, 'AGENTS.md'));
+    if (!this.fs.existsSync(agentsPath)) {
+      return;
     }
+    const destPath = path.join(workspacePath, 'AGENTS.md');
+    if (excludedFolderNames.length === 0) {
+      this.fs.copyFileSync(agentsPath, destPath);
+      return;
+    }
+    const content = this.fs.readFileSync(agentsPath, 'utf-8');
+    const filtered = content
+      .split(/(?<=\n)/)
+      .filter((line) => !excludedFolderNames.some((name) => line.includes(name)))
+      .join('');
+    this.fs.writeFileSync(destPath, filtered);
   }
 
   /**

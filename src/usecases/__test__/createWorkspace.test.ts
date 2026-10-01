@@ -58,7 +58,26 @@ describe('CreateWorkspaceUseCase', () => {
       tmux: false,
     });
 
-    sinon.assert.calledOnceWithExactly(workspaceDir.copyAgentsMd, '/source', '/dest/feature');
+    sinon.assert.calledOnceWithExactly(workspaceDir.copyAgentsMd, '/source', '/dest/feature', []);
+  });
+
+  it('should pass excluded folder names through to the AGENTS.md copy', async () => {
+    workspaceDir.createWorkspaceDir.returns('/dest/feature');
+
+    await useCase.execute({
+      branchName: 'feature',
+      sourcePath: '/source',
+      destPath: '/dest',
+      tmux: false,
+      excludedFolderNames: ['api-1', 'client'],
+    });
+
+    sinon.assert.calledOnceWithExactly(
+      workspaceDir.copyAgentsMd,
+      '/source',
+      '/dest/feature',
+      ['api-1', 'client']
+    );
   });
 
   it('should copy other root markdown files from source path', async () => {

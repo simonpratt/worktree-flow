@@ -65,11 +65,17 @@ export async function runCreate(
   });
 
   // 1. Create workspace directory, placeholder config, AGENTS.md, tmux session
+  const selectedNames = new Set(selected.map((r) => path.basename(r)));
+  const excludedFolderNames = repos
+    .map((r) => path.basename(r))
+    .filter((name) => !selectedNames.has(name));
+
   const workspaceResult = await useCases.createWorkspace.execute({
     branchName,
     sourcePath,
     destPath,
     tmux: config.tmux,
+    excludedFolderNames,
   });
 
   const { workspacePath, tmuxCreated } = workspaceResult;

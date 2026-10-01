@@ -222,6 +222,32 @@ describe('create integration', () => {
     expect(fs.existsSync(path.join(workspacePath, 'notes.txt'))).toBe(false);
   });
 
+  it('should strip AGENTS.md lines that mention repos not included in the workspace', async () => {
+    const api1 = await initGitRepo(sourcePath, 'api-1');
+    await initGitRepo(sourcePath, 'api-2');
+    const client = await initGitRepo(sourcePath, 'client');
+    fs.writeFileSync(
+      path.join(sourcePath, 'AGENTS.md'),
+      '# Repos\n- api-1: first API\n- api-2: second API\n- client: web client\napi-2 is called by client\n'
+    );
+    fs.writeFileSync(path.join(sourcePath, 'NOTES.md'), 'api-2 notes\n');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+
+    await runCreate('new-feature', integration.useCases, integration.services, {
+      pickRepos: sinon.stub().resolves([api1, client]),
+      input: inputStub,
+      confirm: confirmStub,
+    });
+
+    const workspacePath = path.join(destPath, 'new-feature');
+    expect(fs.readFileSync(path.join(workspacePath, 'AGENTS.md'), 'utf-8')).toBe(
+      '# Repos\n- api-1: first API\n- client: web client\n'
+    );
+    // Other markdown files are copied verbatim
+    expect(fs.readFileSync(path.join(workspacePath, 'NOTES.md'), 'utf-8')).toBe('api-2 notes\n');
+  });
+
   it('should pre-check repos configured in branch-repos', async () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
     const repo2 = await initGitRepo(sourcePath, 'repo2');
