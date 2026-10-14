@@ -7,7 +7,7 @@ import type { Services } from '../lib/services.js';
 import type { UseCases } from '../usecases/usecases.js';
 import { NoReposFoundError } from '../lib/errors.js';
 import { resolveWorkspace } from '../lib/workspaceResolver.js';
-import { buildRepoOptions, handleCommandError, resolveReposByName } from './helpers.js';
+import { buildRepoOptions, handleCommandError, resolveReposByName, logCopyFiles } from './helpers.js';
 import { confirm, input, pickRepos, type InputOptions, type RepoPickerOptions } from './prompts.js';
 
 export async function runAttach(
@@ -138,12 +138,13 @@ export async function runAttach(
   const successCount = results.filter((r) => r.status === 'fulfilled').length;
   const totalCount = results.length;
 
-  const postCheckoutResults = results
+  const fulfilledResults = results
     .filter((r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof useCases.addToWorkspace.execute>>> =>
       r.status === 'fulfilled'
     )
-    .map((r) => r.value)
-    .filter((r) => r.postCheckoutRan);
+    .map((r) => r.value);
+
+  const postCheckoutResults = fulfilledResults.filter((r) => r.postCheckoutRan);
 
   const postCheckoutSuccess = postCheckoutResults.filter((r) => r.postCheckoutSuccess).length;
   const postCheckoutTotal = postCheckoutResults.length;
@@ -152,6 +153,8 @@ export async function runAttach(
   services.console.log(
     `\nAttached ${successCount}/${totalCount} repos to ${chalk.cyan(workspacePath)}.`
   );
+
+  logCopyFiles(fulfilledResults, config.copyFiles, services.console);
 
   if (postCheckoutTotal > 0) {
     services.console.log(

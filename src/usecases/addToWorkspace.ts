@@ -1,5 +1,5 @@
 import path from 'node:path';
-import type { WorktreeService } from '../lib/worktree.js';
+import type { CopyFailure, WorktreeService } from '../lib/worktree.js';
 import type { WorkspaceConfigService } from '../lib/workspaceConfig.js';
 import type { RepoConfigService } from '../lib/repoConfig.js';
 import type { PostCheckoutService } from '../lib/postCheckout.js';
@@ -21,11 +21,13 @@ export type AddToWorkspaceResult = {
   postCheckoutRan: boolean;
   postCheckoutSuccess: boolean;
   tmuxPaneAdded: boolean;
+  /** copy-files entries that exist in the source repo but failed to copy */
+  copyFailures: CopyFailure[];
 };
 
 /**
  * Use case for adding a single repo to an existing workspace.
- * Creates a worktree for an existing branch, copies config files,
+ * Creates a worktree for an existing branch, copies config files (reporting failures),
  * saves base branch to workspace config, adds a tmux pane (if enabled),
  * and runs post-checkout (if configured).
  */
@@ -48,7 +50,11 @@ export class AddToWorkspaceUseCase {
     // 2. Resolve and copy config files using repo-level overrides with global fallback
     const repoConf = this.repoConfig.load(params.repoPath);
     const resolvedCopyFiles = this.repoConfig.resolveCopyFiles(repoConf, params.copyFiles);
-    this.worktree.copyConfigFilesToWorktree(params.repoPath, worktreeDest, resolvedCopyFiles);
+    const { failed: copyFailures } = this.worktree.copyConfigFilesToWorktree(
+      params.repoPath,
+      worktreeDest,
+      resolvedCopyFiles
+    );
 
     // 3. Save base branch to workspace config
     this.workspaceConfig.save(params.workspacePath, {
@@ -94,6 +100,7 @@ export class AddToWorkspaceUseCase {
       postCheckoutRan,
       postCheckoutSuccess,
       tmuxPaneAdded,
+      copyFailures,
     };
   }
 }

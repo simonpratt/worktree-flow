@@ -5,7 +5,7 @@ import { createServices } from '../lib/services.js';
 import { createUseCases } from '../usecases/usecases.js';
 import type { Services } from '../lib/services.js';
 import type { UseCases } from '../usecases/usecases.js';
-import { handleCommandError } from './helpers.js';
+import { handleCommandError, logCopyFiles } from './helpers.js';
 import { confirm } from './prompts.js';
 
 export async function runCheckout(
@@ -139,12 +139,13 @@ export async function runCheckout(
       services.console.error(`${repoName}: ${errorMsg}`);
     }
 
-    const postCheckoutResults = results
+    const fulfilledResults = results
       .filter((r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof useCases.addToWorkspace.execute>>> =>
         r.status === 'fulfilled'
       )
-      .map((r) => r.value)
-      .filter((r) => r.postCheckoutRan);
+      .map((r) => r.value);
+
+    const postCheckoutResults = fulfilledResults.filter((r) => r.postCheckoutRan);
 
     const postCheckoutSuccess = postCheckoutResults.filter((r) => r.postCheckoutSuccess).length;
     const postCheckoutTotal = postCheckoutResults.length;
@@ -157,6 +158,8 @@ export async function runCheckout(
     if (tmuxCreated) {
       services.console.log(`Created tmux session: ${chalk.cyan(branchName)}`);
     }
+
+    logCopyFiles(fulfilledResults, config.copyFiles, services.console);
 
     if (postCheckoutTotal > 0) {
       services.console.log(

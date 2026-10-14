@@ -18,7 +18,7 @@ describe('AddToWorkspaceUseCase', () => {
   beforeEach(() => {
     worktree = {
       createWorktreeCheckout: sinon.stub(),
-      copyConfigFilesToWorktree: sinon.stub(),
+      copyConfigFilesToWorktree: sinon.stub().returns({ failed: [] }),
     } as any;
     workspaceConfig = {
       save: sinon.stub(),
@@ -245,5 +245,24 @@ describe('AddToWorkspaceUseCase', () => {
     sinon.assert.notCalled(tmux.sendKeysToPane);
     expect(result.postCheckoutRan).toBe(false);
     expect(result.postCheckoutSuccess).toBe(false);
+  });
+
+  it('reports copy failures', async () => {
+    worktree.createWorktreeCheckout.resolves();
+    repoConfig.load.returns(undefined);
+    repoConfig.resolveCopyFiles.returns('.env');
+    worktree.copyConfigFilesToWorktree.returns({
+      failed: [{ file: '.env', error: 'Permission denied' }],
+    });
+
+    const result = await useCase.execute({
+      repoPath: '/source/my-repo',
+      workspacePath: '/dest/feature',
+      branchName: 'feature/my-feature',
+      baseBranch: 'main',
+      copyFiles: '.env',
+    });
+
+    expect(result.copyFailures).toEqual([{ file: '.env', error: 'Permission denied' }]);
   });
 });

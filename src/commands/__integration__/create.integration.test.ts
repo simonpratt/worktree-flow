@@ -374,6 +374,71 @@ describe('create integration', () => {
     expect(fs.readFileSync(path.join(wt3, 'postcheckout.txt'), 'utf-8').trim()).toBe('repo3-central');
   });
 
+  it('should copy nested copy-files entries whose folder is not tracked by git', async () => {
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+    // apps/web only holds an untracked .env, so the folder won't exist in the new worktree
+    fs.mkdirSync(path.join(repo1, 'apps', 'web'), { recursive: true });
+    fs.writeFileSync(path.join(repo1, 'apps', 'web', '.env'), 'WEB=1\n');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+    integration.services.config.load = sinon.stub().returns({
+      sourcePath,
+      destPath,
+      copyFiles: '.env,apps/web/.env',
+      tmux: false,
+      postCheckout: undefined,
+      perRepoPostCheckout: {},
+      fetchCacheTtlSeconds: 300,
+      branchAutoSelectRepos: [],
+    });
+
+    await runCreate('feature', integration.useCases, integration.services, {
+      pickRepos: sinon.stub().resolves([repo1]),
+      input: inputStub,
+      confirm: confirmStub,
+    });
+
+    const wt1 = path.join(destPath, 'feature', 'repo1');
+    expect(fs.readFileSync(path.join(wt1, 'apps', 'web', '.env'), 'utf-8')).toBe('WEB=1\n');
+
+    const output = (integration.stubs.console.log as sinon.SinonStub).getCalls().map((call) => call.args[0]).join('\n');
+    expect(output).toMatch(/Copy files: .*\.env,apps\/web\/\.env/);
+    expect(output).not.toContain('Warning');
+  });
+
+  it('should log the copy-files setting and warn when it does not include .env', async () => {
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+    fs.writeFileSync(path.join(repo1, '.env'), 'A=1\n');
+    fs.writeFileSync(path.join(repo1, '.env.local'), 'B=1\n');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+    integration.services.config.load = sinon.stub().returns({
+      sourcePath,
+      destPath,
+      copyFiles: '.env.local',
+      tmux: false,
+      postCheckout: undefined,
+      perRepoPostCheckout: {},
+      fetchCacheTtlSeconds: 300,
+      branchAutoSelectRepos: [],
+    });
+
+    await runCreate('feature', integration.useCases, integration.services, {
+      pickRepos: sinon.stub().resolves([repo1]),
+      input: inputStub,
+      confirm: confirmStub,
+    });
+
+    const wt1 = path.join(destPath, 'feature', 'repo1');
+    expect(fs.existsSync(path.join(wt1, '.env.local'))).toBe(true);
+    expect(fs.existsSync(path.join(wt1, '.env'))).toBe(false);
+
+    const output = (integration.stubs.console.log as sinon.SinonStub).getCalls().map((call) => call.args[0]).join('\n');
+    expect(output).toMatch(/Copy files: .*\.env\.local/);
+    expect(output).toContain('Warning: copy-files does not include .env');
+    expect(output).toContain('flow config set copy-files ".env,.env.local"');
+  });
+
   it('should run per-repo post-checkout commands, falling back to global', async () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
     const repo2 = await initGitRepo(sourcePath, 'repo2');

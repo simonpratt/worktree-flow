@@ -106,27 +106,43 @@ describe('WorktreeService', () => {
       expect(vol.existsSync(path.join(worktreePath, '.env.test'))).toBe(true);
     });
 
-    it('should silently ignore copy errors', () => {
+    it('should report copy errors instead of throwing', () => {
       const sourceRepoPath = '/source/repo1';
       const worktreePath = '/readonly/workspace/repo1';
-      const copyFiles = '.env';
+      const copyFiles = '.env,.env.local';
 
       const { fs } = createMemFs({
         [path.join(sourceRepoPath, '.env')]: 'SECRET=value',
+        [path.join(sourceRepoPath, '.env.local')]: 'LOCAL=value',
       });
-
-      // Mock copyFileSync to throw an error
-      const originalCopyFileSync = fs.copyFileSync;
       fs.copyFileSync = sinon.stub().throws(new Error('Permission denied'));
 
       const service = new WorktreeService(fs, gitService as any);
 
-      expect(() =>
-        service.copyConfigFilesToWorktree(sourceRepoPath, worktreePath, copyFiles)
-      ).not.toThrow();
+      const result = service.copyConfigFilesToWorktree(sourceRepoPath, worktreePath, copyFiles);
 
-      // Restore original function
-      fs.copyFileSync = originalCopyFileSync;
+      expect(result.failed).toEqual([
+        { file: '.env', error: 'Permission denied' },
+        { file: '.env.local', error: 'Permission denied' },
+      ]);
+    });
+
+    it('should create missing parent directories in the worktree for nested files', () => {
+      const sourceRepoPath = '/source/repo1';
+      const worktreePath = '/workspaces/feature-123/repo1';
+
+      // apps/web is gitignored/untracked, so it doesn't exist in the fresh worktree
+      const { vol, fs } = createMemFs({
+        [path.join(sourceRepoPath, 'apps', 'web', '.env')]: 'WEB=value',
+        [path.join(worktreePath, '.gitkeep')]: '',
+      });
+
+      const service = new WorktreeService(fs, gitService as any);
+
+      const result = service.copyConfigFilesToWorktree(sourceRepoPath, worktreePath, 'apps/web/.env');
+
+      expect(vol.readFileSync(path.join(worktreePath, 'apps', 'web', '.env'), 'utf-8')).toBe('WEB=value');
+      expect(result.failed).toEqual([]);
     });
 
     it('should handle single file without comma', () => {

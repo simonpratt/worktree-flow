@@ -2,6 +2,10 @@ import path from 'node:path';
 import type { IFileSystem } from '../adapters/types.js';
 import type { GitService } from './git.js';
 
+export type CopyFailure = { file: string; error: string };
+
+export type CopyConfigFilesResult = { failed: CopyFailure[] };
+
 /**
  * WorktreeService handles worktree creation and file copying.
  * No orchestration - just individual worktree operations.
@@ -12,16 +16,23 @@ export class WorktreeService {
     private git: GitService
   ) {}
 
+  /**
+   * Copies each comma-separated `copyFiles` path from the source repo into the worktree,
+   * creating parent directories that don't exist in the worktree (e.g. gitignored folders).
+   * Files missing from the source repo are skipped; copy errors are returned, not thrown.
+   */
   copyConfigFilesToWorktree(
     sourceRepoPath: string,
     worktreePath: string,
     copyFiles?: string
-  ): void {
+  ): CopyConfigFilesResult {
     // Default to no files if not specified
     const files = (copyFiles || '')
       .split(',')
       .map(f => f.trim())
       .filter(f => f.length > 0);
+
+    const failed: CopyFailure[] = [];
 
     // Copy each config file from source repo to worktree
     for (const file of files) {
@@ -33,13 +44,15 @@ export class WorktreeService {
         continue;
       }
 
-      // Copy file to worktree
       try {
+        this.fs.mkdirSync(path.dirname(destFilePath), { recursive: true });
         this.fs.copyFileSync(sourceFilePath, destFilePath);
-      } catch {
-        // Silently ignore copy errors
+      } catch (error: any) {
+        failed.push({ file, error: error?.message ?? String(error) });
       }
     }
+
+    return { failed };
   }
 
   async createWorktreeWithBranch(

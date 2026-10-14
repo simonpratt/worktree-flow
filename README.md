@@ -122,7 +122,7 @@ Settings are stored in `~/.config/flow/config.json`.
 | `source-path` | Directory containing your source repos | *required* |
 | `dest-path` | Directory where workspaces are created | *required* |
 | `tmux` | Create tmux sessions with split panes (root + each worktree) | `false` |
-| `copy-files` | Files to copy from source repos to worktrees | `.env` |
+| `copy-files` | Comma-separated files to copy from source repos to worktrees (nested paths like `apps/web/.env` work) | `.env` |
 | `post-checkout` | Command to run after checkout (e.g. `npm ci`) | *none* |
 | `per-repo-post-checkout` | Per-repo commands (see below) | `{}` |
 
@@ -159,6 +159,8 @@ Both fields are optional. Precedence (highest to lowest):
 
 - **post-checkout**: repo's `flow-config.json` > global `post-checkout`
 - **copy-files**: repo's `flow-config.json` > global `copy-files`
+
+After creating worktrees, flow prints the `copy-files` setting and warns if it doesn't include `.env`.
 
 ## Markdown files (AGENTS.md etc.)
 

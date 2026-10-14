@@ -5,6 +5,7 @@ import type { IConsole } from '../adapters/types.js';
 import type { Services } from '../lib/services.js';
 import { PromptCancelledError, RepoNotFoundError } from '../lib/errors.js';
 import type { RepoPickerOptions } from './prompts.js';
+import type { AddToWorkspaceResult } from '../usecases/addToWorkspace.js';
 
 
 type WorkspaceLoadingInfo = { name: string; repoCount: number };
@@ -121,3 +122,29 @@ export function resolveReposByName(candidateRepoPaths: string[], repoNames: stri
   });
 }
 
+
+/**
+ * Log the global copy-files setting, warn if it has no `.env` entry (so .env files won't
+ * reach the worktrees), and list any copy-files entries that failed to copy.
+ * @example logCopyFiles(results, '.env.local', console) →
+ *   "Copy files: .env.local" + warning suggesting ".env,.env.local"
+ */
+export function logCopyFiles(
+  results: Pick<AddToWorkspaceResult, 'repoName' | 'copyFailures'>[],
+  copyFiles: string | undefined,
+  console: IConsole
+): void {
+  const entries = (copyFiles ?? '').split(',').map((f) => f.trim()).filter(Boolean);
+  console.log(`\nCopy files: ${entries.length > 0 ? chalk.cyan(entries.join(',')) : chalk.dim('none')}`);
+
+  if (!entries.some((f) => path.posix.basename(f) === '.env')) {
+    console.log(chalk.yellow('Warning: copy-files does not include .env, so .env files are not copied into worktrees.'));
+    console.log(`  To include it: flow config set copy-files "${['.env', ...entries].join(',')}"`);
+  }
+
+  for (const r of results) {
+    for (const { file, error } of r.copyFailures) {
+      console.log(chalk.yellow(`Warning: ${r.repoName}: failed to copy ${file} (${error})`));
+    }
+  }
+}
