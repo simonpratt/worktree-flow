@@ -98,8 +98,7 @@ export class RemoveWorkspaceUseCase {
     let tmuxKilled = false;
     if (params.tmux) {
       try {
-        await this.tmux.killSession(params.branchName);
-        tmuxKilled = true;
+        tmuxKilled = await this.tmux.killSession(params.branchName);
       } catch (error) {
         // Don't fail
       }

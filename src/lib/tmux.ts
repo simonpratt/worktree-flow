@@ -37,56 +37,56 @@ export class TmuxService {
     return stdout;
   }
 
+  /**
+   * @throws if the session already exists ("duplicate session") — no panes are added to it
+   */
   async createSession(workspacePath: string, sessionName: string, worktreePaths: string[] = []): Promise<void> {
-    try {
-      // Create base session in workspace root
-      await this.shell.execFile('tmux', [
-        'new-session',
-        '-d',
-        '-s',
-        sessionName,
-        '-c',
-        workspacePath,
-      ]);
+    // Create base session in workspace root
+    await this.shell.execFile('tmux', [
+      'new-session',
+      '-d',
+      '-s',
+      sessionName,
+      '-c',
+      workspacePath,
+    ]);
 
-      // Create split panes for each worktree
-      for (const worktreePath of worktreePaths) {
-        await this.serialise(() => this.splitAndTile(sessionName, worktreePath));
-      }
-    } catch (error: any) {
-      // If session already exists, ignore the error
-      if (!error.message?.includes('duplicate session')) {
-        throw error;
-      }
+    // Create split panes for each worktree
+    for (const worktreePath of worktreePaths) {
+      await this.serialise(() => this.splitAndTile(sessionName, worktreePath));
     }
   }
 
-  async sendKeysToPane(sessionName: string, paneIndex: number, command: string): Promise<void> {
+  /** Targets the pane by its unique id (e.g. `%7`), so it works regardless of base-index settings. */
+  async sendKeysToPane(paneId: string, command: string): Promise<void> {
     await this.shell.execFile('tmux', [
       'send-keys',
       '-t',
-      `${sessionName}:0.${paneIndex}`,
+      paneId,
       command,
       'Enter',
     ]);
   }
 
-  async addPane(sessionName: string, worktreePath: string): Promise<number> {
+  /** Returns the new pane's id (e.g. `%7`). */
+  async addPane(sessionName: string, worktreePath: string): Promise<string> {
     const stdout = await this.serialise(() =>
-      this.splitAndTile(sessionName, worktreePath, ['-P', '-F', '#{pane_index}'])
+      this.splitAndTile(sessionName, worktreePath, ['-P', '-F', '#{pane_id}'])
     );
 
-    return parseInt(stdout.trim(), 10);
+    return stdout.trim();
   }
 
-  async killSession(sessionName: string): Promise<void> {
+  /** Returns false if there was no session to kill. */
+  async killSession(sessionName: string): Promise<boolean> {
     try {
       await this.shell.execFile('tmux', ['kill-session', '-t', sessionName]);
+      return true;
     } catch (error: any) {
-      // If session doesn't exist, ignore the error
-      if (!error.message?.includes('no such session')) {
-        throw error;
+      if (/can't find session|no such session|no server running/.test(error.message ?? '')) {
+        return false;
       }
+      throw error;
     }
   }
 

@@ -158,8 +158,8 @@ export function createIntegrationServices(sourcePath: string, destPath: string):
   const status = new StatusService(gitService);
   const tmuxStub = {
     createSession: sinon.stub(),
-    killSession: sinon.stub(),
-    addPane: sinon.stub().resolves(1),
+    killSession: sinon.stub().resolves(true),
+    addPane: sinon.stub().resolves('%1'),
     sendKeysToPane: sinon.stub().resolves(),
     sessionExists: sinon.stub().resolves(false),
     renameSession: sinon.stub().resolves(),

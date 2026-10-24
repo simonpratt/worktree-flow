@@ -46,7 +46,7 @@ describe('RemoveWorkspaceUseCase', () => {
     } as any;
 
     tmuxStub = {
-      killSession: sinon.stub().resolves(),
+      killSession: sinon.stub().resolves(true),
     } as any;
 
     trashStub = {
@@ -178,6 +178,20 @@ describe('RemoveWorkspaceUseCase', () => {
 
     expect(tmuxStub.killSession.calledWith('my-feature')).toBe(true);
     expect(result.tmuxKilled).toBe(true);
+  });
+
+  it('should not report a kill when there was no tmux session', async () => {
+    workspaceDirStub.getWorktreeDirs.returns([]);
+    tmuxStub.killSession.resolves(false);
+
+    const result = await useCase.execute({
+      workspacePath,
+      branchName: 'my-feature',
+      sourcePath,
+      tmux: true,
+    });
+
+    expect(result.tmuxKilled).toBe(false);
   });
 
   it('should not fail if tmux session kill fails', async () => {

@@ -126,7 +126,8 @@ export async function runPrune(
 
       await useCases.removeWorkspace.execute({
         workspacePath: workspace.path,
-        branchName: workspace.name,
+        // The persisted branch name is the tmux session name; the folder name is sanitized
+        branchName: services.workspaceConfig.getBranchName(workspace.path) ?? workspace.name,
         sourcePath,
         tmux: config.tmux,
       });

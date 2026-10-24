@@ -135,7 +135,7 @@ describe('AddToWorkspaceUseCase', () => {
     worktree.createWorktreeCheckout.resolves();
     repoConfig.load.returns(undefined);
     repoConfig.resolveCopyFiles.returns(undefined);
-    tmux.addPane.resolves(2);
+    tmux.addPane.resolves('%2');
 
     const result = await useCase.execute({
       repoPath: '/source/my-repo',
@@ -193,7 +193,7 @@ describe('AddToWorkspaceUseCase', () => {
     worktree.createWorktreeCheckout.resolves();
     repoConfig.load.returns(undefined);
     repoConfig.resolveCopyFiles.returns(undefined);
-    tmux.addPane.resolves(3);
+    tmux.addPane.resolves('%3');
     tmux.sendKeysToPane.resolves();
 
     const result = await useCase.execute({
@@ -205,7 +205,7 @@ describe('AddToWorkspaceUseCase', () => {
       postCheckout: 'npm ci',
     });
 
-    sinon.assert.calledOnceWithExactly(tmux.sendKeysToPane, 'feature', 3, 'npm ci');
+    sinon.assert.calledOnceWithExactly(tmux.sendKeysToPane, '%3', 'npm ci');
     sinon.assert.notCalled(postCheckout.runCommandInDirectory);
     expect(result.postCheckoutRan).toBe(true);
     expect(result.postCheckoutSuccess).toBe(true);

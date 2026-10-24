@@ -188,6 +188,42 @@ describe('prune integration', () => {
     expect(fs.existsSync(dirtyResult.workspacePath)).toBe(true);
   });
 
+  it('should kill the real tmux session for a workspace whose branch name was sanitized', async () => {
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+    (integration.services.config.load as sinon.SinonStub).returns({
+      sourcePath,
+      destPath,
+      copyFiles: '.env',
+      tmux: true,
+      postCheckout: undefined,
+      perRepoPostCheckout: {},
+      fetchCacheTtlSeconds: 300,
+      branchAutoSelectRepos: [],
+      branchRepoUsage: {},
+    });
+    const tmuxStub = integration.services.tmux as sinon.SinonStubbedInstance<any>;
+
+    const result = await createTestWorkspace(integration.useCases, {
+      repos: [repo1],
+      branchName: 'feature/ABC-123',
+      sourceBranch: 'master',
+      sourcePath,
+      destPath,
+      copyFiles: '.env',
+      tmux: true,
+    });
+    const createdSessionName = tmuxStub.createSession.firstCall.args[1];
+
+    multiselectStub.resolves([path.basename(result.workspacePath)]);
+
+    await runPrune(integration.useCases, integration.services, { multiselect: multiselectStub, confirm: confirmStub });
+
+    expect(fs.existsSync(result.workspacePath)).toBe(false);
+    sinon.assert.calledOnceWithExactly(tmuxStub.killSession, createdSessionName);
+  });
+
   it('should exit when all workspaces have uncommitted changes', async () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
 

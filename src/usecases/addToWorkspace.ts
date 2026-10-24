@@ -62,11 +62,11 @@ export class AddToWorkspaceUseCase {
     });
 
     // 4. Add tmux pane (if session name provided)
-    let paneIndex: number | undefined;
+    let paneId: string | undefined;
     let tmuxPaneAdded = false;
     if (params.sessionName) {
       try {
-        paneIndex = await this.tmux.addPane(params.sessionName, worktreeDest);
+        paneId = await this.tmux.addPane(params.sessionName, worktreeDest);
         tmuxPaneAdded = true;
       } catch {
         // Don't fail if tmux pane addition fails
@@ -81,9 +81,9 @@ export class AddToWorkspaceUseCase {
     if (postCheckoutCommand) {
       postCheckoutRan = true;
       try {
-        if (params.sessionName !== undefined && paneIndex !== undefined) {
+        if (paneId !== undefined) {
           // tmux enabled: send keys to the pane
-          await this.tmux.sendKeysToPane(params.sessionName, paneIndex, postCheckoutCommand);
+          await this.tmux.sendKeysToPane(paneId, postCheckoutCommand);
         } else {
           // tmux disabled: run command directly in worktree directory
           await this.postCheckout.runCommandInDirectory(worktreeDest, postCheckoutCommand);

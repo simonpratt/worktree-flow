@@ -93,13 +93,14 @@ describe('TmuxService', () => {
       ]);
     });
 
-    it('should ignore duplicate session errors', async () => {
-      const error: any = new Error('duplicate session: feature-branch');
-      error.message = 'duplicate session: feature-branch';
-      shell.execFile.rejects(error);
+    it('should reject with the duplicate session error so callers can tell the session already existed', async () => {
+      shell.execFile.rejects(new Error('duplicate session: feature-branch'));
 
-      await expect(service.createSession('/workspace/feature', 'feature-branch', [])).resolves.toBeUndefined();
+      await expect(
+        service.createSession('/workspace/feature', 'feature-branch', ['/workspace/feature/repo1'])
+      ).rejects.toThrow('duplicate session');
 
+      // No panes are split into the pre-existing session
       sinon.assert.calledOnce(shell.execFile);
     });
 
@@ -120,10 +121,10 @@ describe('TmuxService', () => {
   });
 
   describe('killSession', () => {
-    it('should execute tmux kill-session with correct arguments', async () => {
+    it('should execute tmux kill-session with correct arguments and report the kill', async () => {
       shell.execFile.resolves({ stdout: '', stderr: '' });
 
-      await service.killSession('feature-branch');
+      await expect(service.killSession('feature-branch')).resolves.toBe(true);
 
       sinon.assert.calledOnceWithExactly(
         shell.execFile,
@@ -132,12 +133,10 @@ describe('TmuxService', () => {
       );
     });
 
-    it('should ignore session not found errors', async () => {
-      const error: any = new Error('no such session: feature-branch');
-      error.message = 'no such session: feature-branch';
-      shell.execFile.rejects(error);
+    it('should report nothing was killed when the session does not exist', async () => {
+      shell.execFile.rejects(new Error("can't find session: feature-branch"));
 
-      await expect(service.killSession('feature-branch')).resolves.toBeUndefined();
+      await expect(service.killSession('feature-branch')).resolves.toBe(false);
 
       sinon.assert.calledOnce(shell.execFile);
     });
@@ -150,18 +149,18 @@ describe('TmuxService', () => {
   });
 
   describe('addPane', () => {
-    it('should split window with print flag, return pane index, and apply tiled layout', async () => {
-      shell.execFile.onFirstCall().resolves({ stdout: '2\n', stderr: '' }); // split-window -P -F
+    it('should split window with print flag, return the pane id, and apply tiled layout', async () => {
+      shell.execFile.onFirstCall().resolves({ stdout: '%7\n', stderr: '' }); // split-window -P -F
       shell.execFile.onSecondCall().resolves({ stdout: '', stderr: '' }); // select-layout
 
-      const paneIndex = await service.addPane('feature-branch', '/workspace/feature/repo1');
+      const paneId = await service.addPane('feature-branch', '/workspace/feature/repo1');
 
-      expect(paneIndex).toBe(2);
+      expect(paneId).toBe('%7');
 
       sinon.assert.calledWith(
         shell.execFile,
         'tmux',
-        ['split-window', '-t', 'feature-branch', '-c', '/workspace/feature/repo1', '-P', '-F', '#{pane_index}']
+        ['split-window', '-t', 'feature-branch', '-c', '/workspace/feature/repo1', '-P', '-F', '#{pane_id}']
       );
 
       sinon.assert.calledWith(
@@ -171,16 +170,6 @@ describe('TmuxService', () => {
       );
 
       expect(shell.execFile.callCount).toBe(2);
-    });
-
-    it('should return pane index as a number', async () => {
-      shell.execFile.onFirstCall().resolves({ stdout: '5', stderr: '' });
-      shell.execFile.onSecondCall().resolves({ stdout: '', stderr: '' });
-
-      const paneIndex = await service.addPane('my-session', '/some/path');
-
-      expect(paneIndex).toBe(5);
-      expect(typeof paneIndex).toBe('number');
     });
 
     it('should throw when split-window fails', async () => {
@@ -198,18 +187,18 @@ describe('TmuxService', () => {
         await new Promise((resolve) => setTimeout(resolve, 0));
         if (args[0] === 'split-window') {
           paneCount++;
-          return { stdout: `${paneCount}\n`, stderr: '' };
+          return { stdout: `%${paneCount}\n`, stderr: '' };
         }
         return { stdout: '', stderr: '' };
       });
 
-      const paneIndexes = await Promise.all(
+      const paneIds = await Promise.all(
         ['repo1', 'repo2', 'repo3', 'repo4'].map((repo) =>
           service.addPane('feature-branch', `/workspace/feature/${repo}`)
         )
       );
 
-      expect(paneIndexes).toEqual([1, 2, 3, 4]);
+      expect(paneIds).toEqual(['%1', '%2', '%3', '%4']);
       const commands = shell.execFile.getCalls().map((c: any) => c.args[1][0]);
       expect(commands).toEqual([
         'split-window', 'select-layout',
@@ -221,7 +210,7 @@ describe('TmuxService', () => {
 
     it('should continue adding panes after an earlier concurrent split fails', async () => {
       shell.execFile.onFirstCall().rejects(new Error('no space for new pane'));
-      shell.execFile.onSecondCall().resolves({ stdout: '2\n', stderr: '' });
+      shell.execFile.onSecondCall().resolves({ stdout: '%2\n', stderr: '' });
       shell.execFile.onThirdCall().resolves({ stdout: '', stderr: '' });
 
       const [first, second] = await Promise.allSettled([
@@ -230,7 +219,7 @@ describe('TmuxService', () => {
       ]);
 
       expect(first.status).toBe('rejected');
-      expect(second).toEqual({ status: 'fulfilled', value: 2 });
+      expect(second).toEqual({ status: 'fulfilled', value: '%2' });
     });
   });
 
@@ -280,15 +269,15 @@ describe('TmuxService', () => {
   });
 
   describe('sendKeysToPane', () => {
-    it('should send command to specified pane', async () => {
+    it('should send command to the pane by id, independent of window/pane base-index', async () => {
       shell.execFile.resolves({ stdout: '', stderr: '' });
 
-      await service.sendKeysToPane('feature-branch', 1, 'npm install');
+      await service.sendKeysToPane('%7', 'npm install');
 
       sinon.assert.calledOnceWithExactly(
         shell.execFile,
         'tmux',
-        ['send-keys', '-t', 'feature-branch:0.1', 'npm install', 'Enter']
+        ['send-keys', '-t', '%7', 'npm install', 'Enter']
       );
     });
 
@@ -296,7 +285,7 @@ describe('TmuxService', () => {
       shell.execFile.rejects(new Error('tmux error'));
 
       await expect(
-        service.sendKeysToPane('feature-branch', 1, 'npm install')
+        service.sendKeysToPane('%7', 'npm install')
       ).rejects.toThrow('tmux error');
     });
   });
