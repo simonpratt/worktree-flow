@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.0.27] Unreleased
+
+### Added
+
+- herdr support as a session manager alongside tmux. The new `session-manager` config (`none` | `tmux` | `herdr`) replaces `tmux`; a legacy `tmux: true` is still read as `session-manager: tmux`. A herdr session is a workspace labelled with the branch name, with a `root` tab split at the workspace root and a `repos` tab with a pane per worktree. A headless herdr server is started if none is running. Quickstart offers whichever session managers are installed.
+- `flow create` and `flow checkout` offer to enable herdr once, when it's installed and no session manager is set. If you decline, it isn't offered again.
+- `flow sessions` picks workspaces that have no session and opens one for each (`--all` skips the prompt). It replaces `flow tmux sync`, which remains as a deprecated alias.
+- `flow list --status` fetches and shows per-repo status, which `flow list` used to do by default
+- `flow rename --git-only` renames the branches (and session) but leaves the workspace folder where it is
+- All root-level `.md` files in `source-path` (e.g. `CLAUDE.md`) are now copied into the workspace, not just `AGENTS.md`
+- When `AGENTS.md` is copied, lines mentioning repos not included in the workspace are removed
+- `create`, `attach` and `checkout` print the `copy-files` setting and warn if it doesn't include `.env`
+
+### Changed
+
+- Repo pickers are now searchable: type to filter, Tab to toggle
+- `flow list` is now a fast offline listing of workspace names, repo counts and the active marker; status checks moved behind `--status`
+- `flow drop` and `flow prune` return almost immediately: the workspace is moved into `.flow-trash/` in the workspaces folder and deleted in the background. Anything left in `.flow-trash/` is a delete that failed and can be removed by hand.
+- With a session manager, `create`, `checkout` and `attach` open the session once all worktrees exist. Post-checkout then runs in each worktree's pane, or directly if the session can't be opened.
+
+### Fixed
+
+- tmux sessions with several worktrees no longer fail with "no space for new pane": the layout is re-tiled after each split and splits run one at a time
+- `copy-files` entries with nested paths (e.g. `apps/web/.env`) are now copied when the parent folder isn't tracked by git; they used to be skipped silently. Copy failures are now reported.
+- Commands run from inside a workspace whose branch contains special characters (e.g. `feature/ABC-123`) now use the real branch name instead of the sanitized folder name. Previously `flow drop` left the real tmux session running, `flow rename` didn't rename it, and `flow attach` created branches with the sanitized name. The branch name is now stored in the workspace's `flow-config.json`; older workspaces fall back to the previous behaviour.
+- `flow prune` now kills the tmux session named after the branch, not the sanitized folder name
+- Post-checkout commands now reach the right tmux panes when `base-index` / `pane-base-index` is set to 1
+- `flow tmux sync` reports existing sessions as skipped instead of created
+- `flow drop` only reports "Killed tmux session" when a session actually existed
+- tmux sessions are matched by exact name. Previously, with a `feat-login` session but no `feat` session, `flow create feat` added its panes to `feat-login`, and `drop`/`rename` could act on the wrong session.
+
 ## [0.0.26] 2026-09-23
 
 ### Fixed
