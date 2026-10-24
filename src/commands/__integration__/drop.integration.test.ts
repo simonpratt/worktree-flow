@@ -13,6 +13,16 @@ import {
   type IntegrationServices,
 } from '../../test/integration-test-utils.js';
 
+async function waitFor(condition: () => boolean, timeoutMs = 5000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (!condition()) {
+    if (Date.now() > deadline) {
+      throw new Error('Timed out waiting for condition');
+    }
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+}
+
 describe('drop integration', () => {
   let tempDir: { path: string; cleanup: () => void };
   let sourcePath: string;
@@ -86,6 +96,45 @@ describe('drop integration', () => {
     );
     expect(repoLine).toBeDefined();
     expect(repoLine).toContain('clean');
+  });
+
+  it('should hide the workspace immediately and delete gitignored folders like node_modules in the background', async () => {
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+    const { NodeShell } = await import('../../adapters/node.js');
+    const shell = new NodeShell();
+    fs.writeFileSync(path.join(repo1, '.gitignore'), 'node_modules/\n');
+    await shell.execFile('git', ['-C', repo1, 'add', '.gitignore']);
+    await shell.execFile('git', ['-C', repo1, 'commit', '-m', 'ignore node_modules']);
+
+    integration = createIntegrationServices(sourcePath, destPath);
+    const result = await createTestWorkspace(integration.useCases, {
+      repos: [repo1],
+      branchName: 'feature',
+      sourceBranch: 'master',
+      sourcePath,
+      destPath,
+      copyFiles: '.env',
+      tmux: false,
+    });
+    const depPath = path.join(result.workspacePath, 'repo1', 'node_modules', 'dep');
+    fs.mkdirSync(depPath, { recursive: true });
+    fs.writeFileSync(path.join(depPath, 'index.js'), 'module.exports = {};\n');
+
+    await runDrop('feature', integration.useCases, integration.services, { confirm: confirmStub });
+
+    expect(fs.existsSync(result.workspacePath)).toBe(false);
+
+    // Git no longer considers the branch checked out, so it can be checked out again straight away
+    const { stdout } = await shell.execFile('git', ['-C', repo1, 'worktree', 'list']);
+    expect(stdout).not.toContain('feature');
+    await shell.execFile('git', ['-C', repo1, 'checkout', 'feature']);
+
+    // The trash folder empties once the background delete finishes
+    const trashDir = path.join(destPath, '.flow-trash');
+    await waitFor(() => fs.readdirSync(trashDir).length === 0);
+
+    // Dropped workspaces in trash are not listed as workspaces
+    expect(integration.services.workspaceDir.listWorkspaces(destPath)).toEqual([]);
   });
 
   it('should throw WorkspaceHasIssuesError when worktree has uncommitted changes', async () => {

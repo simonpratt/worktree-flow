@@ -17,6 +17,7 @@ export function createMemFs(files: Record<string, string> = {}) {
 export function createMockShell(): sinon.SinonStubbedInstance<IShell> {
   return {
     execFile: sinon.stub(),
+    spawnDetached: sinon.stub(),
   };
 }
 
@@ -74,7 +75,7 @@ export function createMockServices(): {
       getUpstreamBranch: sinon.stub(),
       getStatusCounts: sinon.stub(),
       getUnpushedCommitCount: sinon.stub(),
-      removeWorktree: sinon.stub(),
+      pruneWorktrees: sinon.stub(),
       pushWithRetry: sinon.stub(),
     } as any,
     repos: {
@@ -92,7 +93,6 @@ export function createMockServices(): {
       getWorktreeDirs: sinon.stub().returns([]),
       runPostCheckoutCommand: sinon.stub(),
       listWorkspaces: sinon.stub(),
-      removeWorkspaceDir: sinon.stub(),
       createBranchWorktrees: sinon.stub(),
       createCheckoutWorktrees: sinon.stub(),
       createTmuxSession: sinon.stub(),
@@ -114,6 +114,10 @@ export function createMockServices(): {
     tmux: {
       createSession: sinon.stub(),
       killSession: sinon.stub(),
+    } as any,
+    trash: {
+      moveToTrash: sinon.stub(),
+      deleteInBackground: sinon.stub(),
     } as any,
     console: createMockConsole() as any,
     process: createMockProcess() as any,

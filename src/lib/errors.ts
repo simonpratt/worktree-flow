@@ -57,3 +57,10 @@ export class PromptCancelledError extends Error {
     this.name = 'PromptCancelledError';
   }
 }
+
+export class UnsafeTrashPathError extends Error {
+  constructor(path: string) {
+    super(`Refusing to delete path that was not created by the trash: ${path}`);
+    this.name = 'UnsafeTrashPathError';
+  }
+}

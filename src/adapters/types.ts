@@ -22,6 +22,8 @@ export interface IShell {
     args: string[],
     options?: { cwd?: string; encoding?: BufferEncoding }
   ): Promise<{ stdout: string; stderr: string }>;
+  /** Starts a process that outlives this one; its output and failures are ignored. */
+  spawnDetached(command: string, args: string[]): void;
 }
 
 export interface IConsole {

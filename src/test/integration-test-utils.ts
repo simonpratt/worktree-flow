@@ -16,6 +16,7 @@ import { FetchService } from '../lib/fetch.js';
 import { ParallelService } from '../lib/parallel.js';
 import { StatusService } from '../lib/status.js';
 import { TmuxService } from '../lib/tmux.js';
+import { TrashService } from '../lib/trash.js';
 import type { Services } from '../lib/services.js';
 import { createUseCases } from '../usecases/usecases.js';
 import type { UseCases } from '../usecases/usecases.js';
@@ -171,6 +172,7 @@ export function createIntegrationServices(sourcePath: string, destPath: string):
   const workspaceDir = new WorkspaceDirectoryService(nodeFs);
   const workspaceConfig = new WorkspaceConfigService(nodeFs);
   const worktree = new WorktreeService(nodeFs, gitService);
+  const trash = new TrashService(nodeFs, nodeShell);
 
   // Stub fetch to be a no-op (no remote to fetch from)
   const fetch = { fetchRepos: sinon.stub().resolves() } as any;
@@ -217,6 +219,7 @@ export function createIntegrationServices(sourcePath: string, destPath: string):
     parallel,
     status,
     tmux: tmuxStub,
+    trash,
     console: consoleStub,
     process: processStub,
   } as any;

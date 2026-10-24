@@ -37,7 +37,8 @@ export function createUseCases(services: Services) {
       services.worktree,
       services.repos,
       services.status,
-      services.tmux
+      services.tmux,
+      services.trash
     ),
     pushWorkspace: new PushWorkspaceUseCase(
       services.workspaceDir,

@@ -3,7 +3,7 @@
  */
 
 import fs from 'node:fs';
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 import type { IFileSystem, IShell, IConsole, IProcess } from './types.js';
 
@@ -63,6 +63,13 @@ export class NodeShell implements IShell {
       stdout: result.stdout.trim(),
       stderr: result.stderr.trim(),
     };
+  }
+
+  spawnDetached(command: string, args: string[]): void {
+    const child = spawn(command, args, { detached: true, stdio: 'ignore' });
+    // A failed spawn emits 'error'; ignore it rather than crash the CLI
+    child.on('error', () => {});
+    child.unref();
   }
 }
 

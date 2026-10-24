@@ -16,6 +16,7 @@ import { ParallelService } from './parallel.js';
 import { StatusService } from './status.js';
 import { TmuxService } from './tmux.js';
 import { RepoConfigService } from './repoConfig.js';
+import { TrashService } from './trash.js';
 
 export function createServices() {
   // Create adapters
@@ -35,6 +36,7 @@ export function createServices() {
   const repos = new RepoService(fs, git);
   const postCheckout = new PostCheckoutService(shell);
   const repoConfig = new RepoConfigService(fs);
+  const trash = new TrashService(fs, shell);
 
   // Focused workspace services
   const workspaceDir = new WorkspaceDirectoryService(fs);
@@ -55,6 +57,7 @@ export function createServices() {
     parallel,
     status,
     tmux,
+    trash,
     console,
     process,
   };

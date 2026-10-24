@@ -72,10 +72,7 @@ export class WorktreeService {
     await this.git.addWorktree(repoPath, worktreePath, branchName);
   }
 
-  async removeWorktree(
-    repoPath: string,
-    worktreePath: string
-  ): Promise<void> {
-    await this.git.removeWorktree(repoPath, worktreePath);
+  async pruneWorktrees(repoPath: string): Promise<void> {
+    await this.git.pruneWorktrees(repoPath);
   }
 }

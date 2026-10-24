@@ -587,29 +587,6 @@ describe('WorkspaceDirectoryService', () => {
     });
   });
 
-  describe('removeWorkspaceDir', () => {
-    it('should remove workspace directory recursively', () => {
-      const workspacePath = '/workspaces/feature-123';
-      const { vol, fs } = createMemFs({
-        [path.join(workspacePath, 'repo1', 'file.txt')]: 'content',
-        [path.join(workspacePath, 'repo2', 'nested', 'file.txt')]: 'content',
-      });
-      const service = new WorkspaceDirectoryService(fs);
-
-      service.removeWorkspaceDir(workspacePath);
-
-      expect(vol.existsSync(workspacePath)).toBe(false);
-    });
-
-    it('should not throw when workspace does not exist', () => {
-      const workspacePath = '/workspaces/non-existent';
-      const { fs } = createMemFs();
-      const service = new WorkspaceDirectoryService(fs);
-
-      expect(() => service.removeWorkspaceDir(workspacePath)).not.toThrow();
-    });
-  });
-
   describe('renameWorkspaceDir', () => {
     it('should rename the workspace directory in place, preserving nested contents', () => {
       const destPath = '/workspaces';

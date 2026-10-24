@@ -186,8 +186,12 @@ export class GitService {
     await this.exec(repoPath, ['branch', '--no-track', branchName, startPoint]);
   }
 
-  async removeWorktree(repoPath: string, worktreePath: string): Promise<void> {
-    await this.exec(repoPath, ['worktree', 'remove', worktreePath]);
+  /**
+   * Clears git's records of worktrees whose directories no longer exist,
+   * releasing their branches so they can be checked out elsewhere.
+   */
+  async pruneWorktrees(repoPath: string): Promise<void> {
+    await this.exec(repoPath, ['worktree', 'prune']);
   }
 
   /**

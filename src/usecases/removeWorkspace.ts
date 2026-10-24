@@ -4,6 +4,7 @@ import type { WorktreeService } from '../lib/worktree.js';
 import type { RepoService } from '../lib/repos.js';
 import type { StatusService } from '../lib/status.js';
 import type { TmuxService } from '../lib/tmux.js';
+import type { TrashService } from '../lib/trash.js';
 import { WorkspaceHasIssuesError } from '../lib/errors.js';
 import { StatusService as StatusServiceClass } from '../lib/status.js';
 
@@ -18,6 +19,8 @@ export type RemoveWorkspaceResult = {
   worktreesRemoved: number;
   worktreesTotal: number;
   workspaceDirRemoved: boolean;
+  /** Where the workspace now sits until the background delete finishes */
+  trashedPath: string;
   tmuxKilled: boolean;
   issuesFound: Array<{ repoName: string; issue: string }>;
   removalErrors: Array<{ repo: string; error: string }>;
@@ -25,7 +28,9 @@ export type RemoveWorkspaceResult = {
 
 /**
  * Use case for removing a workspace with validation.
- * Checks for uncommitted changes before removal.
+ * Checks for uncommitted changes before removal, then moves the workspace to
+ * trash and deletes it in the background so large folders (node_modules) don't
+ * block the caller.
  */
 export class RemoveWorkspaceUseCase {
   constructor(
@@ -33,7 +38,8 @@ export class RemoveWorkspaceUseCase {
     private worktree: WorktreeService,
     private repos: RepoService,
     private status: StatusService,
-    private tmux: TmuxService
+    private tmux: TmuxService,
+    private trash: TrashService
   ) {}
 
   async execute(params: RemoveWorkspaceParams): Promise<RemoveWorkspaceResult> {
@@ -60,7 +66,11 @@ export class RemoveWorkspaceUseCase {
       }
     }
 
-    // 2. Remove all worktrees
+    // 2. Move workspace to trash (instant rename; throws before anything is changed)
+    const allRepos = this.repos.discoverRepos(params.sourcePath);
+    const trashedPath = this.trash.moveToTrash(params.workspacePath);
+
+    // 3. Prune the now-missing worktrees from each source repo
     const removalErrors: Array<{ repo: string; error: string }> = [];
     let worktreesRemoved = 0;
 
@@ -68,30 +78,23 @@ export class RemoveWorkspaceUseCase {
       const repoName = path.basename(worktreePath);
       const sourceRepoPath = path.join(params.sourcePath, repoName);
 
-      try {
-        const allRepos = this.repos.discoverRepos(params.sourcePath);
-        if (!allRepos.includes(sourceRepoPath)) {
-          removalErrors.push({ repo: repoName, error: 'source repo not found' });
-          continue;
-        }
+      if (!allRepos.includes(sourceRepoPath)) {
+        removalErrors.push({ repo: repoName, error: 'source repo not found' });
+        continue;
+      }
 
-        await this.worktree.removeWorktree(sourceRepoPath, worktreePath);
+      try {
+        await this.worktree.pruneWorktrees(sourceRepoPath);
         worktreesRemoved++;
       } catch (err: any) {
         removalErrors.push({ repo: repoName, error: err.stderr || err.message });
       }
     }
 
-    // 3. Remove workspace directory
-    let workspaceDirRemoved = false;
-    try {
-      this.workspaceDir.removeWorkspaceDir(params.workspacePath);
-      workspaceDirRemoved = true;
-    } catch (err) {
-      throw err; // Re-throw directory removal errors
-    }
+    // 4. Delete the trashed files without waiting
+    this.trash.deleteInBackground(trashedPath);
 
-    // 4. Kill tmux session if enabled
+    // 5. Kill tmux session if enabled
     let tmuxKilled = false;
     if (params.tmux) {
       try {
@@ -105,7 +108,8 @@ export class RemoveWorkspaceUseCase {
     return {
       worktreesRemoved,
       worktreesTotal: worktreeDirs.length,
-      workspaceDirRemoved,
+      workspaceDirRemoved: true,
+      trashedPath,
       tmuxKilled,
       issuesFound,
       removalErrors,

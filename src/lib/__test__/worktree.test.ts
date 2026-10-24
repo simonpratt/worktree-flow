@@ -274,35 +274,29 @@ describe('WorktreeService', () => {
     });
   });
 
-  describe('removeWorktree', () => {
-    it('should delegate to git service removeWorktree', async () => {
+  describe('pruneWorktrees', () => {
+    it('should delegate to git service pruneWorktrees', async () => {
       const repoPath = '/source/repo1';
-      const worktreePath = '/workspaces/feature-123/repo1';
 
       const { fs } = createMemFs();
-      gitService.removeWorktree.resolves();
+      gitService.pruneWorktrees.resolves();
 
       const service = new WorktreeService(fs, gitService as any);
 
-      await service.removeWorktree(repoPath, worktreePath);
+      await service.pruneWorktrees(repoPath);
 
-      expect(gitService.removeWorktree.calledOnce).toBe(true);
-      expect(gitService.removeWorktree.calledWith(repoPath, worktreePath)).toBe(true);
+      sinon.assert.calledOnceWithExactly(gitService.pruneWorktrees, repoPath);
     });
 
     it('should propagate errors from git service', async () => {
-      const repoPath = '/source/repo1';
-      const worktreePath = '/workspaces/feature-123/repo1';
-
       const { fs } = createMemFs();
-      const error = new Error('Git error: worktree not found');
-      gitService.removeWorktree.rejects(error);
+      gitService.pruneWorktrees.rejects(new Error('Git error: not a repository'));
 
       const service = new WorktreeService(fs, gitService as any);
 
       await expect(
-        service.removeWorktree(repoPath, worktreePath)
-      ).rejects.toThrow('Git error: worktree not found');
+        service.pruneWorktrees('/source/repo1')
+      ).rejects.toThrow('Git error: not a repository');
     });
   });
 });

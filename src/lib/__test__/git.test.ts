@@ -459,16 +459,16 @@ describe('GitService', () => {
     });
   });
 
-  describe('removeWorktree', () => {
-    it('should execute worktree remove', async () => {
+  describe('pruneWorktrees', () => {
+    it('should execute worktree prune', async () => {
       shell.execFile.resolves({ stdout: '', stderr: '' });
 
-      await service.removeWorktree('/repo', '/worktree');
+      await service.pruneWorktrees('/repo');
 
       sinon.assert.calledOnceWithExactly(
         shell.execFile,
         'git',
-        ['-C', '/repo', 'worktree', 'remove', '/worktree'],
+        ['-C', '/repo', 'worktree', 'prune'],
         { encoding: 'utf-8' }
       );
     });

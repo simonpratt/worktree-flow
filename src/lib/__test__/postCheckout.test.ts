@@ -7,6 +7,7 @@ describe('PostCheckoutService', () => {
     it('should run command in specified directory', async () => {
       const shell: IShell = {
         execFile: vi.fn().mockResolvedValue({ stdout: '', stderr: '' }),
+        spawnDetached: vi.fn(),
       };
       const service = new PostCheckoutService(shell);
 
@@ -23,6 +24,7 @@ describe('PostCheckoutService', () => {
     it('should handle command failures', async () => {
       const shell: IShell = {
         execFile: vi.fn().mockRejectedValue(new Error('command failed')),
+        spawnDetached: vi.fn(),
       };
       const service = new PostCheckoutService(shell);
 

@@ -10,12 +10,12 @@ import {
 describe('quickstart integration', () => {
   let integration: IntegrationServices;
   let inputStub: sinon.SinonStub;
-  let shellStub: { execFile: sinon.SinonStub };
+  let shellStub: { execFile: sinon.SinonStub; spawnDetached: sinon.SinonStub };
   let discoverReposStub: sinon.SinonStub;
 
   beforeEach(() => {
     inputStub = sinon.stub();
-    shellStub = { execFile: sinon.stub().resolves({ stdout: '/usr/bin/tmux', stderr: '' }) };
+    shellStub = { execFile: sinon.stub().resolves({ stdout: '/usr/bin/tmux', stderr: '' }), spawnDetached: sinon.stub() };
     integration = createIntegrationServices('/source', '/dest');
     integration.services.config.loadRaw = sinon.stub().returns({});
     integration.services.config.saveRaw = sinon.stub();

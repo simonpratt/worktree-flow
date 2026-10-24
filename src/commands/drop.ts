@@ -119,6 +119,7 @@ export async function runDrop(
   // Display results
   if (result.workspaceDirRemoved) {
     services.console.log(`${chalk.green('Removed:')} ${workspacePath}`);
+    services.console.log(chalk.dim(`Deleting files in the background from ${result.trashedPath}`));
   }
 
   if (result.tmuxKilled) {

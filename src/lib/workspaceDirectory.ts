@@ -157,10 +157,6 @@ export class WorkspaceDirectoryService {
       .filter((ws): ws is { name: string; path: string; repoCount: number } => ws !== null);
   }
 
-  removeWorkspaceDir(workspacePath: string): void {
-    this.fs.rmSync(workspacePath, { recursive: true, force: true });
-  }
-
   /**
    * Renames a workspace directory to a new branch name via a single filesystem
    * rename. A rename preserves inodes for every file and subdirectory it

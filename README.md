@@ -95,6 +95,8 @@ Fetches all repos before checking status to ensure accurate information. The sta
 
 Drop a workspace and all its worktrees. Fetches latest, checks for uncommitted changes, and prompts for confirmation before removing. Committed changes are safe to drop since they're preserved in git history.
 
+The workspace is moved into `.flow-trash/` in your workspaces folder and deleted in the background, so dropping is instant even with large `node_modules`. Anything left in `.flow-trash/` is a delete that failed, and is safe to remove by hand.
+
 ### `flow prune`
 
 Remove workspaces interactively. Displays full workspace status (identical to `flow list`), then excludes any workspaces with uncommitted changes or errors from the selection prompt. Resolve issues before pruning those workspaces.
