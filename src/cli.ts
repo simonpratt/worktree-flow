@@ -13,7 +13,7 @@ import { registerRenameCommand } from './commands/rename.js';
 import { registerStatusCommand } from './commands/status.js';
 import { registerPruneCommand } from './commands/prune.js';
 import { registerFetchCommand } from './commands/fetch.js';
-import { registerTmuxCommand } from './commands/tmux.js';
+import { registerSessionsCommand } from './commands/sessions.js';
 import { registerQuickstartCommand } from './commands/quickstart.js';
 
 const program = new Command();
@@ -43,7 +43,7 @@ registerPushCommand(program);
 registerFetchCommand(program);
 
 // Extras
-registerTmuxCommand(program);
+registerSessionsCommand(program);
 
 // Deprecated
 registerBranchCommand(program);

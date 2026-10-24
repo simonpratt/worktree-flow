@@ -56,7 +56,6 @@ describe('pull integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     // Set cwd to inside the workspace
@@ -86,7 +85,6 @@ describe('pull integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     // Set cwd to inside a repo within the workspace
@@ -116,7 +114,6 @@ describe('pull integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     // Set cwd to somewhere else - should not matter when explicit branch is provided

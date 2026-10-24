@@ -275,7 +275,7 @@ describe('attach integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
+      sessionManager: 'none',
       postCheckout: 'echo "ran" > postcheckout.txt',
       perRepoPostCheckout: {},
       fetchCacheTtlSeconds: 300,
@@ -377,7 +377,7 @@ describe('attach integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
+      sessionManager: 'none',
       postCheckout: 'echo "installed" > postcheckout.txt',
       perRepoPostCheckout: {},
       fetchCacheTtlSeconds: 300,
@@ -398,6 +398,62 @@ describe('attach integration', () => {
     const wt2 = path.join(destPath, 'feature', 'repo2');
     const content = fs.readFileSync(path.join(wt2, 'postcheckout.txt'), 'utf-8').trim();
     expect(content).toBe('installed');
+  });
+
+  describe('with a session manager', () => {
+    async function attachRepo2(sessionExists: boolean) {
+      const repo1 = await initGitRepo(sourcePath, 'repo1');
+      const repo2 = await initGitRepo(sourcePath, 'repo2');
+
+      integration = createIntegrationServices(sourcePath, destPath);
+      const { runCreate } = await import('../create.js');
+      await runCreate('feature', integration.useCases, integration.services, {
+        pickRepos: sinon.stub().resolves([repo1]),
+        input: inputStub,
+        confirm: confirmStub,
+      });
+
+      integration.services.config.load = sinon.stub().returns({
+        sourcePath,
+        destPath,
+        copyFiles: '.env',
+        sessionManager: 'tmux',
+        postCheckout: 'npm ci',
+        perRepoPostCheckout: {},
+        fetchCacheTtlSeconds: 300,
+        branchAutoSelectRepos: [],
+      });
+      const tmuxStub = integration.services.tmux as sinon.SinonStubbedInstance<any>;
+      tmuxStub.exists.withArgs('feature').resolves(sessionExists);
+      (integration.stubs.process.cwd as sinon.SinonStub).returns(path.join(destPath, 'feature'));
+
+      await runAttach(undefined, integration.useCases, integration.services, {
+        pickRepos: sinon.stub().resolves([repo2]),
+        input: inputStub,
+        confirm: sinon.stub().resolves(true),
+      });
+
+      return tmuxStub;
+    }
+
+    it('should add panes for only the new repos to the existing session', async () => {
+      const tmuxStub = await attachRepo2(true);
+
+      sinon.assert.notCalled(tmuxStub.create);
+      sinon.assert.calledOnceWithExactly(tmuxStub.addPanes, 'feature', [
+        { path: path.join(destPath, 'feature', 'repo2'), command: 'npm ci' },
+      ]);
+    });
+
+    it('should open the session with every repo when the workspace has none, running post-checkout only in the new ones', async () => {
+      const tmuxStub = await attachRepo2(false);
+
+      sinon.assert.notCalled(tmuxStub.addPanes);
+      sinon.assert.calledOnceWithExactly(tmuxStub.create, 'feature', path.join(destPath, 'feature'), [
+        { path: path.join(destPath, 'feature', 'repo1'), command: undefined },
+        { path: path.join(destPath, 'feature', 'repo2'), command: 'npm ci' },
+      ]);
+    });
   });
 
   it('should respect flow-config.json copy-files and post-checkout with correct priority ordering', async () => {
@@ -430,7 +486,7 @@ describe('attach integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
+      sessionManager: 'none',
       postCheckout: 'echo "global" > postcheckout.txt',
       perRepoPostCheckout: {
         repo4: 'echo "repo4-central" > postcheckout.txt',

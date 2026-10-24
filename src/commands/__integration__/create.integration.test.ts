@@ -112,7 +112,7 @@ describe('create integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
+      sessionManager: 'none',
       postCheckout: 'echo "ran" > postcheckout.txt',
       perRepoPostCheckout: {},
       fetchCacheTtlSeconds: 300,
@@ -134,6 +134,83 @@ describe('create integration', () => {
     expect(fs.readFileSync(path.join(wt1, 'postcheckout.txt'), 'utf-8').trim()).toBe('ran');
   });
 
+  it('should open a session with a pane per repo, running post-checkout in the panes instead of directly', async () => {
+    await initGitRepo(sourcePath, 'repo1');
+    await initGitRepo(sourcePath, 'repo2');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+    integration.services.config.load = sinon.stub().returns({
+      sourcePath,
+      destPath,
+      copyFiles: '.env',
+      sessionManager: 'herdr',
+      postCheckout: 'echo "ran" > postcheckout.txt',
+      perRepoPostCheckout: {},
+      fetchCacheTtlSeconds: 300,
+      branchAutoSelectRepos: [],
+    });
+    const herdrStub = integration.services.herdr as sinon.SinonStubbedInstance<any>;
+
+    await runCreate(
+      'feature/x',
+      integration.useCases,
+      integration.services,
+      { pickRepos: sinon.stub(), input: inputStub, confirm: confirmStub },
+      { repos: ['repo1', 'repo2'], sourceBranch: 'master', postCheckout: true }
+    );
+
+    const workspacePath = path.join(destPath, 'feature_x');
+    sinon.assert.calledOnce(herdrStub.create);
+    const [name, rootPath, panes] = herdrStub.create.firstCall.args;
+    expect(name).toBe('feature/x');
+    expect(rootPath).toBe(workspacePath);
+    expect(panes).toEqual([
+      { path: path.join(workspacePath, 'repo1'), command: 'echo "ran" > postcheckout.txt' },
+      { path: path.join(workspacePath, 'repo2'), command: 'echo "ran" > postcheckout.txt' },
+    ]);
+    // The worktrees exist by the time their panes are opened
+    expect(fs.existsSync(path.join(workspacePath, 'repo2', '.git'))).toBe(true);
+    // Post-checkout went to the panes, so it didn't also run directly
+    expect(fs.existsSync(path.join(workspacePath, 'repo1', 'postcheckout.txt'))).toBe(false);
+
+    const logs = (integration.stubs.console.log as sinon.SinonStub).args.map((a: any[]) => a[0]);
+    expect(logs.some((line: string) => line.includes('Created herdr session:'))).toBe(true);
+    expect(logs.some((line: string) => line.includes('Completed post-checkout in 2/2'))).toBe(true);
+  });
+
+  it('should run post-checkout directly and warn when the session cannot be opened', async () => {
+    await initGitRepo(sourcePath, 'repo1');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+    integration.services.config.load = sinon.stub().returns({
+      sourcePath,
+      destPath,
+      copyFiles: '.env',
+      sessionManager: 'tmux',
+      postCheckout: 'echo "ran" > postcheckout.txt',
+      perRepoPostCheckout: {},
+      fetchCacheTtlSeconds: 300,
+      branchAutoSelectRepos: [],
+    });
+    const tmuxStub = integration.services.tmux as sinon.SinonStubbedInstance<any>;
+    tmuxStub.create.rejects(new Error('tmux: command not found'));
+
+    await runCreate(
+      'new-feature',
+      integration.useCases,
+      integration.services,
+      { pickRepos: sinon.stub(), input: inputStub, confirm: confirmStub },
+      { repos: ['repo1'], sourceBranch: 'master', postCheckout: true }
+    );
+
+    const wt1 = path.join(destPath, 'new-feature', 'repo1');
+    expect(fs.readFileSync(path.join(wt1, 'postcheckout.txt'), 'utf-8').trim()).toBe('ran');
+    const logs = (integration.stubs.console.log as sinon.SinonStub).args.map((a: any[]) => a[0]);
+    expect(
+      logs.some((line: string) => line.includes('could not open tmux session (tmux: command not found)'))
+    ).toBe(true);
+  });
+
   it('should use --no-post-checkout to skip the post-checkout prompt and not run it', async () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
 
@@ -143,7 +220,7 @@ describe('create integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
+      sessionManager: 'none',
       postCheckout: 'echo "ran" > postcheckout.txt',
       perRepoPostCheckout: {},
       fetchCacheTtlSeconds: 300,
@@ -258,7 +335,7 @@ describe('create integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
+      sessionManager: 'none',
       postCheckout: undefined,
       perRepoPostCheckout: {},
       fetchCacheTtlSeconds: 300,
@@ -339,7 +416,7 @@ describe('create integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
+      sessionManager: 'none',
       postCheckout: 'echo "global" > postcheckout.txt',
       perRepoPostCheckout: {
         repo3: 'echo "repo3-central" > postcheckout.txt',
@@ -385,7 +462,7 @@ describe('create integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env,apps/web/.env',
-      tmux: false,
+      sessionManager: 'none',
       postCheckout: undefined,
       perRepoPostCheckout: {},
       fetchCacheTtlSeconds: 300,
@@ -416,7 +493,7 @@ describe('create integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env.local',
-      tmux: false,
+      sessionManager: 'none',
       postCheckout: undefined,
       perRepoPostCheckout: {},
       fetchCacheTtlSeconds: 300,
@@ -451,7 +528,7 @@ describe('create integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
+      sessionManager: 'none',
       postCheckout: 'echo "global" > postcheckout.txt',
       perRepoPostCheckout: {
         repo1: 'echo "repo1-custom" > postcheckout.txt',

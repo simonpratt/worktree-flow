@@ -58,6 +58,31 @@ describe('checkout integration', () => {
     expect(fs.existsSync(path.join(destPath, 'feature', 'repo3'))).toBe(false);
   });
 
+  it('should open a session for the checked-out workspace', async () => {
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+    await createRemoteBranchRef(repo1, 'feature');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+    integration.services.config.load = sinon.stub().returns({
+      sourcePath,
+      destPath,
+      copyFiles: '.env',
+      sessionManager: 'tmux',
+      postCheckout: undefined,
+      perRepoPostCheckout: {},
+      fetchCacheTtlSeconds: 300,
+      branchAutoSelectRepos: [],
+    });
+    const tmuxStub = integration.services.tmux as sinon.SinonStubbedInstance<any>;
+
+    await runCheckout('feature', integration.useCases, integration.services, { confirm: confirmStub });
+
+    const workspacePath = path.join(destPath, 'feature');
+    sinon.assert.calledOnceWithExactly(tmuxStub.create, 'feature', workspacePath, [
+      { path: path.join(workspacePath, 'repo1'), command: undefined },
+    ]);
+  });
+
   it('should call process.exit(1) when branch not found in any repo', async () => {
     await initGitRepo(sourcePath, 'repo1');
 
@@ -80,7 +105,7 @@ describe('checkout integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
+      sessionManager: 'none',
       postCheckout: 'npm ci',
       perRepoPostCheckout: {},
       fetchCacheTtlSeconds: 300,
@@ -177,7 +202,7 @@ describe('checkout integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
+      sessionManager: 'none',
       postCheckout: 'echo "global" > postcheckout.txt',
       perRepoPostCheckout: {
         repo3: 'echo "repo3-central" > postcheckout.txt',
@@ -221,7 +246,7 @@ describe('checkout integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
+      sessionManager: 'none',
       postCheckout: 'echo "global" > postcheckout.txt',
       perRepoPostCheckout: {
         repo1: 'echo "repo1-custom" > postcheckout.txt',

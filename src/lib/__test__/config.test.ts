@@ -21,7 +21,7 @@ describe('ConfigService', () => {
       const configData = {
         'source-path': '/home/user/repos',
         'dest-path': '/home/user/workspaces',
-        'tmux': 'true',
+        'session-manager': 'herdr',
       };
       const { fs } = createMemFs({
         [configPath]: JSON.stringify(configData),
@@ -37,7 +37,7 @@ describe('ConfigService', () => {
       const { fs } = createMemFs({
         [configPath]: JSON.stringify({
           'source-path': '/home/user/repos',
-          'tmux': 'invalid',
+          'session-manager': 'screen',
         }),
       });
       const service = new ConfigService(fs);
@@ -68,7 +68,7 @@ describe('ConfigService', () => {
 
       const invalidConfig = {
         'source-path': '/home/user/repos',
-        'tmux': 'invalid' as any,
+        'session-manager': 'screen' as any,
       };
 
       expect(() => service.saveRaw(invalidConfig)).toThrow();
@@ -85,7 +85,7 @@ describe('ConfigService', () => {
 
       expect(config).toEqual({
         copyFiles: '.env',
-        tmux: false,
+        sessionManager: 'none',
         fetchCacheTtlSeconds: 300,
         postCheckout: undefined,
         perRepoPostCheckout: {},
@@ -108,7 +108,7 @@ describe('ConfigService', () => {
         sourcePath: '/home/user/repos',
         destPath: '/home/user/workspaces',
         copyFiles: '.env',
-        tmux: false,
+        sessionManager: 'none',
         fetchCacheTtlSeconds: 300,
         postCheckout: undefined,
         perRepoPostCheckout: {},
@@ -116,26 +116,40 @@ describe('ConfigService', () => {
       });
     });
 
-    it('should convert tmux true string to boolean true', () => {
+    it('should read session-manager', () => {
+      const { fs } = createMemFs({
+        [configPath]: JSON.stringify({ 'session-manager': 'herdr' }),
+      });
+      const service = new ConfigService(fs);
+
+      expect(service.load().sessionManager).toBe('herdr');
+    });
+
+    it('should read the legacy tmux true setting as session-manager tmux', () => {
       const { fs } = createMemFs({
         [configPath]: JSON.stringify({ 'tmux': 'true' }),
       });
       const service = new ConfigService(fs);
 
-      const config = service.load();
-
-      expect(config.tmux).toBe(true);
+      expect(service.load().sessionManager).toBe('tmux');
     });
 
-    it('should convert tmux false string to boolean false', () => {
+    it('should read the legacy tmux false setting as no session manager', () => {
       const { fs } = createMemFs({
         [configPath]: JSON.stringify({ 'tmux': 'false' }),
       });
       const service = new ConfigService(fs);
 
-      const config = service.load();
+      expect(service.load().sessionManager).toBe('none');
+    });
 
-      expect(config.tmux).toBe(false);
+    it('should prefer session-manager over the legacy tmux setting', () => {
+      const { fs } = createMemFs({
+        [configPath]: JSON.stringify({ 'tmux': 'true', 'session-manager': 'herdr' }),
+      });
+      const service = new ConfigService(fs);
+
+      expect(service.load().sessionManager).toBe('herdr');
     });
 
     it('should use custom values when provided', () => {
@@ -278,7 +292,7 @@ describe('ConfigService', () => {
       });
       expect(displayConfig['copy-files'].isDefault).toBe(true);
       expect(displayConfig['copy-files'].value).toContain('.env');
-      expect(displayConfig.tmux.isDefault).toBe(true);
+      expect(displayConfig['session-manager'].isDefault).toBe(true);
       expect(displayConfig['post-checkout'].isDefault).toBe(true);
       expect(displayConfig['fetch-cache-ttl-seconds'].isDefault).toBe(true);
     });
@@ -289,7 +303,7 @@ describe('ConfigService', () => {
           'source-path': '/home/user/repos',
           'dest-path': '/home/user/workspaces',
           'copy-files': '.env,.env.local',
-          'tmux': 'true',
+          'session-manager': 'tmux',
           'post-checkout': 'npm install',
           'fetch-cache-ttl-seconds': '600',
         }),
@@ -302,8 +316,8 @@ describe('ConfigService', () => {
         value: '.env,.env.local',
         isDefault: false,
       });
-      expect(displayConfig.tmux).toEqual({
-        value: 'true',
+      expect(displayConfig['session-manager']).toEqual({
+        value: 'tmux',
         isDefault: false,
       });
       expect(displayConfig['post-checkout']).toEqual({
@@ -343,7 +357,19 @@ describe('ConfigService', () => {
       const displayConfig = service.getDisplayConfig();
 
       expect(displayConfig['copy-files'].value).toBe('.env (default)');
-      expect(displayConfig.tmux.value).toBe('false (default)');
+      expect(displayConfig['session-manager'].value).toBe('none (default)');
+    });
+
+    it('should show a session manager taken from the legacy tmux setting as non-default', () => {
+      const { fs } = createMemFs({
+        [configPath]: JSON.stringify({ 'tmux': 'true' }),
+      });
+      const service = new ConfigService(fs);
+
+      expect(service.getDisplayConfig()['session-manager']).toEqual({
+        value: 'tmux (from legacy tmux setting)',
+        isDefault: false,
+      });
     });
 
     it('should handle post-checkout as not set when undefined', () => {
@@ -439,10 +465,11 @@ describe('validateAndTransformConfigValue', () => {
     expect(path.isAbsolute(result)).toBe(true);
   });
 
-  it('should validate tmux as enum', () => {
-    expect(validateAndTransformConfigValue('tmux', 'true')).toBe('true');
-    expect(validateAndTransformConfigValue('tmux', 'false')).toBe('false');
-    expect(() => validateAndTransformConfigValue('tmux', 'invalid' as any)).toThrow();
+  it('should validate session-manager as enum', () => {
+    expect(validateAndTransformConfigValue('session-manager', 'none')).toBe('none');
+    expect(validateAndTransformConfigValue('session-manager', 'tmux')).toBe('tmux');
+    expect(validateAndTransformConfigValue('session-manager', 'herdr')).toBe('herdr');
+    expect(() => validateAndTransformConfigValue('session-manager', 'screen')).toThrow();
   });
 
   it('should accept valid string values', () => {
@@ -464,7 +491,7 @@ describe('isValidKey', () => {
     expect(isValidKey('source-path')).toBe(true);
     expect(isValidKey('dest-path')).toBe(true);
     expect(isValidKey('copy-files')).toBe(true);
-    expect(isValidKey('tmux')).toBe(true);
+    expect(isValidKey('session-manager')).toBe(true);
     expect(isValidKey('post-checkout')).toBe(true);
     expect(isValidKey('fetch-cache-ttl-seconds')).toBe(true);
     expect(isValidKey('branch-auto-select-repos')).toBe(true);
@@ -472,6 +499,8 @@ describe('isValidKey', () => {
 
   it('should return false for invalid keys', () => {
     expect(isValidKey('invalid-key')).toBe(false);
+    // Superseded by session-manager; still read, but no longer settable
+    expect(isValidKey('tmux')).toBe(false);
     expect(isValidKey('random')).toBe(false);
     expect(isValidKey('')).toBe(false);
   });

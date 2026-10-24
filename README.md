@@ -68,7 +68,7 @@ Attach repos to an existing workspace. Discovers available repos not yet in the 
 
 ### `flow rename <old-name> <new-name>` (or `flow rename <new-name>` from inside a workspace)
 
-Rename a workspace to a new branch name. Renames the workspace directory in a single filesystem move (so any shell already inside it, e.g. a tmux pane, keeps working at the new location instead of being left in a deleted one), then for each repo: repairs the worktree's git admin data to match its new path (`git worktree repair`), branches from the head of the current branch, and switches the worktree onto the new branch. Also renames the tmux session if one exists. If a repo fails (e.g. its source repo is missing), the workspace directory has still moved — that repo's worktree simply stays on its previous branch, and the command exits non-zero. Pass `--git-only` to rename the branches (and tmux session) but leave the workspace folder where it is.
+Rename a workspace to a new branch name. Renames the workspace directory in a single filesystem move (so any shell already inside it, e.g. a tmux or herdr pane, keeps working at the new location instead of being left in a deleted one), then for each repo: repairs the worktree's git admin data to match its new path (`git worktree repair`), branches from the head of the current branch, and switches the worktree onto the new branch. Also renames the workspace's session if one exists. If a repo fails (e.g. its source repo is missing), the workspace directory has still moved — that repo's worktree simply stays on its previous branch, and the command exits non-zero. Pass `--git-only` to rename the branches (and session) but leave the workspace folder where it is.
 
 ### `flow pull`
 
@@ -105,11 +105,9 @@ Remove workspaces interactively. Displays full workspace status (identical to `f
 
 Fetch repos for a specific workspace (when branch name provided), or fetch all repos used across all workspaces (when no branch given). Always bypasses the fetch cache.
 
-### `flow tmux sync`
+### `flow sessions`
 
-Create tmux sessions for all workspaces that don't already have one. Each session is created with split panes (one for the workspace root and one for each worktree that matches a repo from source-path) using a tiled layout. Skips workspaces that already have active sessions.
-
-Requires `tmux` to be installed and the `tmux` config option to be enabled.
+Pick workspaces that don't have a session yet and open one for each, using the configured `session-manager` (see [Sessions](#sessions-tmux--herdr)). Pass `--all` to open them all without prompting. Replaces the deprecated `flow tmux sync`.
 
 ### `flow config set <key> <value>`
 
@@ -123,7 +121,7 @@ Settings are stored in `~/.config/flow/config.json`.
 |-----|-------------|---------|
 | `source-path` | Directory containing your source repos | *required* |
 | `dest-path` | Directory where workspaces are created | *required* |
-| `tmux` | Create tmux sessions with split panes (root + each worktree) | `false` |
+| `session-manager` | `tmux` or `herdr` to open a session per workspace (see [Sessions](#sessions-tmux--herdr)), or `none` | `none` |
 | `copy-files` | Comma-separated files to copy from source repos to worktrees (nested paths like `apps/web/.env` work) | `.env` |
 | `post-checkout` | Command to run after checkout (e.g. `npm ci`) | *none* |
 | `per-repo-post-checkout` | Per-repo commands (see below) | `{}` |
@@ -144,7 +142,16 @@ Configure different commands for specific repos by editing `~/.config/flow/confi
 
 Repos with per-repo commands use those; others fall back to the global `post-checkout` command.
 
-When tmux is enabled, post-checkout commands run in the corresponding tmux panes instead of executing directly. This lets you see the output in real-time within your tmux session.
+With a session manager, post-checkout commands run in each worktree's pane instead of executing directly, so you see the output live.
+
+### Sessions (tmux / herdr)
+
+With `session-manager` set, `create`, `checkout` and `attach` open a session for the workspace, named after its branch. `drop`/`prune` close it and `rename` renames it.
+
+- **tmux**: one window with a pane at the workspace root plus one per worktree, tiled.
+- **herdr**: a workspace with a `root` tab split in half at the workspace root, and a `repos` tab with a pane per worktree in a grid. A herdr server is started in the background if none is running; respects `HERDR_SESSION`.
+
+If the session can't be opened, post-checkout runs directly instead. The old `tmux: true` setting is still read as `session-manager: tmux`.
 
 ### Repo-level configuration
 

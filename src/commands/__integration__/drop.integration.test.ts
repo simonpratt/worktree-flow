@@ -65,7 +65,6 @@ describe('drop integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     const workspacePath = result.workspacePath;
@@ -114,7 +113,6 @@ describe('drop integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
     const depPath = path.join(result.workspacePath, 'repo1', 'node_modules', 'dep');
     fs.mkdirSync(depPath, { recursive: true });
@@ -148,7 +146,6 @@ describe('drop integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     const worktreePath = path.join(result.workspacePath, 'repo1');
@@ -189,7 +186,6 @@ describe('drop integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     // Set cwd to inside the workspace
@@ -219,7 +215,6 @@ describe('drop integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     // Set cwd to inside a repo within the workspace
@@ -232,7 +227,7 @@ describe('drop integration', () => {
     expect(fs.existsSync(result.workspacePath)).toBe(false);
   });
 
-  it('should kill the real tmux session when auto-detecting a workspace whose branch name was sanitized', async () => {
+  it('should close the real session when auto-detecting a workspace whose branch name was sanitized', async () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
 
     integration = createIntegrationServices(sourcePath, destPath);
@@ -240,7 +235,7 @@ describe('drop integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: true,
+      sessionManager: 'tmux',
       postCheckout: undefined,
       perRepoPostCheckout: {},
       fetchCacheTtlSeconds: 300,
@@ -256,17 +251,50 @@ describe('drop integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: true,
     });
     expect(path.basename(result.workspacePath)).toBe('feature_ABC-123');
-    const createdSessionName = tmuxStub.createSession.firstCall.args[1];
 
     (integration.stubs.process.cwd as sinon.SinonStub).returns(path.join(result.workspacePath, 'repo1'));
 
     await runDrop(undefined, integration.useCases, integration.services, { confirm: confirmStub });
 
     expect(fs.existsSync(result.workspacePath)).toBe(false);
-    sinon.assert.calledOnceWithExactly(tmuxStub.killSession, createdSessionName);
+    sinon.assert.calledOnceWithExactly(tmuxStub.close, 'feature/ABC-123');
+  });
+
+  it('should close the herdr workspace, not a tmux session, when herdr is the session manager', async () => {
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+    (integration.services.config.load as sinon.SinonStub).returns({
+      sourcePath,
+      destPath,
+      copyFiles: '.env',
+      sessionManager: 'herdr',
+      postCheckout: undefined,
+      perRepoPostCheckout: {},
+      fetchCacheTtlSeconds: 300,
+      branchAutoSelectRepos: [],
+      branchRepoUsage: {},
+    });
+    const tmuxStub = integration.services.tmux as sinon.SinonStubbedInstance<any>;
+    const herdrStub = integration.services.herdr as sinon.SinonStubbedInstance<any>;
+
+    await createTestWorkspace(integration.useCases, {
+      repos: [repo1],
+      branchName: 'feature',
+      sourceBranch: 'master',
+      sourcePath,
+      destPath,
+      copyFiles: '.env',
+    });
+
+    await runDrop('feature', integration.useCases, integration.services, { confirm: confirmStub });
+
+    sinon.assert.calledOnceWithExactly(herdrStub.close, 'feature');
+    sinon.assert.notCalled(tmuxStub.close);
+    const logs = (integration.stubs.console.log as sinon.SinonStub).args.map((a: any[]) => a[0]);
+    expect(logs.some((line: string) => line.includes('Closed herdr session:'))).toBe(true);
   });
 
   it('should allow dropping when worktree has unpushed commits (but no uncommitted changes)', async () => {
@@ -280,7 +308,6 @@ describe('drop integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     const worktreePath = path.join(result.workspacePath, 'repo1');
@@ -328,7 +355,6 @@ describe('drop integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     const workspacePath = result.workspacePath;

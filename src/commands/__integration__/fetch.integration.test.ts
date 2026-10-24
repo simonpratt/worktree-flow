@@ -43,7 +43,6 @@ describe('fetch integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     await createTestWorkspace(integration.useCases, {
@@ -53,7 +52,6 @@ describe('fetch integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     await runFetch(undefined, integration.useCases, integration.services);
@@ -95,7 +93,6 @@ describe('fetch integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     await createTestWorkspace(integration.useCases, {
@@ -105,7 +102,6 @@ describe('fetch integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     await runFetch('feature-a', integration.useCases, integration.services);
@@ -135,7 +131,6 @@ describe('fetch integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     // Simulate cwd being inside the workspace

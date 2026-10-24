@@ -6,6 +6,7 @@ import { createServices } from '../lib/services.js';
 import type { Services } from '../lib/services.js';
 import { NodeShell } from '../adapters/node.js';
 import type { IShell } from '../adapters/types.js';
+import type { SessionManagerKind } from '../lib/sessionManager.js';
 import { handleCommandError } from './helpers.js';
 import { input, type InputOptions } from './prompts.js';
 
@@ -25,9 +26,9 @@ function summariseNames(names: string[], noun: string): string {
   return `${count} ${noun}s including ${shown}`;
 }
 
-async function isTmuxInstalled(shell: IShell): Promise<boolean> {
+async function isInstalled(shell: IShell, command: string): Promise<boolean> {
   try {
-    await shell.execFile('which', ['tmux']);
+    await shell.execFile('which', [command]);
     return true;
   } catch {
     return false;
@@ -113,18 +114,31 @@ export async function runQuickstart(
     prefill: 'editable',
   });
 
-  let tmuxEnabled = existing['tmux'] === 'true';
-  const tmuxAvailable = await isTmuxInstalled(deps.shell);
+  const currentSessionManager: SessionManagerKind =
+    existing['session-manager'] ?? (existing['tmux'] === 'true' ? 'tmux' : 'none');
+  let sessionManager = currentSessionManager;
 
-  if (tmuxAvailable) {
+  const installed: SessionManagerKind[] = [];
+  for (const kind of ['tmux', 'herdr'] as const) {
+    if (await isInstalled(deps.shell, kind)) installed.push(kind);
+  }
+
+  if (installed.length > 0) {
+    const choices: SessionManagerKind[] = ['none', ...installed];
     services.console.log('');
-    services.console.log(chalk.dim('  Opens a tmux session with split panes, one per worktree'));
-    const tmuxRaw = await deps.input({
-      message: 'Enable tmux integration (yes/no)?',
-      default: existing['tmux'] === 'true' ? 'yes' : 'no',
-      prefill: 'editable',
-    });
-    tmuxEnabled = /^(y|yes)$/i.test(tmuxRaw.trim());
+    services.console.log(chalk.dim('  Opens a terminal session per workspace, with a pane per worktree'));
+    while (true) {
+      const answer = (await deps.input({
+        message: `Session manager (${choices.join('/')})?`,
+        default: choices.includes(currentSessionManager) ? currentSessionManager : 'none',
+        prefill: 'editable',
+      })).trim().toLowerCase();
+      if (choices.includes(answer as SessionManagerKind)) {
+        sessionManager = answer as SessionManagerKind;
+        break;
+      }
+      services.console.log(chalk.yellow(`  ⚠ Choose one of: ${choices.join(', ')} \n`));
+    }
   }
 
   // All-or-nothing save — only reached if all prompts complete without throwing
@@ -132,8 +146,10 @@ export async function runQuickstart(
     ...existing,
     'source-path': sourcePath,
     'dest-path': destPath,
-    'tmux': tmuxEnabled ? 'true' as const : 'false' as const,
+    'session-manager': sessionManager,
   };
+  // Superseded by session-manager
+  delete newConfig['tmux'];
 
   if (postCheckout) {
     newConfig['post-checkout'] = postCheckout;
@@ -154,7 +170,7 @@ export async function runQuickstart(
   if (postCheckout) {
     services.console.log(`    ${chalk.cyan('post-checkout')}  ${postCheckout}`);
   }
-  services.console.log(`    ${chalk.cyan('tmux')}           ${tmuxEnabled}`);
+  services.console.log(`    ${chalk.cyan('session-manager')} ${sessionManager}`);
   services.console.log('');
   services.console.log(chalk.bold('  Get started:'));
   services.console.log('');

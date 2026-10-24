@@ -75,8 +75,8 @@ export async function runDrop(
   if (worktreeDirs.length > 0) {
     services.console.log(`  Worktrees: ${worktreeDirs.length} repo(s)`);
   }
-  if (config.tmux) {
-    services.console.log(`  Tmux session: ${chalk.cyan(branchNameForDisplay)}`);
+  if (config.sessionManager !== 'none') {
+    services.console.log(`  ${config.sessionManager} session: ${chalk.cyan(branchNameForDisplay)}`);
   }
 
   const confirmed = await deps.confirm({
@@ -95,7 +95,7 @@ export async function runDrop(
     workspacePath,
     branchName: branchNameForDisplay,
     sourcePath,
-    tmux: config.tmux,
+    sessionManager: config.sessionManager,
   });
 
   // Display worktree removal results
@@ -122,8 +122,8 @@ export async function runDrop(
     services.console.log(chalk.dim(`Deleting files in the background from ${result.trashedPath}`));
   }
 
-  if (result.tmuxKilled) {
-    services.console.log(`${chalk.green('Killed tmux session:')} ${branchNameForDisplay}`);
+  if (result.sessionClosed) {
+    services.console.log(`${chalk.green(`Closed ${config.sessionManager} session:`)} ${branchNameForDisplay}`);
   }
 
   services.console.log(`\n${chalk.green('Successfully dropped workspace:')} ${branchNameForDisplay}`);

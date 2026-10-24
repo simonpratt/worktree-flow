@@ -50,7 +50,6 @@ describe('list integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     await runList(integration.useCases, integration.services);
@@ -83,7 +82,6 @@ describe('list integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     // Add uncommitted changes
@@ -116,7 +114,6 @@ describe('list integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     // Set cwd to inside the workspace
@@ -148,7 +145,6 @@ describe('list integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     await createTestWorkspace(integration.useCases, {
@@ -158,7 +154,6 @@ describe('list integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     // Make feature-a dirty

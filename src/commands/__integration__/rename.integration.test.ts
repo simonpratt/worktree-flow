@@ -67,7 +67,6 @@ describe('rename integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     await expect(
@@ -86,7 +85,6 @@ describe('rename integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
     await createTestWorkspace(integration.useCases, {
       repos: [repo1],
@@ -95,7 +93,6 @@ describe('rename integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     await expect(
@@ -119,7 +116,6 @@ describe('rename integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     const oldWorkspacePath = created.workspacePath;
@@ -170,7 +166,6 @@ describe('rename integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     const worktreePath = path.join(created.workspacePath, 'repo1');
@@ -215,7 +210,6 @@ describe('rename integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     (integration.stubs.process.cwd as sinon.SinonStub).returns(created.workspacePath);
@@ -237,7 +231,6 @@ describe('rename integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     const worktreePath = path.join(created.workspacePath, 'repo1');
@@ -264,7 +257,6 @@ describe('rename integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     // Simulate repo2's source repo having been removed from source-path
@@ -299,7 +291,7 @@ describe('rename integration', () => {
     expect(errorLine).toBeDefined();
   });
 
-  it('should rename the tmux session when tmux is enabled and a session exists', async () => {
+  it('should rename the tmux session when tmux is the session manager', async () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
 
     integration = createIntegrationServices(sourcePath, destPath);
@@ -307,7 +299,7 @@ describe('rename integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: true,
+      sessionManager: 'tmux',
       postCheckout: undefined,
       perRepoPostCheckout: {},
       fetchCacheTtlSeconds: 300,
@@ -322,15 +314,13 @@ describe('rename integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     const tmuxStub = integration.services.tmux as sinon.SinonStubbedInstance<any>;
-    tmuxStub.sessionExists.resolves(true);
 
     await runRename('old-feature', 'new-feature', integration.useCases, integration.services);
 
-    sinon.assert.calledWith(tmuxStub.renameSession, 'old-feature', 'new-feature');
+    sinon.assert.calledOnceWithExactly(tmuxStub.rename, 'old-feature', 'new-feature');
 
     const logCalls = (integration.stubs.console.log as sinon.SinonStub).args.map((a: any[]) => a[0]);
     expect(logCalls.some((line: string) => typeof line === 'string' && line.includes('Renamed tmux session'))).toBe(
@@ -346,7 +336,7 @@ describe('rename integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: true,
+      sessionManager: 'tmux',
       postCheckout: undefined,
       perRepoPostCheckout: {},
       fetchCacheTtlSeconds: 300,
@@ -362,15 +352,13 @@ describe('rename integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: true,
     });
-    const createdSessionName = tmuxStub.createSession.firstCall.args[1];
-    tmuxStub.sessionExists.callsFake(async (name: string) => name === createdSessionName);
+    tmuxStub.rename.callsFake(async (name: string) => name === 'feature/old');
 
     (integration.stubs.process.cwd as sinon.SinonStub).returns(workspacePath);
     await runRename(undefined, 'feature/new', integration.useCases, integration.services);
 
-    sinon.assert.calledOnceWithExactly(tmuxStub.renameSession, createdSessionName, 'feature/new');
+    sinon.assert.calledOnceWithExactly(tmuxStub.rename, 'feature/old', 'feature/new');
 
     // The renamed workspace now resolves to the new branch name, so a later
     // auto-detected drop targets the renamed session.
@@ -379,6 +367,6 @@ describe('rename integration', () => {
     const { runDrop } = await import('../drop.js');
     await runDrop(undefined, integration.useCases, integration.services, { confirm: sinon.stub().resolves(true) });
 
-    sinon.assert.calledOnceWithExactly(tmuxStub.killSession, 'feature/new');
+    sinon.assert.calledOnceWithExactly(tmuxStub.close, 'feature/new');
   });
 });

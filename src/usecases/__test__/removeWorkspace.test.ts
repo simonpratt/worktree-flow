@@ -6,7 +6,7 @@ import type { WorkspaceDirectoryService } from '../../lib/workspaceDirectory.js'
 import type { WorktreeService } from '../../lib/worktree.js';
 import type { RepoService } from '../../lib/repos.js';
 import type { StatusService } from '../../lib/status.js';
-import type { TmuxService } from '../../lib/tmux.js';
+import { SessionManagers, type SessionManager } from '../../lib/sessionManager.js';
 import type { TrashService } from '../../lib/trash.js';
 import type { WorktreeStatus } from '../../lib/status.js';
 
@@ -16,7 +16,7 @@ describe('RemoveWorkspaceUseCase', () => {
   let worktreeStub: sinon.SinonStubbedInstance<WorktreeService>;
   let reposStub: sinon.SinonStubbedInstance<RepoService>;
   let statusStub: sinon.SinonStubbedInstance<StatusService>;
-  let tmuxStub: sinon.SinonStubbedInstance<TmuxService>;
+  let tmuxStub: sinon.SinonStubbedInstance<SessionManager>;
   let trashStub: sinon.SinonStubbedInstance<TrashService>;
 
   const sourcePath = '/source';
@@ -46,7 +46,7 @@ describe('RemoveWorkspaceUseCase', () => {
     } as any;
 
     tmuxStub = {
-      killSession: sinon.stub().resolves(true),
+      close: sinon.stub().resolves(true),
     } as any;
 
     trashStub = {
@@ -59,7 +59,7 @@ describe('RemoveWorkspaceUseCase', () => {
       worktreeStub as any,
       reposStub as any,
       statusStub as any,
-      tmuxStub as any,
+      new SessionManagers({ tmux: tmuxStub, herdr: {} as any }),
       trashStub as any,
     );
   });
@@ -79,7 +79,7 @@ describe('RemoveWorkspaceUseCase', () => {
         workspacePath,
         branchName: 'my-feature',
         sourcePath,
-        tmux: false,
+        sessionManager: 'none',
       })
     ).rejects.toThrow(WorkspaceHasIssuesError);
 
@@ -96,7 +96,7 @@ describe('RemoveWorkspaceUseCase', () => {
       workspacePath,
       branchName: 'my-feature',
       sourcePath,
-      tmux: false,
+      sessionManager: 'none',
     });
 
     sinon.assert.calledOnceWithExactly(trashStub.moveToTrash, workspacePath);
@@ -123,7 +123,7 @@ describe('RemoveWorkspaceUseCase', () => {
         workspacePath,
         branchName: 'my-feature',
         sourcePath,
-        tmux: false,
+        sessionManager: 'none',
       })
     ).rejects.toThrow('EACCES');
 
@@ -140,7 +140,7 @@ describe('RemoveWorkspaceUseCase', () => {
       workspacePath,
       branchName: 'my-feature',
       sourcePath,
-      tmux: false,
+      sessionManager: 'none',
     });
 
     expect(result.worktreesRemoved).toBe(1);
@@ -155,7 +155,7 @@ describe('RemoveWorkspaceUseCase', () => {
       workspacePath,
       branchName: 'my-feature',
       sourcePath,
-      tmux: false,
+      sessionManager: 'none',
     });
 
     expect(statusStub.checkAllWorktrees.called).toBe(false);
@@ -166,46 +166,60 @@ describe('RemoveWorkspaceUseCase', () => {
     expect(result.workspaceDirRemoved).toBe(true);
   });
 
-  it('should kill tmux session when tmux is enabled', async () => {
+  it('should close the session when a session manager is configured', async () => {
     workspaceDirStub.getWorktreeDirs.returns([]);
 
     const result = await useCase.execute({
       workspacePath,
       branchName: 'my-feature',
       sourcePath,
-      tmux: true,
+      sessionManager: 'tmux',
     });
 
-    expect(tmuxStub.killSession.calledWith('my-feature')).toBe(true);
-    expect(result.tmuxKilled).toBe(true);
+    sinon.assert.calledOnceWithExactly(tmuxStub.close, 'my-feature');
+    expect(result.sessionClosed).toBe(true);
   });
 
-  it('should not report a kill when there was no tmux session', async () => {
+  it('should not touch sessions when no session manager is configured', async () => {
     workspaceDirStub.getWorktreeDirs.returns([]);
-    tmuxStub.killSession.resolves(false);
 
     const result = await useCase.execute({
       workspacePath,
       branchName: 'my-feature',
       sourcePath,
-      tmux: true,
+      sessionManager: 'none',
     });
 
-    expect(result.tmuxKilled).toBe(false);
+    sinon.assert.notCalled(tmuxStub.close);
+    expect(result.sessionClosed).toBe(false);
   });
 
-  it('should not fail if tmux session kill fails', async () => {
+  it('should not report a close when there was no session', async () => {
     workspaceDirStub.getWorktreeDirs.returns([]);
-    tmuxStub.killSession.rejects(new Error('no session'));
+    tmuxStub.close.resolves(false);
 
     const result = await useCase.execute({
       workspacePath,
       branchName: 'my-feature',
       sourcePath,
-      tmux: true,
+      sessionManager: 'tmux',
     });
 
-    expect(result.tmuxKilled).toBe(false);
+    expect(result.sessionClosed).toBe(false);
+  });
+
+  it('should not fail if closing the session fails', async () => {
+    workspaceDirStub.getWorktreeDirs.returns([]);
+    tmuxStub.close.rejects(new Error('no session'));
+
+    const result = await useCase.execute({
+      workspacePath,
+      branchName: 'my-feature',
+      sourcePath,
+      sessionManager: 'tmux',
+    });
+
+    expect(result.sessionClosed).toBe(false);
   });
 
   it('should track removal errors for repos not found in source', async () => {
@@ -217,7 +231,7 @@ describe('RemoveWorkspaceUseCase', () => {
       workspacePath,
       branchName: 'my-feature',
       sourcePath,
-      tmux: false,
+      sessionManager: 'none',
     });
 
     expect(result.removalErrors).toHaveLength(1);

@@ -3,7 +3,7 @@ import type { WorkspaceDirectoryService } from '../lib/workspaceDirectory.js';
 import type { WorktreeService } from '../lib/worktree.js';
 import type { RepoService } from '../lib/repos.js';
 import type { StatusService } from '../lib/status.js';
-import type { TmuxService } from '../lib/tmux.js';
+import type { SessionManagers, SessionManagerKind } from '../lib/sessionManager.js';
 import type { TrashService } from '../lib/trash.js';
 import { WorkspaceHasIssuesError } from '../lib/errors.js';
 import { StatusService as StatusServiceClass } from '../lib/status.js';
@@ -12,7 +12,7 @@ export type RemoveWorkspaceParams = {
   workspacePath: string;
   branchName: string;
   sourcePath: string;
-  tmux: boolean;
+  sessionManager: SessionManagerKind;
 };
 
 export type RemoveWorkspaceResult = {
@@ -21,7 +21,7 @@ export type RemoveWorkspaceResult = {
   workspaceDirRemoved: boolean;
   /** Where the workspace now sits until the background delete finishes */
   trashedPath: string;
-  tmuxKilled: boolean;
+  sessionClosed: boolean;
   issuesFound: Array<{ repoName: string; issue: string }>;
   removalErrors: Array<{ repo: string; error: string }>;
 };
@@ -38,7 +38,7 @@ export class RemoveWorkspaceUseCase {
     private worktree: WorktreeService,
     private repos: RepoService,
     private status: StatusService,
-    private tmux: TmuxService,
+    private sessionManagers: SessionManagers,
     private trash: TrashService
   ) {}
 
@@ -94,12 +94,13 @@ export class RemoveWorkspaceUseCase {
     // 4. Delete the trashed files without waiting
     this.trash.deleteInBackground(trashedPath);
 
-    // 5. Kill tmux session if enabled
-    let tmuxKilled = false;
-    if (params.tmux) {
+    // 5. Close the workspace's session, if a session manager is configured
+    let sessionClosed = false;
+    const sessions = this.sessionManagers.get(params.sessionManager);
+    if (sessions) {
       try {
-        tmuxKilled = await this.tmux.killSession(params.branchName);
-      } catch (error) {
+        sessionClosed = await sessions.close(params.branchName);
+      } catch {
         // Don't fail
       }
     }
@@ -109,7 +110,7 @@ export class RemoveWorkspaceUseCase {
       worktreesTotal: worktreeDirs.length,
       workspaceDirRemoved: true,
       trashedPath,
-      tmuxKilled,
+      sessionClosed,
       issuesFound,
       removalErrors,
     };

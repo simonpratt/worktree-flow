@@ -8,14 +8,16 @@ import { ListWorkspacesWithStatusUseCase } from './listWorkspacesWithStatus.js';
 import { FetchAllReposUseCase } from './fetchAllRepos.js';
 import { FetchWorkspaceReposUseCase } from './fetchWorkspaceRepos.js';
 import { FetchUsedReposUseCase } from './fetchUsedRepos.js';
-import { ResumeTmuxSessionsUseCase } from './resumeTmuxSessions.js';
+import { ListWorkspaceSessionsUseCase } from './listWorkspaceSessions.js';
+import { OpenSessionsUseCase } from './openSessions.js';
+import { OpenWorkspaceSessionUseCase } from './openWorkspaceSession.js';
 import { CreateWorkspaceUseCase } from './createWorkspace.js';
 import { CreateBranchUseCase } from './createBranch.js';
 import { AddToWorkspaceUseCase } from './addToWorkspace.js';
 import { DiscoverReposWithBranchUseCase } from './discoverReposWithBranch.js';
 import { RenameWorkspaceFolderUseCase } from './renameWorkspaceFolder.js';
 import { RenameWorkspaceBranchesUseCase } from './renameWorkspaceBranches.js';
-import { RenameTmuxSessionUseCase } from './renameTmuxSession.js';
+import { RenameSessionUseCase } from './renameSession.js';
 
 /**
  * Factory function for creating all use cases with their service dependencies.
@@ -37,7 +39,7 @@ export function createUseCases(services: Services) {
       services.worktree,
       services.repos,
       services.status,
-      services.tmux,
+      services.sessionManagers,
       services.trash
     ),
     pushWorkspace: new PushWorkspaceUseCase(
@@ -63,23 +65,25 @@ export function createUseCases(services: Services) {
       services.workspaceDir,
       services.status
     ),
-    resumeTmuxSessions: new ResumeTmuxSessionsUseCase(
+    listWorkspaceSessions: new ListWorkspaceSessionsUseCase(
       services.workspaceDir,
-      services.workspaceConfig,
-      services.tmux
+      services.workspaceConfig
+    ),
+    openSessions: new OpenSessionsUseCase(services.workspaceDir),
+    openWorkspaceSession: new OpenWorkspaceSessionUseCase(
+      services.workspaceDir,
+      services.postCheckout,
+      services.sessionManagers
     ),
     createWorkspace: new CreateWorkspaceUseCase(
       services.workspaceDir,
-      services.workspaceConfig,
-      services.tmux
+      services.workspaceConfig
     ),
     createBranch: new CreateBranchUseCase(services.git),
     addToWorkspace: new AddToWorkspaceUseCase(
       services.worktree,
       services.workspaceConfig,
-      services.repoConfig,
-      services.postCheckout,
-      services.tmux
+      services.repoConfig
     ),
     discoverReposWithBranch: new DiscoverReposWithBranchUseCase(services.repos),
     renameWorkspaceFolder: new RenameWorkspaceFolderUseCase(
@@ -93,7 +97,7 @@ export function createUseCases(services: Services) {
       services.git,
       services.repos
     ),
-    renameTmuxSession: new RenameTmuxSessionUseCase(services.tmux),
+    renameSession: new RenameSessionUseCase(services.sessionManagers),
   };
 }
 

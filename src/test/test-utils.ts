@@ -2,6 +2,7 @@ import * as sinon from 'sinon';
 import { Volume } from 'memfs';
 import type { IFileSystem, IShell, IConsole, IProcess } from '../adapters/types.js';
 import type { Services } from '../lib/services.js';
+import type { SessionManager, SessionPane } from '../lib/sessionManager.js';
 
 /**
  * Creates an in-memory filesystem using memfs
@@ -19,6 +20,25 @@ export function createMockShell(): sinon.SinonStubbedInstance<IShell> {
     execFile: sinon.stub(),
     spawnDetached: sinon.stub(),
   };
+}
+
+/**
+ * Creates a mock session manager (tmux/herdr) using Sinon stubs. By default no
+ * sessions exist and every pane command succeeds.
+ */
+export function createMockSessionManager(label = 'tmux'): sinon.SinonStubbedInstance<SessionManager> {
+  const succeedAll = async (_name: string, ...rest: any[]) => {
+    const panes: SessionPane[] = rest[rest.length - 1];
+    return panes.filter((p) => p.command).map((p) => ({ path: p.path, success: true }));
+  };
+  return {
+    label,
+    exists: sinon.stub().resolves(false),
+    create: sinon.stub().callsFake(succeedAll),
+    addPanes: sinon.stub().callsFake(succeedAll),
+    close: sinon.stub().resolves(true),
+    rename: sinon.stub().resolves(true),
+  } as any;
 }
 
 /**
@@ -54,7 +74,7 @@ export function createMockServices(): {
       saveRaw: sinon.stub(),
       load: sinon.stub().returns({
         copyFiles: '.env',
-        tmux: false,
+        sessionManager: 'none',
       }),
       getRequired: sinon.stub().returns({
         sourcePath: '/source',
@@ -95,8 +115,6 @@ export function createMockServices(): {
       listWorkspaces: sinon.stub(),
       createBranchWorktrees: sinon.stub(),
       createCheckoutWorktrees: sinon.stub(),
-      createTmuxSession: sinon.stub(),
-      killTmuxSession: sinon.stub(),
       findWorkspace: sinon.stub(),
       removeWorktrees: sinon.stub(),
     } as any,
@@ -111,10 +129,9 @@ export function createMockServices(): {
       checkAllWorktrees: sinon.stub().resolves([]),
       findReposWithIssues: sinon.stub(),
     } as any,
-    tmux: {
-      createSession: sinon.stub(),
-      killSession: sinon.stub(),
-    } as any,
+    tmux: createMockSessionManager('tmux') as any,
+    herdr: createMockSessionManager('herdr') as any,
+    sessionManagers: { get: sinon.stub().returns(undefined) } as any,
     trash: {
       moveToTrash: sinon.stub(),
       deleteInBackground: sinon.stub(),

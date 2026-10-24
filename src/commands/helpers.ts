@@ -6,6 +6,8 @@ import type { Services } from '../lib/services.js';
 import { PromptCancelledError, RepoNotFoundError } from '../lib/errors.js';
 import type { RepoPickerOptions } from './prompts.js';
 import type { AddToWorkspaceResult } from '../usecases/addToWorkspace.js';
+import type { OpenWorkspaceSessionResult } from '../usecases/openWorkspaceSession.js';
+import type { SessionManagerKind } from '../lib/sessionManager.js';
 
 
 type WorkspaceLoadingInfo = { name: string; repoCount: number };
@@ -147,4 +149,35 @@ export function logCopyFiles(
       console.log(chalk.yellow(`Warning: ${r.repoName}: failed to copy ${file} (${error})`));
     }
   }
+}
+
+/**
+ * Logs the outcome of opening a workspace's session (nothing when no session manager is configured).
+ */
+export function logSession(
+  result: OpenWorkspaceSessionResult,
+  sessionManager: SessionManagerKind,
+  sessionName: string,
+  console: IConsole
+): void {
+  if (result.session === 'created') {
+    console.log(`Created ${sessionManager} session: ${chalk.cyan(sessionName)}`);
+  } else if (result.session === 'extended') {
+    console.log(`Added panes to ${sessionManager} session: ${chalk.cyan(sessionName)}`);
+  } else if (result.session === 'failed') {
+    const fallback = result.postCheckout.length > 0 ? ' — ran post-checkout directly instead' : '';
+    console.log(chalk.yellow(`Warning: could not open ${sessionManager} session (${result.sessionError})${fallback}`));
+  }
+}
+
+/**
+ * Logs how many post-checkout commands succeeded. Returns how many ran.
+ */
+export function logPostCheckout(result: OpenWorkspaceSessionResult, console: IConsole): number {
+  const total = result.postCheckout.length;
+  if (total > 0) {
+    const success = result.postCheckout.filter((r) => r.success).length;
+    console.log(`\nCompleted post-checkout in ${success}/${total} workspace(s).`);
+  }
+  return total;
 }

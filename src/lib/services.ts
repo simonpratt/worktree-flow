@@ -15,6 +15,8 @@ import { FetchCacheService } from './fetchCache.js';
 import { ParallelService } from './parallel.js';
 import { StatusService } from './status.js';
 import { TmuxService } from './tmux.js';
+import { HerdrService } from './herdr.js';
+import { SessionManagers } from './sessionManager.js';
 import { RepoConfigService } from './repoConfig.js';
 import { TrashService } from './trash.js';
 
@@ -31,6 +33,8 @@ export function createServices() {
   const parallel = new ParallelService(console);
   const status = new StatusService(git);
   const tmux = new TmuxService(shell);
+  const herdr = new HerdrService(shell);
+  const sessionManagers = new SessionManagers({ tmux, herdr });
   const fetchCache = new FetchCacheService(fs);
   const fetch = new FetchService(git, console, fetchCache);
   const repos = new RepoService(fs, git);
@@ -57,6 +61,8 @@ export function createServices() {
     parallel,
     status,
     tmux,
+    herdr,
+    sessionManagers,
     trash,
     console,
     process,

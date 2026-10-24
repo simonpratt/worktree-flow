@@ -64,7 +64,6 @@ describe('prune integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     // User selects nothing
@@ -94,7 +93,6 @@ describe('prune integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     multiselectStub.resolves(['old-feature']);
@@ -121,7 +119,6 @@ describe('prune integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     const workspacePath = result.workspacePath;
@@ -151,7 +148,6 @@ describe('prune integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     const cleanResult = await createTestWorkspace(integration.useCases, {
@@ -161,7 +157,6 @@ describe('prune integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     // Add uncommitted changes to the dirty workspace
@@ -188,7 +183,7 @@ describe('prune integration', () => {
     expect(fs.existsSync(dirtyResult.workspacePath)).toBe(true);
   });
 
-  it('should kill the real tmux session for a workspace whose branch name was sanitized', async () => {
+  it('should close the real session for a workspace whose branch name was sanitized', async () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
 
     integration = createIntegrationServices(sourcePath, destPath);
@@ -196,7 +191,7 @@ describe('prune integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: true,
+      sessionManager: 'tmux',
       postCheckout: undefined,
       perRepoPostCheckout: {},
       fetchCacheTtlSeconds: 300,
@@ -212,16 +207,14 @@ describe('prune integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: true,
     });
-    const createdSessionName = tmuxStub.createSession.firstCall.args[1];
 
     multiselectStub.resolves([path.basename(result.workspacePath)]);
 
     await runPrune(integration.useCases, integration.services, { multiselect: multiselectStub, confirm: confirmStub });
 
     expect(fs.existsSync(result.workspacePath)).toBe(false);
-    sinon.assert.calledOnceWithExactly(tmuxStub.killSession, createdSessionName);
+    sinon.assert.calledOnceWithExactly(tmuxStub.close, 'feature/ABC-123');
   });
 
   it('should exit when all workspaces have uncommitted changes', async () => {
@@ -236,7 +229,6 @@ describe('prune integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     // Add uncommitted changes
@@ -276,7 +268,6 @@ describe('prune integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     const workspacePath = result.workspacePath;
@@ -314,7 +305,6 @@ describe('prune integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     const result2 = await createTestWorkspace(integration.useCases, {
@@ -324,7 +314,6 @@ describe('prune integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     // User selects both workspaces to prune

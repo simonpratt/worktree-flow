@@ -59,7 +59,6 @@ describe('status integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     await runStatus('feature', integration.useCases, integration.services);
@@ -95,7 +94,6 @@ describe('status integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     // Add an uncommitted file in the worktree
@@ -130,7 +128,6 @@ describe('status integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     // Make repo1 dirty, leave repo2 clean
@@ -166,7 +163,6 @@ describe('status integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     // Set cwd to inside the workspace
@@ -198,7 +194,6 @@ describe('status integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     // Set cwd to inside a repo within the workspace
@@ -231,7 +226,6 @@ describe('status integration', () => {
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
     });
 
     // Commit a change in the worktree — no origin/feature ref exists

@@ -15,7 +15,8 @@ import { RepoConfigService } from '../lib/repoConfig.js';
 import { FetchService } from '../lib/fetch.js';
 import { ParallelService } from '../lib/parallel.js';
 import { StatusService } from '../lib/status.js';
-import { TmuxService } from '../lib/tmux.js';
+import { SessionManagers } from '../lib/sessionManager.js';
+import { createMockSessionManager } from './test-utils.js';
 import { TrashService } from '../lib/trash.js';
 import type { Services } from '../lib/services.js';
 import { createUseCases } from '../usecases/usecases.js';
@@ -83,7 +84,6 @@ export type CreateTestWorkspaceParams = {
   sourcePath: string;
   destPath: string;
   copyFiles?: string;
-  tmux: boolean;
 };
 
 export type CreateTestWorkspaceResult = {
@@ -102,7 +102,6 @@ export async function createTestWorkspace(
     branchName: params.branchName,
     sourcePath: params.sourcePath,
     destPath: params.destPath,
-    tmux: params.tmux,
   });
 
   const { workspacePath } = workspaceResult;
@@ -120,9 +119,7 @@ export async function createTestWorkspace(
         workspacePath,
         branchName: params.branchName,
         baseBranch: branchResult.baseBranch,
-        sessionName: undefined,
         copyFiles: params.copyFiles,
-        postCheckout: undefined,
       });
 
       // Seed origin/<branch> pointing at the current worktree HEAD so that
@@ -156,14 +153,8 @@ export function createIntegrationServices(sourcePath: string, destPath: string):
   const gitService = new GitService(nodeShell);
   const parallel = new ParallelService(consoleStub);
   const status = new StatusService(gitService);
-  const tmuxStub = {
-    createSession: sinon.stub(),
-    killSession: sinon.stub().resolves(true),
-    addPane: sinon.stub().resolves('%1'),
-    sendKeysToPane: sinon.stub().resolves(),
-    sessionExists: sinon.stub().resolves(false),
-    renameSession: sinon.stub().resolves(),
-  } as any;
+  const tmuxStub = createMockSessionManager('tmux');
+  const herdrStub = createMockSessionManager('herdr');
   const repos = new RepoService(nodeFs, gitService);
   const postCheckout = new PostCheckoutService(nodeShell);
   const repoConfig = new RepoConfigService(nodeFs);
@@ -192,7 +183,7 @@ export function createIntegrationServices(sourcePath: string, destPath: string):
       sourcePath,
       destPath,
       copyFiles: '.env',
-      tmux: false,
+      sessionManager: 'none',
       postCheckout: undefined,
       perRepoPostCheckout: {},
       fetchCacheTtlSeconds: 300,
@@ -219,6 +210,8 @@ export function createIntegrationServices(sourcePath: string, destPath: string):
     parallel,
     status,
     tmux: tmuxStub,
+    herdr: herdrStub,
+    sessionManagers: new SessionManagers({ tmux: tmuxStub, herdr: herdrStub }),
     trash,
     console: consoleStub,
     process: processStub,

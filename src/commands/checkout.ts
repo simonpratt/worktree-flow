@@ -5,7 +5,7 @@ import { createServices } from '../lib/services.js';
 import { createUseCases } from '../usecases/usecases.js';
 import type { Services } from '../lib/services.js';
 import type { UseCases } from '../usecases/usecases.js';
-import { handleCommandError, logCopyFiles } from './helpers.js';
+import { handleCommandError, logCopyFiles, logSession, logPostCheckout } from './helpers.js';
 import { confirm } from './prompts.js';
 
 export async function runCheckout(
@@ -76,16 +76,12 @@ export async function runCheckout(
       });
     }
 
-    // 6. Create workspace directory, placeholder config, AGENTS.md, tmux session
-    const workspaceResult = await useCases.createWorkspace.execute({
+    // 6. Create workspace directory, placeholder config, AGENTS.md
+    const { workspacePath } = await useCases.createWorkspace.execute({
       branchName,
       sourcePath,
       destPath,
-      tmux: config.tmux,
     });
-
-    const { workspacePath, tmuxCreated } = workspaceResult;
-    const sessionName = tmuxCreated ? branchName : undefined;
 
     // 7. For each matching repo in parallel: detect base branch, then addToWorkspace
     const results = await Promise.allSettled(
@@ -109,16 +105,15 @@ export async function runCheckout(
           ['master', 'main', 'trunk', 'develop']
         ) ?? 'master';
 
-        // Add repo to workspace (creates worktree, copies files, tmux pane, post-checkout)
-        return useCases.addToWorkspace.execute({
+        // Add repo to workspace (creates worktree, copies files)
+        const added = await useCases.addToWorkspace.execute({
           repoPath,
           workspacePath,
           branchName,
           baseBranch,
-          sessionName,
           copyFiles: config.copyFiles,
-          postCheckout: resolvedPostCheckout,
         });
+        return { ...added, postCheckout: resolvedPostCheckout };
       })
     );
 
@@ -140,32 +135,27 @@ export async function runCheckout(
     }
 
     const fulfilledResults = results
-      .filter((r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof useCases.addToWorkspace.execute>>> =>
-        r.status === 'fulfilled'
-      )
+      .filter((r) => r.status === 'fulfilled')
       .map((r) => r.value);
 
-    const postCheckoutResults = fulfilledResults.filter((r) => r.postCheckoutRan);
+    // 8. Open the session with a terminal per worktree, running post-checkout in each
+    const session = await useCases.openWorkspaceSession.execute({
+      sessionManager: config.sessionManager,
+      workspacePath,
+      sessionName: branchName,
+      panes: fulfilledResults.map((r) => ({ path: r.worktreePath, command: r.postCheckout })),
+    });
 
-    const postCheckoutSuccess = postCheckoutResults.filter((r) => r.postCheckoutSuccess).length;
-    const postCheckoutTotal = postCheckoutResults.length;
-
-    // 8. Display results
+    // 9. Display results
     services.console.log(
       `\nCreated workspace at ${chalk.cyan(workspacePath)} with ${successCount}/${totalCount} repos.`
     );
 
-    if (tmuxCreated) {
-      services.console.log(`Created tmux session: ${chalk.cyan(branchName)}`);
-    }
+    logSession(session, config.sessionManager, branchName, services.console);
 
     logCopyFiles(fulfilledResults, config.copyFiles, services.console);
 
-    if (postCheckoutTotal > 0) {
-      services.console.log(
-        `\nCompleted post-checkout in ${postCheckoutSuccess}/${postCheckoutTotal} workspace(s).`
-      );
-    } else if (!config.postCheckout) {
+    if (logPostCheckout(session, services.console) === 0 && !config.postCheckout) {
       services.console.log('\nTip: Configure a post-checkout command to run automatically after branching/checkout.');
       services.console.log('  Example: flow config set post-checkout "npm ci"');
     }

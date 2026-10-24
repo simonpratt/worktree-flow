@@ -7,7 +7,7 @@ import type { Services } from '../lib/services.js';
 import type { UseCases } from '../usecases/usecases.js';
 import { NoReposFoundError } from '../lib/errors.js';
 import { resolveWorkspace } from '../lib/workspaceResolver.js';
-import { buildRepoOptions, handleCommandError, resolveReposByName, logCopyFiles } from './helpers.js';
+import { buildRepoOptions, handleCommandError, resolveReposByName, logCopyFiles, logSession, logPostCheckout } from './helpers.js';
 import { confirm, input, pickRepos, type InputOptions, type RepoPickerOptions } from './prompts.js';
 
 export async function runAttach(
@@ -93,9 +93,6 @@ export async function runAttach(
   });
 
   // 8. For each selected repo in parallel: createBranch then addToWorkspace
-  // If tmux is enabled, use the workspace branch name as session name
-  const sessionName = config.tmux ? displayName : undefined;
-
   const results = await Promise.allSettled(
     selected.map(async (repoPath) => {
       const repoName = path.basename(repoPath);
@@ -118,16 +115,15 @@ export async function runAttach(
         sourceBranch,
       });
 
-      // b. Add repo to workspace (creates worktree, copies files, tmux pane, post-checkout)
-      return useCases.addToWorkspace.execute({
+      // b. Add repo to workspace (creates worktree, copies files)
+      const added = await useCases.addToWorkspace.execute({
         repoPath,
         workspacePath,
         branchName: displayName,
         baseBranch: branchResult.baseBranch,
-        sessionName,
         copyFiles: config.copyFiles,
-        postCheckout: resolvedPostCheckout,
       });
+      return { ...added, postCheckout: resolvedPostCheckout };
     })
   );
 
@@ -139,28 +135,27 @@ export async function runAttach(
   const totalCount = results.length;
 
   const fulfilledResults = results
-    .filter((r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof useCases.addToWorkspace.execute>>> =>
-      r.status === 'fulfilled'
-    )
+    .filter((r) => r.status === 'fulfilled')
     .map((r) => r.value);
 
-  const postCheckoutResults = fulfilledResults.filter((r) => r.postCheckoutRan);
+  // 10. Add the new worktrees to the session (opening it if needed), running post-checkout in each
+  const session = await useCases.openWorkspaceSession.execute({
+    sessionManager: config.sessionManager,
+    workspacePath,
+    sessionName: displayName,
+    panes: fulfilledResults.map((r) => ({ path: r.worktreePath, command: r.postCheckout })),
+  });
 
-  const postCheckoutSuccess = postCheckoutResults.filter((r) => r.postCheckoutSuccess).length;
-  const postCheckoutTotal = postCheckoutResults.length;
-
-  // 10. Display results
+  // 11. Display results
   services.console.log(
     `\nAttached ${successCount}/${totalCount} repos to ${chalk.cyan(workspacePath)}.`
   );
 
+  logSession(session, config.sessionManager, displayName, services.console);
+
   logCopyFiles(fulfilledResults, config.copyFiles, services.console);
 
-  if (postCheckoutTotal > 0) {
-    services.console.log(
-      `\nCompleted post-checkout in ${postCheckoutSuccess}/${postCheckoutTotal} workspace(s).`
-    );
-  }
+  logPostCheckout(session, services.console);
 }
 
 export function registerAttachCommand(program: Command): void {

@@ -54,9 +54,11 @@ export async function runRename(
     skipRepos: folderFailures.map((r) => r.repoName),
   });
 
-  const tmux = config.tmux
-    ? await useCases.renameTmuxSession.execute({ oldName: oldDisplayName, newName: newBranchName })
-    : { renamed: false };
+  const session = await useCases.renameSession.execute({
+    sessionManager: config.sessionManager,
+    oldName: oldDisplayName,
+    newName: newBranchName,
+  });
 
   const repoResults = [...folderFailures, ...branches.repoResults];
 
@@ -86,8 +88,8 @@ export async function runRename(
     );
   }
 
-  if (tmux.renamed) {
-    services.console.log(`${chalk.green('Renamed tmux session to:')} ${newBranchName}`);
+  if (session.renamed) {
+    services.console.log(`${chalk.green(`Renamed ${config.sessionManager} session to:`)} ${newBranchName}`);
   }
 
   if (!allSucceeded) {

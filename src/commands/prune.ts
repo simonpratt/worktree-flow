@@ -126,10 +126,10 @@ export async function runPrune(
 
       await useCases.removeWorkspace.execute({
         workspacePath: workspace.path,
-        // The persisted branch name is the tmux session name; the folder name is sanitized
+        // The persisted branch name is the session name; the folder name is sanitized
         branchName: services.workspaceConfig.getBranchName(workspace.path) ?? workspace.name,
         sourcePath,
-        tmux: config.tmux,
+        sessionManager: config.sessionManager,
       });
 
       services.console.log(`  ${chalk.green('✓')} Removed ${workspace.name}`);

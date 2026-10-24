@@ -2,25 +2,18 @@ import path from 'node:path';
 import type { CopyFailure, WorktreeService } from '../lib/worktree.js';
 import type { WorkspaceConfigService } from '../lib/workspaceConfig.js';
 import type { RepoConfigService } from '../lib/repoConfig.js';
-import type { PostCheckoutService } from '../lib/postCheckout.js';
-import type { TmuxService } from '../lib/tmux.js';
 
 export type AddToWorkspaceParams = {
   repoPath: string;
   workspacePath: string;
   branchName: string;
   baseBranch: string;
-  sessionName?: string;   // tmux session name (present if tmux is enabled)
   copyFiles?: string;
-  postCheckout?: string; // Single command, consumer should use perRepoPostCheckout || postCheckout
 };
 
 export type AddToWorkspaceResult = {
   repoName: string;
   worktreePath: string;
-  postCheckoutRan: boolean;
-  postCheckoutSuccess: boolean;
-  tmuxPaneAdded: boolean;
   /** copy-files entries that exist in the source repo but failed to copy */
   copyFailures: CopyFailure[];
 };
@@ -28,16 +21,14 @@ export type AddToWorkspaceResult = {
 /**
  * Use case for adding a single repo to an existing workspace.
  * Creates a worktree for an existing branch, copies config files (reporting failures),
- * saves base branch to workspace config, adds a tmux pane (if enabled),
- * and runs post-checkout (if configured).
+ * and saves base branch to workspace config. Terminals and post-checkout are
+ * handled once all repos are added, by OpenWorkspaceSessionUseCase.
  */
 export class AddToWorkspaceUseCase {
   constructor(
     private worktree: WorktreeService,
     private workspaceConfig: WorkspaceConfigService,
-    private repoConfig: RepoConfigService,
-    private postCheckout: PostCheckoutService,
-    private tmux: TmuxService
+    private repoConfig: RepoConfigService
   ) {}
 
   async execute(params: AddToWorkspaceParams): Promise<AddToWorkspaceResult> {
@@ -61,45 +52,9 @@ export class AddToWorkspaceUseCase {
       baseBranches: { [repoName]: params.baseBranch },
     });
 
-    // 4. Add tmux pane (if session name provided)
-    let paneId: string | undefined;
-    let tmuxPaneAdded = false;
-    if (params.sessionName) {
-      try {
-        paneId = await this.tmux.addPane(params.sessionName, worktreeDest);
-        tmuxPaneAdded = true;
-      } catch {
-        // Don't fail if tmux pane addition fails
-      }
-    }
-
-    // 5. Run post-checkout command (if configured)
-    const postCheckoutCommand = params.postCheckout;
-    let postCheckoutRan = false;
-    let postCheckoutSuccess = false;
-
-    if (postCheckoutCommand) {
-      postCheckoutRan = true;
-      try {
-        if (paneId !== undefined) {
-          // tmux enabled: send keys to the pane
-          await this.tmux.sendKeysToPane(paneId, postCheckoutCommand);
-        } else {
-          // tmux disabled: run command directly in worktree directory
-          await this.postCheckout.runCommandInDirectory(worktreeDest, postCheckoutCommand);
-        }
-        postCheckoutSuccess = true;
-      } catch {
-        // Post-checkout failure is non-fatal; reported via postCheckoutSuccess: false
-      }
-    }
-
     return {
       repoName,
       worktreePath: worktreeDest,
-      postCheckoutRan,
-      postCheckoutSuccess,
-      tmuxPaneAdded,
       copyFailures,
     };
   }

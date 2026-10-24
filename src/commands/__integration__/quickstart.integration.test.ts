@@ -15,7 +15,8 @@ describe('quickstart integration', () => {
 
   beforeEach(() => {
     inputStub = sinon.stub();
-    shellStub = { execFile: sinon.stub().resolves({ stdout: '/usr/bin/tmux', stderr: '' }), spawnDetached: sinon.stub() };
+    // Default: both tmux and herdr are installed
+    shellStub = { execFile: sinon.stub().resolves({ stdout: '/usr/bin/x', stderr: '' }), spawnDetached: sinon.stub() };
     integration = createIntegrationServices('/source', '/dest');
     integration.services.config.loadRaw = sinon.stub().returns({});
     integration.services.config.saveRaw = sinon.stub();
@@ -32,7 +33,7 @@ describe('quickstart integration', () => {
     inputStub.onCall(0).resolves('/my/repos');
     inputStub.onCall(1).resolves('/my/workspaces');
     inputStub.onCall(2).resolves('');
-    inputStub.onCall(3).resolves('no');
+    inputStub.onCall(3).resolves('none');
 
     await runQuickstart(integration.services, { input: inputStub, shell: shellStub });
 
@@ -46,7 +47,7 @@ describe('quickstart integration', () => {
     inputStub.onCall(0).resolves('/my/repos');
     inputStub.onCall(1).resolves('/my/workspaces');
     inputStub.onCall(2).resolves('npm ci');
-    inputStub.onCall(3).resolves('no');
+    inputStub.onCall(3).resolves('none');
 
     await runQuickstart(integration.services, { input: inputStub, shell: shellStub });
 
@@ -58,7 +59,7 @@ describe('quickstart integration', () => {
     inputStub.onCall(0).resolves('/my/repos');
     inputStub.onCall(1).resolves('/my/workspaces');
     inputStub.onCall(2).resolves('');
-    inputStub.onCall(3).resolves('no');
+    inputStub.onCall(3).resolves('none');
 
     await runQuickstart(integration.services, { input: inputStub, shell: shellStub });
 
@@ -66,28 +67,59 @@ describe('quickstart integration', () => {
     expect(saved['post-checkout']).toBeUndefined();
   });
 
-  it('should save tmux as true when user answers yes', async () => {
+  it('should save the chosen session manager', async () => {
+    inputStub.onCall(0).resolves('/my/repos');
+    inputStub.onCall(1).resolves('/my/workspaces');
+    inputStub.onCall(2).resolves('');
+    inputStub.onCall(3).resolves('herdr');
+
+    await runQuickstart(integration.services, { input: inputStub, shell: shellStub });
+
+    const saved = (integration.services.config.saveRaw as sinon.SinonStub).firstCall.args[0];
+    expect(saved['session-manager']).toBe('herdr');
+  });
+
+  it('should save no session manager when user chooses none', async () => {
+    inputStub.onCall(0).resolves('/my/repos');
+    inputStub.onCall(1).resolves('/my/workspaces');
+    inputStub.onCall(2).resolves('');
+    inputStub.onCall(3).resolves('none');
+
+    await runQuickstart(integration.services, { input: inputStub, shell: shellStub });
+
+    const saved = (integration.services.config.saveRaw as sinon.SinonStub).firstCall.args[0];
+    expect(saved['session-manager']).toBe('none');
+  });
+
+  it('should only offer session managers that are installed', async () => {
+    shellStub.execFile.withArgs('which', ['tmux']).rejects(new Error('which: no tmux in PATH'));
+
+    inputStub.onCall(0).resolves('/my/repos');
+    inputStub.onCall(1).resolves('/my/workspaces');
+    inputStub.onCall(2).resolves('');
+    inputStub.onCall(3).resolves('tmux');  // not installed, so re-prompted
+    inputStub.onCall(4).resolves('herdr');
+
+    await runQuickstart(integration.services, { input: inputStub, shell: shellStub });
+
+    expect(inputStub.getCall(3).args[0].message).toBe('Session manager (none/herdr)?');
+    const saved = (integration.services.config.saveRaw as sinon.SinonStub).firstCall.args[0];
+    expect(saved['session-manager']).toBe('herdr');
+  });
+
+  it('should re-prompt until a valid session manager is given', async () => {
     inputStub.onCall(0).resolves('/my/repos');
     inputStub.onCall(1).resolves('/my/workspaces');
     inputStub.onCall(2).resolves('');
     inputStub.onCall(3).resolves('yes');
+    inputStub.onCall(4).resolves(' TMUX ');
 
     await runQuickstart(integration.services, { input: inputStub, shell: shellStub });
 
+    const logs = (integration.stubs.console.log as sinon.SinonStub).args.map((a: any[]) => a[0]);
+    expect(logs.some((line: string) => line.includes('Choose one of: none, tmux, herdr'))).toBe(true);
     const saved = (integration.services.config.saveRaw as sinon.SinonStub).firstCall.args[0];
-    expect(saved['tmux']).toBe('true');
-  });
-
-  it('should save tmux as false when user answers no', async () => {
-    inputStub.onCall(0).resolves('/my/repos');
-    inputStub.onCall(1).resolves('/my/workspaces');
-    inputStub.onCall(2).resolves('');
-    inputStub.onCall(3).resolves('no');
-
-    await runQuickstart(integration.services, { input: inputStub, shell: shellStub });
-
-    const saved = (integration.services.config.saveRaw as sinon.SinonStub).firstCall.args[0];
-    expect(saved['tmux']).toBe('false');
+    expect(saved['session-manager']).toBe('tmux');
   });
 
   it('should pre-fill source-path prompt with existing value', async () => {
@@ -96,7 +128,7 @@ describe('quickstart integration', () => {
       'dest-path': '/existing/workspaces',
     });
 
-    inputStub.resolves('no');
+    inputStub.resolves('none');
 
     await runQuickstart(integration.services, { input: inputStub, shell: shellStub });
 
@@ -111,7 +143,7 @@ describe('quickstart integration', () => {
       'post-checkout': 'npm ci',
     });
 
-    inputStub.resolves('no');
+    inputStub.resolves('none');
 
     await runQuickstart(integration.services, { input: inputStub, shell: shellStub });
 
@@ -119,34 +151,43 @@ describe('quickstart integration', () => {
     expect(postCheckoutCall.default).toBe('npm ci');
   });
 
-  it('should pre-fill tmux prompt with yes when tmux is currently enabled', async () => {
+  it('should pre-fill the session manager prompt with the current setting', async () => {
+    integration.services.config.loadRaw = sinon.stub().returns({
+      'source-path': '/existing/repos',
+      'dest-path': '/existing/workspaces',
+      'session-manager': 'herdr',
+    });
+
+    inputStub.resolves('herdr');
+
+    await runQuickstart(integration.services, { input: inputStub, shell: shellStub });
+
+    expect(inputStub.getCall(3).args[0].default).toBe('herdr');
+  });
+
+  it('should pre-fill tmux from the legacy tmux setting, and replace that setting on save', async () => {
     integration.services.config.loadRaw = sinon.stub().returns({
       'source-path': '/existing/repos',
       'dest-path': '/existing/workspaces',
       'tmux': 'true',
     });
 
-    inputStub.resolves('yes');
+    inputStub.resolves('tmux');
 
     await runQuickstart(integration.services, { input: inputStub, shell: shellStub });
 
-    const tmuxCall = inputStub.getCall(3).args[0];
-    expect(tmuxCall.default).toBe('yes');
+    expect(inputStub.getCall(3).args[0].default).toBe('tmux');
+    const saved = (integration.services.config.saveRaw as sinon.SinonStub).firstCall.args[0];
+    expect(saved['session-manager']).toBe('tmux');
+    expect(saved).not.toHaveProperty('tmux');
   });
 
-  it('should pre-fill tmux prompt with no when tmux is currently disabled', async () => {
-    integration.services.config.loadRaw = sinon.stub().returns({
-      'source-path': '/existing/repos',
-      'dest-path': '/existing/workspaces',
-      'tmux': 'false',
-    });
-
-    inputStub.resolves('no');
+  it('should pre-fill none when nothing is configured', async () => {
+    inputStub.resolves('none');
 
     await runQuickstart(integration.services, { input: inputStub, shell: shellStub });
 
-    const tmuxCall = inputStub.getCall(3).args[0];
-    expect(tmuxCall.default).toBe('no');
+    expect(inputStub.getCall(3).args[0].default).toBe('none');
   });
 
   it('should not save config if a prompt throws', async () => {
@@ -168,7 +209,7 @@ describe('quickstart integration', () => {
     inputStub.onCall(0).resolves('/my/repos');
     inputStub.onCall(1).resolves('/my/workspaces');
     inputStub.onCall(2).resolves('');
-    inputStub.onCall(3).resolves('no');
+    inputStub.onCall(3).resolves('none');
 
     await runQuickstart(integration.services, { input: inputStub, shell: shellStub });
 
@@ -177,12 +218,12 @@ describe('quickstart integration', () => {
     expect(saved['branch-auto-select-repos']).toBe('repo1,repo2');
   });
 
-  describe('when tmux is not installed', () => {
+  describe('when no session manager is installed', () => {
     beforeEach(() => {
-      shellStub.execFile.rejects(new Error('which: no tmux in PATH'));
+      shellStub.execFile.rejects(new Error('which: not found'));
     });
 
-    it('should skip the tmux prompt', async () => {
+    it('should skip the session manager prompt', async () => {
       inputStub.onCall(0).resolves('/my/repos');
       inputStub.onCall(1).resolves('/my/workspaces');
       inputStub.onCall(2).resolves('');
@@ -192,7 +233,7 @@ describe('quickstart integration', () => {
       expect(inputStub.callCount).toBe(3);
     });
 
-    it('should save tmux as false when not installed and no existing setting', async () => {
+    it('should save no session manager when there is no existing setting', async () => {
       inputStub.onCall(0).resolves('/my/repos');
       inputStub.onCall(1).resolves('/my/workspaces');
       inputStub.onCall(2).resolves('');
@@ -200,10 +241,10 @@ describe('quickstart integration', () => {
       await runQuickstart(integration.services, { input: inputStub, shell: shellStub });
 
       const saved = (integration.services.config.saveRaw as sinon.SinonStub).firstCall.args[0];
-      expect(saved['tmux']).toBe('false');
+      expect(saved['session-manager']).toBe('none');
     });
 
-    it('should preserve existing tmux setting when tmux is not installed', async () => {
+    it('should preserve the existing session manager', async () => {
       integration.services.config.loadRaw = sinon.stub().returns({
         'source-path': '/existing/repos',
         'dest-path': '/existing/workspaces',
@@ -217,7 +258,7 @@ describe('quickstart integration', () => {
       await runQuickstart(integration.services, { input: inputStub, shell: shellStub });
 
       const saved = (integration.services.config.saveRaw as sinon.SinonStub).firstCall.args[0];
-      expect(saved['tmux']).toBe('true');
+      expect(saved['session-manager']).toBe('tmux');
     });
   });
 
@@ -225,7 +266,7 @@ describe('quickstart integration', () => {
     inputStub.onCall(0).resolves('/my/repos');
     inputStub.onCall(1).resolves('/my/workspaces');
     inputStub.onCall(2).resolves('');
-    inputStub.onCall(3).resolves('no');
+    inputStub.onCall(3).resolves('none');
 
     await runQuickstart(integration.services, { input: inputStub, shell: shellStub });
 
@@ -243,7 +284,7 @@ describe('quickstart integration', () => {
       inputStub.onCall(1).resolves('/my/repos');       // source-path attempt 2 (succeeds)
       inputStub.onCall(2).resolves('/my/workspaces');  // dest-path
       inputStub.onCall(3).resolves('');                // post-checkout
-      inputStub.onCall(4).resolves('no');              // tmux
+      inputStub.onCall(4).resolves('none');            // session manager
 
       await runQuickstart(integration.services, { input: inputStub, shell: shellStub });
 
@@ -259,7 +300,7 @@ describe('quickstart integration', () => {
       inputStub.onCall(1).resolves('/my/repos');       // source-path attempt 2 (succeeds)
       inputStub.onCall(2).resolves('/my/workspaces');  // dest-path
       inputStub.onCall(3).resolves('');                // post-checkout
-      inputStub.onCall(4).resolves('no');              // tmux
+      inputStub.onCall(4).resolves('none');            // session manager
 
       await runQuickstart(integration.services, { input: inputStub, shell: shellStub });
 

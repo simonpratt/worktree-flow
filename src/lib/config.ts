@@ -3,12 +3,15 @@ import os from 'node:os';
 import { z } from 'zod';
 import type { IFileSystem } from '../adapters/types.js';
 import { ConfigNotSetError } from './errors.js';
+import { SESSION_MANAGER_KINDS } from './sessionManager.js';
 
 // Raw config schema (as stored in JSON)
 const RawConfigSchema = z.object({
   'source-path': z.string().optional(),
   'dest-path': z.string().optional(),
   'copy-files': z.string().optional(),
+  'session-manager': z.enum(SESSION_MANAGER_KINDS).optional(),
+  /** Legacy: superseded by session-manager. `true` is read as session-manager tmux. */
   'tmux': z.enum(['true', 'false']).optional(),
   'post-checkout': z.string().optional(),
   'fetch-cache-ttl-seconds': z.string().optional(),
@@ -21,7 +24,7 @@ const ParsedConfigSchema = z.object({
   sourcePath: z.string().optional(),
   destPath: z.string().optional(),
   copyFiles: z.string().default('.env'),
-  tmux: z.boolean().default(false),
+  sessionManager: z.enum(SESSION_MANAGER_KINDS).default('none'),
   postCheckout: z.string().optional(),
   fetchCacheTtlSeconds: z.number().default(300),
   perRepoPostCheckout: z.record(z.string(), z.string()).default({}),
@@ -39,7 +42,7 @@ const ConfigValueSchemas = {
   'source-path': z.string().transform((val) => path.resolve(val)),
   'dest-path': z.string().transform((val) => path.resolve(val)),
   'copy-files': z.string(),
-  'tmux': z.enum(['true', 'false']),
+  'session-manager': z.enum(SESSION_MANAGER_KINDS),
   'post-checkout': z.string(),
   'fetch-cache-ttl-seconds': z.string().refine(
     (val) => {
@@ -55,7 +58,7 @@ export type RawConfig = z.infer<typeof RawConfigSchema>;
 export type ParsedConfig = z.infer<typeof ParsedConfigSchema>;
 export type RequiredConfig = z.infer<typeof RequiredConfigSchema>;
 
-export const CONFIG_KEYS = ['source-path', 'dest-path', 'copy-files', 'tmux', 'post-checkout', 'fetch-cache-ttl-seconds', 'branch-auto-select-repos'] as const;
+export const CONFIG_KEYS = ['source-path', 'dest-path', 'copy-files', 'session-manager', 'post-checkout', 'fetch-cache-ttl-seconds', 'branch-auto-select-repos'] as const;
 export type ConfigKey = (typeof CONFIG_KEYS)[number];
 
 /**
@@ -106,7 +109,7 @@ export class ConfigService {
       sourcePath: raw['source-path'],
       destPath: raw['dest-path'],
       copyFiles: raw['copy-files'],
-      tmux: raw.tmux === 'true',
+      sessionManager: raw['session-manager'] ?? (raw.tmux === 'true' ? 'tmux' : undefined),
       postCheckout: raw['post-checkout'],
       fetchCacheTtlSeconds: raw['fetch-cache-ttl-seconds']
         ? parseInt(raw['fetch-cache-ttl-seconds'], 10)
@@ -159,9 +162,10 @@ export class ConfigService {
         value: raw['copy-files'] ?? `${config.copyFiles} (default)`,
         isDefault: !raw['copy-files'],
       },
-      'tmux': {
-        value: raw.tmux ?? `${config.tmux} (default)`,
-        isDefault: !raw.tmux,
+      'session-manager': {
+        value: raw['session-manager']
+          ?? (raw.tmux === 'true' ? 'tmux (from legacy tmux setting)' : `${config.sessionManager} (default)`),
+        isDefault: !raw['session-manager'] && raw.tmux !== 'true',
       },
       'post-checkout': {
         value: raw['post-checkout'] ?? '(not set)',
