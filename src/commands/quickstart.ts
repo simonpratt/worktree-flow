@@ -3,6 +3,8 @@ import path from 'node:path';
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { createServices } from '../lib/services.js';
+import { defaultDestPath, validateWorkspacePaths } from '../lib/config.js';
+import { InvalidWorkspacePathsError } from '../lib/errors.js';
 import type { Services } from '../lib/services.js';
 import { NodeShell } from '../adapters/node.js';
 import type { IShell } from '../adapters/types.js';
@@ -11,7 +13,6 @@ import { handleCommandError } from './helpers.js';
 import { input, type InputOptions } from './prompts.js';
 
 const DIVIDER = chalk.dim('  ─────────────────────────────────────────────────');
-const DEFAULT_DEST_PATH = '~/dev/workspaces';
 const MAX_NAMES_SHOWN = 3;
 
 function expandTilde(p: string): string {
@@ -86,14 +87,26 @@ export async function runQuickstart(
   }
 
   services.console.log('');
-  services.console.log(chalk.dim('  Each branch gets its own folder here — should be an empty directory (e.g. ~/dev/workspaces)'));
-  const destPathRaw = await deps.input({
-    message: 'Where should workspaces be created?',
-    default: existing['dest-path'] ?? DEFAULT_DEST_PATH,
-    prefill: 'editable',
-  });
+  services.console.log(chalk.dim(`  Each branch gets its own folder here — a hidden folder inside your repos folder works well (e.g. ${defaultDestPath(sourcePath)})`));
+  let destPath!: string;
+  while (true) {
+    const destPathRaw = await deps.input({
+      message: 'Where should workspaces be created?',
+      default: existing['dest-path'] ?? defaultDestPath(sourcePath),
+      prefill: 'editable',
+    });
 
-  const destPath = path.resolve(expandTilde(destPathRaw));
+    const resolved = path.resolve(expandTilde(destPathRaw));
+
+    try {
+      validateWorkspacePaths(sourcePath, resolved);
+      destPath = resolved;
+      break;
+    } catch (err: any) {
+      if (!(err instanceof InvalidWorkspacePathsError)) throw err;
+      services.console.log(chalk.yellow(`  ⚠ ${err.message} Please try again \n`));
+    }
+  }
 
   const workspaces = services.workspaceDir.listWorkspaces(destPath);
   if (workspaces.length > 0) {

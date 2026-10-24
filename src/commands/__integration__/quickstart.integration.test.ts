@@ -13,6 +13,12 @@ describe('quickstart integration', () => {
   let shellStub: { execFile: sinon.SinonStub; spawnDetached: sinon.SinonStub };
   let discoverReposStub: sinon.SinonStub;
 
+  // Answers every prompt with `answer`, except the dest-path prompt, which must differ from the source-path
+  const answerAllPromptsWith = (answer: string) =>
+    inputStub.callsFake(async ({ message }: { message: string }) =>
+      message.startsWith('Where should workspaces') ? '/my/workspaces' : answer
+    );
+
   beforeEach(() => {
     inputStub = sinon.stub();
     // Default: both tmux and herdr are installed
@@ -128,7 +134,7 @@ describe('quickstart integration', () => {
       'dest-path': '/existing/workspaces',
     });
 
-    inputStub.resolves('none');
+    answerAllPromptsWith('none');
 
     await runQuickstart(integration.services, { input: inputStub, shell: shellStub });
 
@@ -143,7 +149,7 @@ describe('quickstart integration', () => {
       'post-checkout': 'npm ci',
     });
 
-    inputStub.resolves('none');
+    answerAllPromptsWith('none');
 
     await runQuickstart(integration.services, { input: inputStub, shell: shellStub });
 
@@ -158,7 +164,7 @@ describe('quickstart integration', () => {
       'session-manager': 'herdr',
     });
 
-    inputStub.resolves('herdr');
+    answerAllPromptsWith('herdr');
 
     await runQuickstart(integration.services, { input: inputStub, shell: shellStub });
 
@@ -172,7 +178,7 @@ describe('quickstart integration', () => {
       'tmux': 'true',
     });
 
-    inputStub.resolves('tmux');
+    answerAllPromptsWith('tmux');
 
     await runQuickstart(integration.services, { input: inputStub, shell: shellStub });
 
@@ -183,7 +189,7 @@ describe('quickstart integration', () => {
   });
 
   it('should pre-fill none when nothing is configured', async () => {
-    inputStub.resolves('none');
+    answerAllPromptsWith('none');
 
     await runQuickstart(integration.services, { input: inputStub, shell: shellStub });
 
@@ -262,16 +268,59 @@ describe('quickstart integration', () => {
     });
   });
 
-  it('should default dest-path to ~/dev/workspaces when no existing config', async () => {
+  it('should default dest-path to a .workspaces folder inside the chosen source-path', async () => {
     inputStub.onCall(0).resolves('/my/repos');
-    inputStub.onCall(1).resolves('/my/workspaces');
+    inputStub.onCall(1).resolves('/my/repos/.workspaces');
     inputStub.onCall(2).resolves('');
     inputStub.onCall(3).resolves('none');
 
     await runQuickstart(integration.services, { input: inputStub, shell: shellStub });
 
     const destPromptCall = inputStub.getCall(1).args[0];
-    expect(destPromptCall.default).toBe('~/dev/workspaces');
+    expect(destPromptCall.default).toBe('/my/repos/.workspaces');
+  });
+
+  it('should keep an existing dest-path as the default instead of the nested one', async () => {
+    (integration.services.config.loadRaw as sinon.SinonStub).returns({
+      'source-path': '/my/repos',
+      'dest-path': '/existing/workspaces',
+    });
+    inputStub.onCall(0).resolves('/my/repos');
+    inputStub.onCall(1).resolves('/existing/workspaces');
+    inputStub.onCall(2).resolves('');
+    inputStub.onCall(3).resolves('none');
+
+    await runQuickstart(integration.services, { input: inputStub, shell: shellStub });
+
+    expect(inputStub.getCall(1).args[0].default).toBe('/existing/workspaces');
+  });
+
+  describe('dest-path validation loop', () => {
+    it('should re-prompt when dest-path is the source-path', async () => {
+      inputStub.onCall(0).resolves('/my/repos');
+      inputStub.onCall(1).resolves('/my/repos');             // dest-path attempt 1 (rejected)
+      inputStub.onCall(2).resolves('/my/repos/.workspaces'); // dest-path attempt 2
+      inputStub.onCall(3).resolves('');
+      inputStub.onCall(4).resolves('none');
+
+      await runQuickstart(integration.services, { input: inputStub, shell: shellStub });
+
+      const saved = (integration.services.config.saveRaw as sinon.SinonStub).firstCall.args[0];
+      expect(saved['dest-path']).toBe('/my/repos/.workspaces');
+    });
+
+    it('should re-prompt when the source-path is inside the dest-path', async () => {
+      inputStub.onCall(0).resolves('/my/workspaces/repos');
+      inputStub.onCall(1).resolves('/my/workspaces');        // rejected
+      inputStub.onCall(2).resolves('/my/other');
+      inputStub.onCall(3).resolves('');
+      inputStub.onCall(4).resolves('none');
+
+      await runQuickstart(integration.services, { input: inputStub, shell: shellStub });
+
+      const saved = (integration.services.config.saveRaw as sinon.SinonStub).firstCall.args[0];
+      expect(saved['dest-path']).toBe('/my/other');
+    });
   });
 
   describe('source-path validation loop', () => {

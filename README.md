@@ -117,7 +117,7 @@ Settings are stored in `~/.config/flow/config.json`.
 | Key | Description | Default |
 |-----|-------------|---------|
 | `source-path` | Directory containing your source repos | *required* |
-| `dest-path` | Directory where workspaces are created | *required* |
+| `dest-path` | Directory where workspaces are created. May be inside `source-path` (e.g. `~/dev/.workspaces`), but not the same folder or a parent of it | `<source-path>/.workspaces` in `flow quickstart`, otherwise *required* |
 | `session-manager` | `tmux` or `herdr` to open a session per workspace (see [Sessions](#sessions-tmux--herdr)), or `none` | `none` |
 | `copy-files` | Comma-separated files to copy from source repos to worktrees (nested paths like `apps/web/.env` work) | `.env` |
 | `post-checkout` | Command to run after checkout (e.g. `npm ci`) | *none* |

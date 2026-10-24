@@ -9,6 +9,13 @@ export class ConfigNotSetError extends Error {
   }
 }
 
+export class InvalidWorkspacePathsError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidWorkspacePathsError';
+  }
+}
+
 export class WorkspaceNotFoundError extends Error {
   constructor(path: string) {
     super(`Workspace not found: ${path}`);

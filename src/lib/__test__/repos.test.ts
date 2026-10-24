@@ -45,6 +45,28 @@ describe('RepoService', () => {
       expect(repos).toEqual(['/source/repo1']);
     });
 
+    it('should not treat the configured dest-path as a repo when it is nested in the source-path', () => {
+      const { fs } = createMemFs({
+        '/source/repo1/.git/HEAD': '',
+        '/source/.workspaces/.git/HEAD': '',
+      });
+      const config = { load: () => ({ destPath: '/source/.workspaces' }) } as any;
+      const service = new RepoService(fs, undefined, config);
+
+      expect(service.discoverRepos('/source')).toEqual(['/source/repo1']);
+    });
+
+    it('should not return worktree folders from workspaces nested in the source-path', () => {
+      const { fs } = createMemFs({
+        '/source/repo1/.git/HEAD': '',
+        '/source/.workspaces/feat/repo1/.git': 'gitdir: /source/repo1/.git/worktrees/feat',
+      });
+      const config = { load: () => ({ destPath: '/source/.workspaces' }) } as any;
+      const service = new RepoService(fs, undefined, config);
+
+      expect(service.discoverRepos('/source')).toEqual(['/source/repo1']);
+    });
+
     it('should return empty array when no git repos found', () => {
       const { fs } = createMemFs({
         '/source/not-a-repo/README.md': 'readme',

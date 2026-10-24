@@ -37,7 +37,7 @@ export function createServices() {
   const sessionManagers = new SessionManagers({ tmux, herdr });
   const fetchCache = new FetchCacheService(fs);
   const fetch = new FetchService(git, console, fetchCache);
-  const repos = new RepoService(fs, git);
+  const repos = new RepoService(fs, git, config);
   const postCheckout = new PostCheckoutService(shell);
   const repoConfig = new RepoConfigService(fs);
   const trash = new TrashService(fs, shell);

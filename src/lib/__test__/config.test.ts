@@ -1,7 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
-import { ConfigService, validateAndTransformConfigValue, isValidKey, getConfigPath } from '../config.js';
-import { ConfigNotSetError } from '../errors.js';
+import {
+  ConfigService,
+  validateAndTransformConfigValue,
+  validateWorkspacePaths,
+  defaultDestPath,
+  isValidKey,
+  getConfigPath,
+} from '../config.js';
+import { ConfigNotSetError, InvalidWorkspacePathsError } from '../errors.js';
 import { createMemFs } from '../../test/test-utils.js';
 
 const configPath = getConfigPath();
@@ -535,5 +542,35 @@ describe('getConfigPath', () => {
   it('should return config path in .config/flow directory', () => {
     const configPath = getConfigPath();
     expect(configPath).toMatch(/\.config\/flow\/config\.json$/);
+  });
+});
+
+describe('validateWorkspacePaths', () => {
+  it('should accept a dest-path nested inside the source-path', () => {
+    expect(() => validateWorkspacePaths('/home/user/dev', '/home/user/dev/.workspaces')).not.toThrow();
+  });
+
+  it('should accept a dest-path outside the source-path', () => {
+    expect(() => validateWorkspacePaths('/home/user/dev', '/home/user/workspaces')).not.toThrow();
+  });
+
+  it('should accept sibling folders that merely share a name prefix', () => {
+    expect(() => validateWorkspacePaths('/home/user/dev', '/home/user/dev-workspaces')).not.toThrow();
+  });
+
+  it('should reject a dest-path equal to the source-path', () => {
+    expect(() => validateWorkspacePaths('/home/user/dev', '/home/user/dev/')).toThrow(InvalidWorkspacePathsError);
+  });
+
+  it('should reject a source-path inside the dest-path', () => {
+    expect(() => validateWorkspacePaths('/home/user/workspaces/repos', '/home/user/workspaces')).toThrow(
+      InvalidWorkspacePathsError
+    );
+  });
+});
+
+describe('defaultDestPath', () => {
+  it('should nest a hidden .workspaces folder inside the source-path', () => {
+    expect(defaultDestPath('/home/user/dev')).toBe('/home/user/dev/.workspaces');
   });
 });

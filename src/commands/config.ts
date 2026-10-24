@@ -4,6 +4,7 @@ import { z } from 'zod';
 import {
   isValidKey,
   validateAndTransformConfigValue,
+  validateWorkspacePaths,
   CONFIG_KEYS,
   type ConfigKey,
 } from '../lib/config.js';
@@ -33,6 +34,9 @@ export function registerConfigCommand(program: Command): void {
         const transformedValue = validateAndTransformConfigValue(key as ConfigKey, value);
 
         (config as any)[key] = transformedValue;
+        if (config['source-path'] && config['dest-path']) {
+          validateWorkspacePaths(config['source-path'], config['dest-path']);
+        }
         services.config.saveRaw(config);
 
         services.console.log(chalk.green(`Set ${key} = ${transformedValue}`));

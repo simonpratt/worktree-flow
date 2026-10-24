@@ -1,6 +1,7 @@
 import path from 'node:path';
 import type { IFileSystem } from '../adapters/types.js';
 import type { GitService } from './git.js';
+import type { ConfigService } from './config.js';
 
 export type RepoBranchCheckResult = {
   repoPath: string;
@@ -15,14 +16,18 @@ export type RepoBranchCheckResult = {
 export class RepoService {
   constructor(
     private fs: IFileSystem,
-    private git?: GitService
+    private git?: GitService,
+    private config?: Pick<ConfigService, 'load'>
   ) {}
 
+  /** Lists the repos directly inside sourcePath, ignoring the dest-path when workspaces are nested there. */
   discoverRepos(sourcePath: string): string[] {
+    const destPath = this.config?.load().destPath;
     const entries = this.fs.readdirSync(sourcePath, { withFileTypes: true });
     return entries
       .filter((entry: any) => entry.isDirectory())
       .map((entry: any) => path.join(sourcePath, entry.name))
+      .filter((dirPath: string) => !destPath || path.resolve(dirPath) !== path.resolve(destPath))
       .filter((dirPath: string) => this.fs.existsSync(path.join(dirPath, '.git')))
       .sort();
   }

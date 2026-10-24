@@ -158,7 +158,6 @@ export function createIntegrationServices(sourcePath: string, destPath: string):
   const herdrStub = Object.assign(createMockSessionManager('herdr'), {
     isInstalled: sinon.stub().resolves(false),
   });
-  const repos = new RepoService(nodeFs, gitService);
   const postCheckout = new PostCheckoutService(nodeShell);
   const repoConfig = new RepoConfigService(nodeFs);
 
@@ -199,6 +198,8 @@ export function createIntegrationServices(sourcePath: string, destPath: string):
     set: sinon.stub(),
     getDisplayConfig: sinon.stub(),
   } as any;
+
+  const repos = new RepoService(nodeFs, gitService, config);
 
   const services: Services = {
     config,

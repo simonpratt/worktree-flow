@@ -2,7 +2,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { z } from 'zod';
 import type { IFileSystem } from '../adapters/types.js';
-import { ConfigNotSetError } from './errors.js';
+import { ConfigNotSetError, InvalidWorkspacePathsError } from './errors.js';
 import { SESSION_MANAGER_KINDS } from './sessionManager.js';
 
 // Raw config schema (as stored in JSON)
@@ -73,6 +73,31 @@ export function validateAndTransformConfigValue(
 ): string {
   const schema = ConfigValueSchemas[key];
   return schema.parse(value);
+}
+
+/**
+ * Workspaces live in a hidden folder inside the source-path by default, like worktrees inside a repo.
+ * @example defaultDestPath('/home/me/dev') → '/home/me/dev/.workspaces'
+ */
+export function defaultDestPath(sourcePath: string): string {
+  return path.join(sourcePath, '.workspaces');
+}
+
+/**
+ * A dest-path may sit inside the source-path, but the two can't be the same folder,
+ * and the source-path can't sit inside the dest-path.
+ * @throws InvalidWorkspacePathsError
+ */
+export function validateWorkspacePaths(sourcePath: string, destPath: string): void {
+  const source = path.resolve(sourcePath);
+  const dest = path.resolve(destPath);
+  if (source === dest) {
+    throw new InvalidWorkspacePathsError('dest-path must be different from source-path.');
+  }
+  const sourceRelativeToDest = path.relative(dest, source);
+  if (!sourceRelativeToDest.startsWith('..') && !path.isAbsolute(sourceRelativeToDest)) {
+    throw new InvalidWorkspacePathsError('source-path must not be inside dest-path.');
+  }
 }
 
 export function isValidKey(key: string): key is ConfigKey {

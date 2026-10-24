@@ -396,6 +396,35 @@ describe('create integration', () => {
     expect(fs.existsSync(path.join(workspacePath, 'notes.txt'))).toBe(false);
   });
 
+  it('should support a dest-path nested inside the source-path', async () => {
+    const repoA = await initGitRepo(sourcePath, 'repo-a');
+    const repoB = await initGitRepo(sourcePath, 'repo-b');
+    await initGitRepo(sourcePath, 'repo-c');
+    const nestedDest = path.join(sourcePath, '.workspaces');
+
+    integration = createIntegrationServices(sourcePath, nestedDest);
+    await runCreate('feat-123', integration.useCases, integration.services, {
+      pickRepos: sinon.stub().resolves([repoA, repoB]),
+      input: inputStub,
+      confirm: confirmStub,
+    });
+
+    expect(fs.readdirSync(path.join(nestedDest, 'feat-123')).filter((n) => !n.startsWith('.') && n !== 'flow-config.json').sort())
+      .toEqual(['repo-a', 'repo-b']);
+
+    // The first workspace's worktrees are not mistaken for source repos by the next create
+    const pickReposStub = sinon.stub().resolves([repoA]);
+    await runCreate('feat-456', integration.useCases, integration.services, {
+      pickRepos: pickReposStub,
+      input: inputStub,
+      confirm: confirmStub,
+    });
+
+    const offered = pickReposStub.firstCall.args[0].options.map((o: { label: string }) => o.label);
+    expect(offered).toEqual(['repo-a', 'repo-b', 'repo-c']);
+    expect(fs.existsSync(path.join(nestedDest, 'feat-456', 'repo-a'))).toBe(true);
+  });
+
   it('should strip AGENTS.md lines that mention repos not included in the workspace', async () => {
     const api1 = await initGitRepo(sourcePath, 'api-1');
     await initGitRepo(sourcePath, 'api-2');
