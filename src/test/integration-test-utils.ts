@@ -154,7 +154,10 @@ export function createIntegrationServices(sourcePath: string, destPath: string):
   const parallel = new ParallelService(consoleStub);
   const status = new StatusService(gitService);
   const tmuxStub = createMockSessionManager('tmux');
-  const herdrStub = createMockSessionManager('herdr');
+  // herdr isn't installed by default, so commands don't offer the herdr integration
+  const herdrStub = Object.assign(createMockSessionManager('herdr'), {
+    isInstalled: sinon.stub().resolves(false),
+  });
   const repos = new RepoService(nodeFs, gitService);
   const postCheckout = new PostCheckoutService(nodeShell);
   const repoConfig = new RepoConfigService(nodeFs);
@@ -193,6 +196,7 @@ export function createIntegrationServices(sourcePath: string, destPath: string):
     getRequired: sinon.stub().returns({ sourcePath, destPath }),
     loadRaw: sinon.stub(),
     saveRaw: sinon.stub(),
+    set: sinon.stub(),
     getDisplayConfig: sinon.stub(),
   } as any;
 

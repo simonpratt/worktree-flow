@@ -211,6 +211,85 @@ describe('create integration', () => {
     ).toBe(true);
   });
 
+  describe('herdr integration prompt', () => {
+    const herdrPrompt = sinon.match({ message: sinon.match(/herdr is installed/) });
+
+    beforeEach(() => {
+      integration = createIntegrationServices(sourcePath, destPath);
+      (integration.services.herdr as any).isInstalled.resolves(true);
+    });
+
+    it('should enable herdr when accepted, and open a herdr session for this workspace', async () => {
+      await initGitRepo(sourcePath, 'repo1');
+      confirmStub.withArgs(herdrPrompt).resolves(true);
+      const herdrStub = integration.services.herdr as sinon.SinonStubbedInstance<any>;
+
+      await runCreate(
+        'feature',
+        integration.useCases,
+        integration.services,
+        { pickRepos: sinon.stub(), input: inputStub, confirm: confirmStub },
+        { repos: ['repo1'], sourceBranch: 'master' }
+      );
+
+      sinon.assert.calledOnceWithExactly(integration.services.config.set as sinon.SinonStub, {
+        'session-manager': 'herdr',
+        'herdr-prompted': 'true',
+      });
+      const workspacePath = path.join(destPath, 'feature');
+      sinon.assert.calledOnceWithExactly(herdrStub.create, 'feature', workspacePath, [
+        { path: path.join(workspacePath, 'repo1'), command: undefined },
+      ]);
+      const logs = (integration.stubs.console.log as sinon.SinonStub).args.map((a: any[]) => a[0]);
+      expect(logs.some((line: string) => line.includes('Created herdr session:'))).toBe(true);
+    });
+
+    it('should remember a decline and not open a session', async () => {
+      await initGitRepo(sourcePath, 'repo1');
+      confirmStub.withArgs(herdrPrompt).resolves(false);
+      const herdrStub = integration.services.herdr as sinon.SinonStubbedInstance<any>;
+
+      await runCreate(
+        'feature',
+        integration.useCases,
+        integration.services,
+        { pickRepos: sinon.stub(), input: inputStub, confirm: confirmStub },
+        { repos: ['repo1'], sourceBranch: 'master' }
+      );
+
+      sinon.assert.calledOnceWithExactly(integration.services.config.set as sinon.SinonStub, {
+        'herdr-prompted': 'true',
+      });
+      sinon.assert.notCalled(herdrStub.create);
+      expect(fs.existsSync(path.join(destPath, 'feature', 'repo1'))).toBe(true);
+    });
+
+    it('should not ask when the user has already been asked', async () => {
+      await initGitRepo(sourcePath, 'repo1');
+      integration.services.config.load = sinon.stub().returns({
+        sourcePath,
+        destPath,
+        copyFiles: '.env',
+        sessionManager: 'none',
+        perRepoPostCheckout: {},
+        fetchCacheTtlSeconds: 300,
+        branchAutoSelectRepos: [],
+        herdrPrompted: true,
+      });
+
+      await runCreate(
+        'feature',
+        integration.useCases,
+        integration.services,
+        { pickRepos: sinon.stub(), input: inputStub, confirm: confirmStub },
+        { repos: ['repo1'], sourceBranch: 'master' }
+      );
+
+      sinon.assert.neverCalledWith(confirmStub, herdrPrompt);
+      sinon.assert.notCalled(integration.services.config.set as sinon.SinonStub);
+    });
+  });
+
   it('should use --no-post-checkout to skip the post-checkout prompt and not run it', async () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
 

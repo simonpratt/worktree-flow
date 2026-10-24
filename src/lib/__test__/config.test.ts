@@ -76,6 +76,20 @@ describe('ConfigService', () => {
     });
   });
 
+  describe('set', () => {
+    it('should merge the values into the existing config', () => {
+      const { vol, fs } = createMemFs({
+        [configPath]: JSON.stringify({ 'source-path': '/repos', 'session-manager': 'none' }),
+      });
+      const service = new ConfigService(fs);
+
+      service.set({ 'session-manager': 'herdr', 'herdr-prompted': 'true' });
+
+      const written = JSON.parse(vol.readFileSync(configPath, 'utf-8') as string);
+      expect(written).toEqual({ 'source-path': '/repos', 'session-manager': 'herdr', 'herdr-prompted': 'true' });
+    });
+  });
+
   describe('load', () => {
     it('should return config with defaults when file does not exist', () => {
       const { fs } = createMemFs();
@@ -90,6 +104,7 @@ describe('ConfigService', () => {
         postCheckout: undefined,
         perRepoPostCheckout: {},
         branchAutoSelectRepos: [],
+        herdrPrompted: false,
       });
     });
 
@@ -113,6 +128,7 @@ describe('ConfigService', () => {
         postCheckout: undefined,
         perRepoPostCheckout: {},
         branchAutoSelectRepos: [],
+        herdrPrompted: false,
       });
     });
 
@@ -123,6 +139,15 @@ describe('ConfigService', () => {
       const service = new ConfigService(fs);
 
       expect(service.load().sessionManager).toBe('herdr');
+    });
+
+    it('should read whether the herdr prompt has been shown', () => {
+      const { fs } = createMemFs({
+        [configPath]: JSON.stringify({ 'herdr-prompted': 'true' }),
+      });
+      const service = new ConfigService(fs);
+
+      expect(service.load().herdrPrompted).toBe(true);
     });
 
     it('should read the legacy tmux true setting as session-manager tmux', () => {

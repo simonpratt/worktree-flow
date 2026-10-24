@@ -6,7 +6,7 @@ import { createUseCases } from '../usecases/usecases.js';
 import type { Services } from '../lib/services.js';
 import type { UseCases } from '../usecases/usecases.js';
 import { NoReposFoundError } from '../lib/errors.js';
-import { buildRepoOptions, handleCommandError, resolveReposByName, logCopyFiles, logSession, logPostCheckout } from './helpers.js';
+import { buildRepoOptions, handleCommandError, resolveReposByName, logCopyFiles, logSession, logPostCheckout, logHerdrIntegrationEnabled } from './helpers.js';
 import { confirm, input, pickRepos, type InputOptions, type RepoPickerOptions } from './prompts.js';
 
 export async function runCreate(
@@ -55,6 +55,13 @@ export async function runCreate(
       message: `Run "${config.postCheckout}" in all workspaces?`,
       default: true,
     }));
+  }
+
+  const { sessionManager, enabled: herdrEnabled } = await useCases.offerHerdrIntegration.execute({
+    confirm: deps.confirm,
+  });
+  if (herdrEnabled) {
+    logHerdrIntegrationEnabled(services.console);
   }
 
   services.console.log('\nCreating workspace...');
@@ -127,7 +134,7 @@ export async function runCreate(
 
   // 3. Open the session with a terminal per worktree, running post-checkout in each
   const session = await useCases.openWorkspaceSession.execute({
-    sessionManager: config.sessionManager,
+    sessionManager,
     workspacePath,
     sessionName: branchName,
     panes: fulfilledResults.map((r) => ({ path: r.worktreePath, command: r.postCheckout })),
@@ -138,7 +145,7 @@ export async function runCreate(
     `\nCreated workspace at ${chalk.cyan(workspacePath)} with ${successCount}/${totalCount} repos.`
   );
 
-  logSession(session, config.sessionManager, branchName, services.console);
+  logSession(session, sessionManager, branchName, services.console);
 
   logCopyFiles(fulfilledResults, config.copyFiles, services.console);
 

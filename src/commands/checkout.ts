@@ -5,7 +5,7 @@ import { createServices } from '../lib/services.js';
 import { createUseCases } from '../usecases/usecases.js';
 import type { Services } from '../lib/services.js';
 import type { UseCases } from '../usecases/usecases.js';
-import { handleCommandError, logCopyFiles, logSession, logPostCheckout } from './helpers.js';
+import { handleCommandError, logCopyFiles, logSession, logPostCheckout, logHerdrIntegrationEnabled } from './helpers.js';
 import { confirm } from './prompts.js';
 
 export async function runCheckout(
@@ -76,6 +76,14 @@ export async function runCheckout(
       });
     }
 
+    // 5b. Offer the herdr integration, if herdr is installed and no session manager is set
+    const { sessionManager, enabled: herdrEnabled } = await useCases.offerHerdrIntegration.execute({
+      confirm: deps.confirm,
+    });
+    if (herdrEnabled) {
+      logHerdrIntegrationEnabled(services.console);
+    }
+
     // 6. Create workspace directory, placeholder config, AGENTS.md
     const { workspacePath } = await useCases.createWorkspace.execute({
       branchName,
@@ -140,7 +148,7 @@ export async function runCheckout(
 
     // 8. Open the session with a terminal per worktree, running post-checkout in each
     const session = await useCases.openWorkspaceSession.execute({
-      sessionManager: config.sessionManager,
+      sessionManager,
       workspacePath,
       sessionName: branchName,
       panes: fulfilledResults.map((r) => ({ path: r.worktreePath, command: r.postCheckout })),
@@ -151,7 +159,7 @@ export async function runCheckout(
       `\nCreated workspace at ${chalk.cyan(workspacePath)} with ${successCount}/${totalCount} repos.`
     );
 
-    logSession(session, config.sessionManager, branchName, services.console);
+    logSession(session, sessionManager, branchName, services.console);
 
     logCopyFiles(fulfilledResults, config.copyFiles, services.console);
 

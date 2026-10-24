@@ -334,4 +334,18 @@ describe('HerdrService', () => {
       await expect(service.rename('feat/x', 'feat/y')).resolves.toBe(false);
     });
   });
+
+  describe('isInstalled', () => {
+    it('should report herdr as installed when it is on the PATH', async () => {
+      shell.execFile.withArgs('which', ['herdr']).resolves({ stdout: '/usr/local/bin/herdr\n', stderr: '' });
+
+      await expect(service.isInstalled()).resolves.toBe(true);
+    });
+
+    it('should report herdr as not installed when it is not on the PATH', async () => {
+      shell.execFile.withArgs('which', ['herdr']).rejects(new Error('exit 1'));
+
+      await expect(service.isInstalled()).resolves.toBe(false);
+    });
+  });
 });

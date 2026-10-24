@@ -72,6 +72,7 @@ export function createMockServices(): {
     config: {
       loadRaw: sinon.stub(),
       saveRaw: sinon.stub(),
+      set: sinon.stub(),
       load: sinon.stub().returns({
         copyFiles: '.env',
         sessionManager: 'none',

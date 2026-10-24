@@ -188,6 +188,13 @@ export function logSession(
 }
 
 /**
+ * Logs that the herdr integration was just enabled, and how to turn it off.
+ */
+export function logHerdrIntegrationEnabled(console: IConsole): void {
+  console.log(`Enabled herdr integration. To turn it off: ${chalk.cyan('flow config set session-manager none')}`);
+}
+
+/**
  * Logs how many post-checkout commands succeeded. Returns how many ran.
  */
 export function logPostCheckout(result: OpenWorkspaceSessionResult, console: IConsole): number {

@@ -18,6 +18,7 @@ import { DiscoverReposWithBranchUseCase } from './discoverReposWithBranch.js';
 import { RenameWorkspaceFolderUseCase } from './renameWorkspaceFolder.js';
 import { RenameWorkspaceBranchesUseCase } from './renameWorkspaceBranches.js';
 import { RenameSessionUseCase } from './renameSession.js';
+import { OfferHerdrIntegrationUseCase } from './offerHerdrIntegration.js';
 
 /**
  * Factory function for creating all use cases with their service dependencies.
@@ -98,6 +99,7 @@ export function createUseCases(services: Services) {
       services.repos
     ),
     renameSession: new RenameSessionUseCase(services.sessionManagers),
+    offerHerdrIntegration: new OfferHerdrIntegrationUseCase(services.config, services.herdr),
   };
 }
 

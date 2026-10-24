@@ -83,6 +83,27 @@ describe('checkout integration', () => {
     ]);
   });
 
+  it('should offer the herdr integration and open a herdr session when accepted', async () => {
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+    await createRemoteBranchRef(repo1, 'feature');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+    const herdrStub = integration.services.herdr as sinon.SinonStubbedInstance<any>;
+    herdrStub.isInstalled.resolves(true);
+    confirmStub.withArgs(sinon.match({ message: sinon.match(/herdr is installed/) })).resolves(true);
+
+    await runCheckout('feature', integration.useCases, integration.services, { confirm: confirmStub });
+
+    sinon.assert.calledOnceWithExactly(integration.services.config.set as sinon.SinonStub, {
+      'session-manager': 'herdr',
+      'herdr-prompted': 'true',
+    });
+    const workspacePath = path.join(destPath, 'feature');
+    sinon.assert.calledOnceWithExactly(herdrStub.create, 'feature', workspacePath, [
+      { path: path.join(workspacePath, 'repo1'), command: undefined },
+    ]);
+  });
+
   it('should call process.exit(1) when branch not found in any repo', async () => {
     await initGitRepo(sourcePath, 'repo1');
 

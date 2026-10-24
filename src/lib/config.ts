@@ -17,6 +17,8 @@ const RawConfigSchema = z.object({
   'fetch-cache-ttl-seconds': z.string().optional(),
   'per-repo-post-checkout': z.record(z.string(), z.string()).optional(),
   'branch-auto-select-repos': z.string().optional(),
+  /** Set once the user has been offered the herdr integration, so they aren't asked again. */
+  'herdr-prompted': z.enum(['true', 'false']).optional(),
 });
 
 // Parsed config schema (with proper types)
@@ -29,6 +31,7 @@ const ParsedConfigSchema = z.object({
   fetchCacheTtlSeconds: z.number().default(300),
   perRepoPostCheckout: z.record(z.string(), z.string()).default({}),
   branchAutoSelectRepos: z.array(z.string()).default([]),
+  herdrPrompted: z.boolean().default(false),
 });
 
 // Required config schema (for getRequired)
@@ -103,6 +106,11 @@ export class ConfigService {
     this.fs.writeFileSync(configPath, JSON.stringify(validated, null, 2) + '\n');
   }
 
+  /** Merges the given values into the stored config. */
+  set(values: RawConfig): void {
+    this.saveRaw({ ...this.loadRaw(), ...values });
+  }
+
   load(): ParsedConfig {
     const raw = this.loadRaw();
     return ParsedConfigSchema.parse({
@@ -118,6 +126,7 @@ export class ConfigService {
       branchAutoSelectRepos: raw['branch-auto-select-repos']
         ? raw['branch-auto-select-repos'].split(',').map((s) => s.trim()).filter(Boolean)
         : undefined,
+      herdrPrompted: raw['herdr-prompted'] === 'true',
     });
   }
 

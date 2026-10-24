@@ -187,6 +187,15 @@ export class HerdrService implements SessionManager {
     );
   }
 
+  async isInstalled(): Promise<boolean> {
+    try {
+      await this.shell.execFile('which', ['herdr']);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async exists(name: string): Promise<boolean> {
     return (await this.findWorkspaceId(name)) !== undefined;
   }
