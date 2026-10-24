@@ -212,11 +212,29 @@ describe('create integration', () => {
   });
 
   describe('herdr integration prompt', () => {
+    let pickReposStub: sinon.SinonStub;
     const herdrPrompt = sinon.match({ message: sinon.match(/herdr is installed/) });
 
     beforeEach(() => {
       integration = createIntegrationServices(sourcePath, destPath);
       (integration.services.herdr as any).isInstalled.resolves(true);
+      pickReposStub = sinon.stub().resolves([path.join(sourcePath, 'repo1')]);
+    });
+
+    it('should not ask when repos are provided via --repo', async () => {
+      await initGitRepo(sourcePath, 'repo1');
+
+      await runCreate(
+        'feature',
+        integration.useCases,
+        integration.services,
+        { pickRepos: sinon.stub(), input: inputStub, confirm: confirmStub },
+        { repos: ['repo1'], sourceBranch: 'master' }
+      );
+
+      sinon.assert.neverCalledWith(confirmStub, herdrPrompt);
+      sinon.assert.notCalled(integration.services.config.set as sinon.SinonStub);
+      expect(fs.existsSync(path.join(destPath, 'feature', 'repo1'))).toBe(true);
     });
 
     it('should enable herdr when accepted, and open a herdr session for this workspace', async () => {
@@ -228,8 +246,8 @@ describe('create integration', () => {
         'feature',
         integration.useCases,
         integration.services,
-        { pickRepos: sinon.stub(), input: inputStub, confirm: confirmStub },
-        { repos: ['repo1'], sourceBranch: 'master' }
+        { pickRepos: pickReposStub, input: inputStub, confirm: confirmStub },
+        { sourceBranch: 'master' }
       );
 
       sinon.assert.calledOnceWithExactly(integration.services.config.set as sinon.SinonStub, {
@@ -253,8 +271,8 @@ describe('create integration', () => {
         'feature',
         integration.useCases,
         integration.services,
-        { pickRepos: sinon.stub(), input: inputStub, confirm: confirmStub },
-        { repos: ['repo1'], sourceBranch: 'master' }
+        { pickRepos: pickReposStub, input: inputStub, confirm: confirmStub },
+        { sourceBranch: 'master' }
       );
 
       sinon.assert.calledOnceWithExactly(integration.services.config.set as sinon.SinonStub, {
@@ -281,8 +299,8 @@ describe('create integration', () => {
         'feature',
         integration.useCases,
         integration.services,
-        { pickRepos: sinon.stub(), input: inputStub, confirm: confirmStub },
-        { repos: ['repo1'], sourceBranch: 'master' }
+        { pickRepos: pickReposStub, input: inputStub, confirm: confirmStub },
+        { sourceBranch: 'master' }
       );
 
       sinon.assert.neverCalledWith(confirmStub, herdrPrompt);

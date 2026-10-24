@@ -74,6 +74,15 @@ describe('OfferHerdrIntegrationUseCase', () => {
     expect(result).toEqual({ sessionManager: 'tmux', enabled: false });
   });
 
+  it('does not ask, check for herdr, or record anything when not interactive', async () => {
+    const result = await useCase.execute({ confirm, interactive: false });
+
+    sinon.assert.notCalled(herdr.isInstalled);
+    sinon.assert.notCalled(confirm);
+    sinon.assert.notCalled(config.set);
+    expect(result).toEqual({ sessionManager: 'none', enabled: false });
+  });
+
   it('asks again next time if the prompt is cancelled', async () => {
     confirm.rejects(new PromptCancelledError());
 

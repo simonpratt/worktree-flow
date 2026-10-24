@@ -4,6 +4,8 @@ import type { SessionManagerKind } from '../lib/sessionManager.js';
 
 export type OfferHerdrIntegrationParams = {
   confirm: (opts: { message: string; default: boolean }) => Promise<boolean>;
+  /** When false (programmatic invocation), never prompt and never record anything */
+  interactive?: boolean;
 };
 
 export type OfferHerdrIntegrationResult = {
@@ -28,7 +30,7 @@ export class OfferHerdrIntegrationUseCase {
   async execute(params: OfferHerdrIntegrationParams): Promise<OfferHerdrIntegrationResult> {
     const { sessionManager, herdrPrompted } = this.config.load();
 
-    if (sessionManager !== 'none' || herdrPrompted || !(await this.herdr.isInstalled())) {
+    if (params.interactive === false || sessionManager !== 'none' || herdrPrompted || !(await this.herdr.isInstalled())) {
       return { sessionManager, enabled: false };
     }
 

@@ -59,6 +59,7 @@ export async function runCreate(
 
   const { sessionManager, enabled: herdrEnabled } = await useCases.offerHerdrIntegration.execute({
     confirm: deps.confirm,
+    interactive: !(options.repos && options.repos.length > 0),
   });
   if (herdrEnabled) {
     logHerdrIntegrationEnabled(services.console);

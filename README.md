@@ -148,7 +148,7 @@ With `session-manager` set, `create`, `checkout` and `attach` open a session for
 - **tmux**: one window with a pane at the workspace root plus one per worktree, tiled.
 - **herdr**: a workspace with a `root` tab split in half at the workspace root, and a `repos` tab with a pane per worktree in a grid. A herdr server is started in the background if none is running; respects `HERDR_SESSION`.
 
-If herdr is installed and no session manager is set, `create` and `checkout` offer to enable herdr once. Yes sets `session-manager: herdr` and uses it right away. No is remembered, so you won't be asked again.
+If herdr is installed and no session manager is set, `create` (unless `--repo` is given) and `checkout` offer to enable herdr once. Yes sets `session-manager: herdr` and uses it right away. No is remembered, so you won't be asked again.
 
 If the session can't be opened, post-checkout runs directly instead. The old `tmux: true` setting is still read as `session-manager: tmux`.
 
