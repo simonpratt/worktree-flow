@@ -84,12 +84,9 @@ Check the status of all repos in a workspace. Shows uncommitted changes, commits
 
 ### `flow list` (alias: `ls`)
 
-List all workspaces with status indicators. Shows:
-- Active workspace (marked with `*`) based on current directory
-- Overall status: `clean`, `uncommitted`, `ahead`, or `mixed`
-- Repo count for each workspace
+List all workspaces with their repo count, marking the active workspace (based on current directory) with `*`. This is a fast, offline listing.
 
-Fetches all repos before checking status to ensure accurate information. The status check uses git's patch-id comparison, which correctly handles squash-merged branches.
+Pass `--status` to fetch all repos and show each repo's status: `clean`, `uncommitted`, `ahead`, or `mixed`. The status check uses git's patch-id comparison, which correctly handles squash-merged branches.
 
 ### `flow drop <name>`
 
@@ -99,7 +96,7 @@ The workspace is moved into `.flow-trash/` in your workspaces folder and deleted
 
 ### `flow prune`
 
-Remove workspaces interactively. Displays full workspace status (identical to `flow list`), then excludes any workspaces with uncommitted changes or errors from the selection prompt. Resolve issues before pruning those workspaces.
+Remove workspaces interactively. Displays full workspace status (identical to `flow list --status`), then excludes any workspaces with uncommitted changes or errors from the selection prompt. Resolve issues before pruning those workspaces.
 
 ### `flow fetch [name]`
 

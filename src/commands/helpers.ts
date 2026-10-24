@@ -53,6 +53,23 @@ export function logStatusFetching(
 }
 
 /**
+ * Render a plain workspace list without status.
+ */
+export function logWorkspaces(
+  header: string,
+  workspaces: Array<WorkspaceLoadingInfo & { isActive: boolean }>,
+  console: IConsole
+): void {
+  console.log(chalk.bold(`\n${header}`));
+  for (const ws of workspaces) {
+    const activeIndicator = ws.isActive ? chalk.green('* ') : '  ';
+    const repoCount = chalk.dim(`(${ws.repoCount} repo${ws.repoCount === 1 ? '' : 's'})`);
+    console.log(`${activeIndicator}${chalk.cyan(ws.name)} ${repoCount}`);
+  }
+  console.log('');
+}
+
+/**
  * Render Phase 2: clear the Phase 1 lines then print the header and full workspace status.
  */
 export function logStatus(

@@ -37,6 +37,72 @@ describe('list integration', () => {
     sinon.assert.calledWith(integration.stubs.console.log as any, 'No workspaces found.');
   });
 
+  it('should list workspaces without status or fetching by default', async () => {
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+    const repo2 = await initGitRepo(sourcePath, 'repo2');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+
+    const result = await createTestWorkspace(integration.useCases, {
+      repos: [repo1, repo2],
+      branchName: 'feature-a',
+      sourceBranch: 'master',
+      sourcePath,
+      destPath,
+      copyFiles: '.env',
+    });
+    fs.writeFileSync(path.join(result.workspacePath, 'repo1', 'dirty.txt'), 'uncommitted\n');
+
+    const fetchSpy = sinon.spy(integration.useCases.fetchUsedRepos, 'execute');
+    const statusSpy = sinon.spy(integration.useCases.listWorkspacesWithStatus, 'execute');
+
+    await runList(integration.useCases, integration.services);
+
+    sinon.assert.notCalled(fetchSpy);
+    sinon.assert.notCalled(statusSpy);
+
+    const logCalls = (integration.stubs.console.log as sinon.SinonStub).args.map(
+      (a: any[]) => a[0]
+    );
+    const workspaceLine = logCalls.find((line: string) => line.includes('feature-a'));
+    expect(workspaceLine).toContain('2 repos');
+    expect(logCalls.some((line: string) => /fetching|clean|untracked|modified/i.test(line))).toBe(false);
+    expect(logCalls.some((line: string) => line.includes('repo1') || line.includes('repo2'))).toBe(false);
+  });
+
+  it('should show active indicator in plain list', async () => {
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+
+    const resultA = await createTestWorkspace(integration.useCases, {
+      repos: [repo1],
+      branchName: 'feature-a',
+      sourceBranch: 'master',
+      sourcePath,
+      destPath,
+      copyFiles: '.env',
+    });
+    await createTestWorkspace(integration.useCases, {
+      repos: [repo1],
+      branchName: 'feature-b',
+      sourceBranch: 'master',
+      sourcePath,
+      destPath,
+      copyFiles: '.env',
+    });
+
+    (integration.stubs.process.cwd as sinon.SinonStub).returns(resultA.workspacePath);
+
+    await runList(integration.useCases, integration.services);
+
+    const logCalls = (integration.stubs.console.log as sinon.SinonStub).args.map(
+      (a: any[]) => a[0]
+    );
+    expect(logCalls.find((line: string) => line.includes('feature-a'))).toMatch(/\*/);
+    expect(logCalls.find((line: string) => line.includes('feature-b'))).not.toMatch(/\*/);
+  });
+
   it('should list workspaces with repo counts and status', async () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
     const repo2 = await initGitRepo(sourcePath, 'repo2');
@@ -52,7 +118,7 @@ describe('list integration', () => {
       copyFiles: '.env',
     });
 
-    await runList(integration.useCases, integration.services);
+    await runList(integration.useCases, integration.services, { status: true });
 
     const logCalls = (integration.stubs.console.log as sinon.SinonStub).args.map(
       (a: any[]) => a[0]
@@ -88,7 +154,7 @@ describe('list integration', () => {
     const worktreePath = path.join(result.workspacePath, 'repo1');
     fs.writeFileSync(path.join(worktreePath, 'dirty.txt'), 'uncommitted\n');
 
-    await runList(integration.useCases, integration.services);
+    await runList(integration.useCases, integration.services, { status: true });
 
     const logCalls = (integration.stubs.console.log as sinon.SinonStub).args.map(
       (a: any[]) => a[0]
@@ -119,7 +185,7 @@ describe('list integration', () => {
     // Set cwd to inside the workspace
     (integration.stubs.process.cwd as sinon.SinonStub).returns(result.workspacePath);
 
-    await runList(integration.useCases, integration.services);
+    await runList(integration.useCases, integration.services, { status: true });
 
     const logCalls = (integration.stubs.console.log as sinon.SinonStub).args.map(
       (a: any[]) => a[0]
@@ -160,7 +226,7 @@ describe('list integration', () => {
     const wt1 = path.join(resultA.workspacePath, 'repo1');
     fs.writeFileSync(path.join(wt1, 'dirty.txt'), 'uncommitted\n');
 
-    await runList(integration.useCases, integration.services);
+    await runList(integration.useCases, integration.services, { status: true });
 
     const logCalls = (integration.stubs.console.log as sinon.SinonStub).args.map(
       (a: any[]) => a[0]

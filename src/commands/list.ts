@@ -3,9 +3,17 @@ import { createServices } from '../lib/services.js';
 import { createUseCases } from '../usecases/usecases.js';
 import type { Services } from '../lib/services.js';
 import type { UseCases } from '../usecases/usecases.js';
-import { logStatusFetching, logStatus } from './helpers.js';
+import { logStatusFetching, logStatus, logWorkspaces } from './helpers.js';
 
-export async function runList(useCases: UseCases, services: Services): Promise<void> {
+export type ListOptions = {
+  status?: boolean;
+};
+
+export async function runList(
+  useCases: UseCases,
+  services: Services,
+  options: ListOptions = {},
+): Promise<void> {
   const { destPath, sourcePath } = services.config.getRequired();
   const config = services.config.load();
   const cwd = services.process.cwd();
@@ -15,6 +23,16 @@ export async function runList(useCases: UseCases, services: Services): Promise<v
 
   if (basicWorkspaces.length === 0) {
     services.console.log('No workspaces found.');
+    return;
+  }
+
+  if (!options.status) {
+    const activePath = services.workspaceDir.detectWorkspace(cwd, destPath);
+    logWorkspaces(
+      'Workspaces:',
+      basicWorkspaces.map((ws) => ({ ...ws, isActive: ws.path === activePath })),
+      services.console,
+    );
     return;
   }
 
@@ -50,13 +68,14 @@ export function registerListCommand(program: Command): void {
     .command('list')
     .alias('ls')
     .helpGroup('Workspaces')
-    .description('List all workspaces with status indicators')
-    .action(async () => {
+    .description('List all workspaces')
+    .option('--status', 'Fetch repos and show the status of each workspace')
+    .action(async (options: ListOptions) => {
       const services = createServices();
       const useCases = createUseCases(services);
 
       try {
-        await runList(useCases, services);
+        await runList(useCases, services, options);
       } catch (error: any) {
         services.console.error(error.message);
         services.process.exit(1);
