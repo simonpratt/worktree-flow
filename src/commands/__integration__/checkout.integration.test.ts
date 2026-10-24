@@ -175,6 +175,23 @@ describe('checkout integration', () => {
     expect(fs.readFileSync(agentsMd, 'utf-8')).toBe('# Agents\nDo stuff.\n');
   });
 
+  it('should strip AGENTS.md lines that mention repos not included in the workspace', async () => {
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+    await initGitRepo(sourcePath, 'repo2');
+    await createRemoteBranchRef(repo1, 'feature');
+    fs.writeFileSync(
+      path.join(sourcePath, 'AGENTS.md'),
+      '# Repos\n- repo1: first\n- repo2: second\nrepo2 is called by repo1\n'
+    );
+
+    integration = createIntegrationServices(sourcePath, destPath);
+    await runCheckout('feature', integration.useCases, integration.services, { confirm: confirmStub });
+
+    expect(fs.readFileSync(path.join(destPath, 'feature', 'AGENTS.md'), 'utf-8')).toBe(
+      '# Repos\n- repo1: first\n'
+    );
+  });
+
   it('should copy .devcontainer folder to workspace root', async () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
     await createRemoteBranchRef(repo1, 'feature');

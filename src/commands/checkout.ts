@@ -85,10 +85,16 @@ export async function runCheckout(
     }
 
     // 6. Create workspace directory, placeholder config, AGENTS.md
+    const matchingNames = new Set(discoverResult.matchingRepos.map((r) => path.basename(r)));
+    const excludedFolderNames = discoverResult.allRepos
+      .map((r) => path.basename(r))
+      .filter((name) => !matchingNames.has(name));
+
     const { workspacePath } = await useCases.createWorkspace.execute({
       branchName,
       sourcePath,
       destPath,
+      excludedFolderNames,
     });
 
     // 7. For each matching repo in parallel: detect base branch, then addToWorkspace
