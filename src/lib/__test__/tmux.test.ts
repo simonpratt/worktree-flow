@@ -53,14 +53,14 @@ describe('TmuxService', () => {
       sinon.assert.calledWith(
         shell.execFile,
         'tmux',
-        ['split-window', '-t', 'feature-branch', '-c', '/workspace/feature/repo1', '-P', '-F', '#{pane_id}']
+        ['split-window', '-t', '=feature-branch:', '-c', '/workspace/feature/repo1', '-P', '-F', '#{pane_id}']
       );
       sinon.assert.calledWith(
         shell.execFile,
         'tmux',
-        ['split-window', '-t', 'feature-branch', '-c', '/workspace/feature/repo2', '-P', '-F', '#{pane_id}']
+        ['split-window', '-t', '=feature-branch:', '-c', '/workspace/feature/repo2', '-P', '-F', '#{pane_id}']
       );
-      sinon.assert.calledWith(shell.execFile, 'tmux', ['select-layout', '-t', 'feature-branch', 'tiled']);
+      sinon.assert.calledWith(shell.execFile, 'tmux', ['select-layout', '-t', '=feature-branch:', 'tiled']);
 
       const commands = shell.execFile.getCalls().map((c: any) => c.args[1][0]);
       expect(commands).toEqual([
@@ -155,7 +155,7 @@ describe('TmuxService', () => {
 
       await expect(service.close('feature-branch')).resolves.toBe(true);
 
-      sinon.assert.calledOnceWithExactly(shell.execFile, 'tmux', ['kill-session', '-t', 'feature-branch']);
+      sinon.assert.calledOnceWithExactly(shell.execFile, 'tmux', ['kill-session', '-t', '=feature-branch']);
     });
 
     it('should report nothing was closed when the session does not exist', async () => {
@@ -183,7 +183,7 @@ describe('TmuxService', () => {
 
       await expect(service.exists('feature-branch')).resolves.toBe(true);
 
-      sinon.assert.calledOnceWithExactly(shell.execFile, 'tmux', ['has-session', '-t', 'feature-branch']);
+      sinon.assert.calledOnceWithExactly(shell.execFile, 'tmux', ['has-session', '-t', '=feature-branch']);
     });
 
     it('should return false when has-session fails', async () => {
@@ -199,15 +199,93 @@ describe('TmuxService', () => {
 
       await expect(service.rename('old-name', 'new-name')).resolves.toBe(true);
 
-      sinon.assert.calledWith(shell.execFile, 'tmux', ['rename-session', '-t', 'old-name', 'new-name']);
+      sinon.assert.calledWith(shell.execFile, 'tmux', ['rename-session', '-t', '=old-name', 'new-name']);
     });
 
     it('should not rename when the session does not exist', async () => {
-      shell.execFile.withArgs('tmux', ['has-session', '-t', 'old-name']).rejects(new Error("can't find session"));
+      shell.execFile.withArgs('tmux', ['has-session', '-t', '=old-name']).rejects(new Error("can't find session"));
 
       await expect(service.rename('old-name', 'new-name')).resolves.toBe(false);
 
       sinon.assert.calledOnce(shell.execFile);
+    });
+  });
+
+  describe('session name matching', () => {
+    /**
+     * Fakes tmux's target resolution: a bare name matches exactly, then falls back
+     * to the one session it's a prefix of; a leading "=" allows only an exact match.
+     */
+    function stubTmuxWithSessions(sessions: string[]) {
+      const live = new Set(sessions);
+      const resolve = (target: string) => {
+        const name = target.replace(/:$/, '');
+        if (name.startsWith('=')) {
+          return live.has(name.slice(1)) ? name.slice(1) : undefined;
+        }
+        if (live.has(name)) return name;
+        const prefixed = [...live].filter((s) => s.startsWith(name));
+        return prefixed.length === 1 ? prefixed[0] : undefined;
+      };
+
+      shell.execFile.callsFake(async (_cmd: string, args: string[]) => {
+        const [command] = args;
+        if (command === 'new-session') {
+          live.add(args[args.indexOf('-s') + 1]);
+          return { stdout: '', stderr: '' };
+        }
+        const target = args[args.indexOf('-t') + 1];
+        const session = resolve(target);
+        if (!session) {
+          throw new Error(`can't find session: ${target}`);
+        }
+        if (command === 'kill-session') live.delete(session);
+        if (command === 'rename-session') {
+          live.delete(session);
+          live.add(args[args.length - 1]);
+        }
+        return { stdout: command === 'split-window' ? `%1\n` : '', stderr: '' };
+      });
+
+      return live;
+    }
+
+    it('should not treat a session that only starts with the name as existing', async () => {
+      stubTmuxWithSessions(['feat-login']);
+
+      await expect(service.exists('feat')).resolves.toBe(false);
+    });
+
+    it('should not close a session that only starts with the name', async () => {
+      const live = stubTmuxWithSessions(['feat-login']);
+
+      await expect(service.close('feat')).resolves.toBe(false);
+      expect([...live]).toEqual(['feat-login']);
+    });
+
+    it('should not rename a session that only starts with the name', async () => {
+      const live = stubTmuxWithSessions(['feat-login']);
+
+      await expect(service.rename('feat', 'feat-2')).resolves.toBe(false);
+      expect([...live]).toEqual(['feat-login']);
+    });
+
+    it('should not add panes to a session that only starts with the name', async () => {
+      stubTmuxWithSessions(['feat-login']);
+
+      await expect(service.addPanes('feat', [{ path: '/workspace/feat/repo1' }])).rejects.toThrow("can't find session");
+    });
+
+    it('should add panes to its own session alongside one that starts with its name', async () => {
+      stubTmuxWithSessions(['feat-login']);
+
+      await service.create('feat', '/workspace/feat', [{ path: '/workspace/feat/repo1' }]);
+
+      sinon.assert.calledWith(
+        shell.execFile,
+        'tmux',
+        ['split-window', '-t', '=feat:', '-c', '/workspace/feat/repo1', '-P', '-F', '#{pane_id}']
+      );
     });
   });
 });

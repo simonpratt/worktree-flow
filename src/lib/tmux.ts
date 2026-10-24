@@ -8,6 +8,15 @@ import {
 } from './sessionManager.js';
 
 /**
+ * Exact-match session target. A bare name also matches any one session it's a
+ * prefix of, so "feat" would resolve to "feat-login" when there's no "feat".
+ */
+const sessionTarget = (name: string) => `=${name}`;
+
+/** Exact-match target for a session's current window (for window/pane commands). */
+const windowTarget = (name: string) => `=${name}:`;
+
+/**
  * Tmux sessions: one window holding a pane at the workspace root plus one per
  * worktree, in a tiled layout.
  */
@@ -21,7 +30,7 @@ export class TmuxService implements SessionManager {
     const { stdout } = await this.shell.execFile('tmux', [
       'split-window',
       '-t',
-      sessionName,
+      windowTarget(sessionName),
       '-c',
       worktreePath,
       '-P',
@@ -33,7 +42,7 @@ export class TmuxService implements SessionManager {
     await this.shell.execFile('tmux', [
       'select-layout',
       '-t',
-      sessionName,
+      windowTarget(sessionName),
       'tiled',
     ]);
 
@@ -75,7 +84,7 @@ export class TmuxService implements SessionManager {
 
   async close(sessionName: string): Promise<boolean> {
     try {
-      await this.shell.execFile('tmux', ['kill-session', '-t', sessionName]);
+      await this.shell.execFile('tmux', ['kill-session', '-t', sessionTarget(sessionName)]);
       return true;
     } catch (error: any) {
       if (/can't find session|no such session|no server running/.test(error.message ?? '')) {
@@ -87,7 +96,7 @@ export class TmuxService implements SessionManager {
 
   async exists(sessionName: string): Promise<boolean> {
     try {
-      await this.shell.execFile('tmux', ['has-session', '-t', sessionName]);
+      await this.shell.execFile('tmux', ['has-session', '-t', sessionTarget(sessionName)]);
       return true;
     } catch {
       return false;
@@ -98,7 +107,7 @@ export class TmuxService implements SessionManager {
     if (!(await this.exists(oldName))) {
       return false;
     }
-    await this.shell.execFile('tmux', ['rename-session', '-t', oldName, newName]);
+    await this.shell.execFile('tmux', ['rename-session', '-t', sessionTarget(oldName), newName]);
     return true;
   }
 }
