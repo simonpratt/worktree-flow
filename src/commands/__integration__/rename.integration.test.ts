@@ -158,6 +158,52 @@ describe('rename integration', () => {
     expect((integration.stubs.process.exit as sinon.SinonStub).called).toBe(false);
   });
 
+  it('should rename branches but leave the workspace folder untouched with --git-only', async () => {
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+    const repo2 = await initGitRepo(sourcePath, 'repo2');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+    const created = await createTestWorkspace(integration.useCases, {
+      repos: [repo1, repo2],
+      branchName: 'old-feature',
+      sourceBranch: 'master',
+      sourcePath,
+      destPath,
+      copyFiles: '.env',
+      tmux: false,
+    });
+
+    const worktreePath = path.join(created.workspacePath, 'repo1');
+    fs.writeFileSync(path.join(worktreePath, 'dirty.txt'), 'work in progress\n');
+
+    await runRename('old-feature', 'new-feature', integration.useCases, integration.services, {
+      gitOnly: true,
+    });
+
+    // Folder structure is untouched
+    expect(fs.existsSync(created.workspacePath)).toBe(true);
+    expect(fs.existsSync(path.join(destPath, 'new-feature'))).toBe(false);
+
+    // Each worktree is now on the new branch, in place
+    for (const repoName of ['repo1', 'repo2']) {
+      const currentBranch = (
+        await git(path.join(created.workspacePath, repoName), ['rev-parse', '--abbrev-ref', 'HEAD'])
+      ).trim();
+      expect(currentBranch).toBe('new-feature');
+    }
+
+    // Uncommitted changes survive the branch switch
+    expect(fs.readFileSync(path.join(worktreePath, 'dirty.txt'), 'utf-8')).toBe('work in progress\n');
+
+    // Auto-detecting from the unchanged folder now resolves to the new branch name
+    (integration.stubs.process.cwd as sinon.SinonStub).returns(created.workspacePath);
+    await expect(
+      runRename(undefined, 'new-feature', integration.useCases, integration.services, { gitOnly: true })
+    ).rejects.toThrow('is the same as the current name');
+
+    expect((integration.stubs.process.exit as sinon.SinonStub).called).toBe(false);
+  });
+
   it('should auto-detect the workspace from the current directory when only one name is given', async () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
 

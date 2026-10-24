@@ -13,7 +13,9 @@ import { CreateWorkspaceUseCase } from './createWorkspace.js';
 import { CreateBranchUseCase } from './createBranch.js';
 import { AddToWorkspaceUseCase } from './addToWorkspace.js';
 import { DiscoverReposWithBranchUseCase } from './discoverReposWithBranch.js';
-import { RenameWorkspaceUseCase } from './renameWorkspace.js';
+import { RenameWorkspaceFolderUseCase } from './renameWorkspaceFolder.js';
+import { RenameWorkspaceBranchesUseCase } from './renameWorkspaceBranches.js';
+import { RenameTmuxSessionUseCase } from './renameTmuxSession.js';
 
 /**
  * Factory function for creating all use cases with their service dependencies.
@@ -79,13 +81,18 @@ export function createUseCases(services: Services) {
       services.tmux
     ),
     discoverReposWithBranch: new DiscoverReposWithBranchUseCase(services.repos),
-    renameWorkspace: new RenameWorkspaceUseCase(
+    renameWorkspaceFolder: new RenameWorkspaceFolderUseCase(
+      services.workspaceDir,
+      services.git,
+      services.repos
+    ),
+    renameWorkspaceBranches: new RenameWorkspaceBranchesUseCase(
       services.workspaceDir,
       services.workspaceConfig,
       services.git,
-      services.tmux,
       services.repos
     ),
+    renameTmuxSession: new RenameTmuxSessionUseCase(services.tmux),
   };
 }
 

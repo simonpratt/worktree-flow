@@ -68,7 +68,7 @@ Attach repos to an existing workspace. Discovers available repos not yet in the 
 
 ### `flow rename <old-name> <new-name>` (or `flow rename <new-name>` from inside a workspace)
 
-Rename a workspace to a new branch name. Renames the workspace directory in a single filesystem move (so any shell already inside it, e.g. a tmux pane, keeps working at the new location instead of being left in a deleted one), then for each repo: repairs the worktree's git admin data to match its new path (`git worktree repair`), branches from the head of the current branch, and switches the worktree onto the new branch. Also renames the tmux session if one exists. If a repo fails (e.g. its source repo is missing), the workspace directory has still moved — that repo's worktree simply stays on its previous branch, and the command exits non-zero.
+Rename a workspace to a new branch name. Renames the workspace directory in a single filesystem move (so any shell already inside it, e.g. a tmux pane, keeps working at the new location instead of being left in a deleted one), then for each repo: repairs the worktree's git admin data to match its new path (`git worktree repair`), branches from the head of the current branch, and switches the worktree onto the new branch. Also renames the tmux session if one exists. If a repo fails (e.g. its source repo is missing), the workspace directory has still moved — that repo's worktree simply stays on its previous branch, and the command exits non-zero. Pass `--git-only` to rename the branches (and tmux session) but leave the workspace folder where it is.
 
 ### `flow pull`
 
