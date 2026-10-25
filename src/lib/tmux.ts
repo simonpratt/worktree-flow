@@ -110,4 +110,13 @@ export class TmuxService implements SessionManager {
     await this.shell.execFile('tmux', ['rename-session', '-t', sessionTarget(oldName), newName]);
     return true;
   }
+
+  async focus(sessionName: string): Promise<void> {
+    await this.shell.execFile('tmux', ['switch-client', '-t', sessionTarget(sessionName)]);
+  }
+
+  /** tmux sets TMUX in every pane it starts. */
+  isInside(env: (name: string) => string | undefined): boolean {
+    return !!env('TMUX');
+  }
 }

@@ -19,6 +19,7 @@ function fakeHerdr(shell: sinon.SinonStubbedInstance<any>) {
     /** Canned `pane layout` rects, keyed by pane id */
     rects: {} as Record<string, { width: number; height: number }>,
     runs: [] as Array<{ pane: string; command: string }>,
+    focused: undefined as string | undefined,
     failRunFor: new Set<string>(),
   };
   let nextWorkspace = 0;
@@ -68,6 +69,12 @@ function fakeHerdr(shell: sinon.SinonStubbedInstance<any>) {
       if (!workspace) fail('workspace_not_found', `workspace ${rest[0]} not found`);
       if (action === 'close') state.workspaces = state.workspaces.filter((w) => w !== workspace);
       else workspace!.label = rest[1];
+      return ok({ type: 'workspace_info', workspace });
+    }
+    if (group === 'workspace' && action === 'focus') {
+      const workspace = state.workspaces.find((w) => w.workspace_id === rest[0]);
+      if (!workspace) fail('workspace_not_found', `workspace ${rest[0]} not found`);
+      state.focused = rest[0];
       return ok({ type: 'workspace_info', workspace });
     }
     if (group === 'tab' && action === 'rename') {
@@ -332,6 +339,34 @@ describe('HerdrService', () => {
 
     it('should not rename when there is no such workspace', async () => {
       await expect(service.rename('feat/x', 'feat/y')).resolves.toBe(false);
+    });
+  });
+
+  describe('focus', () => {
+    it('should focus the workspace with the label', async () => {
+      await service.create('feat/x', '/ws', []);
+      await service.create('feat/y', '/ws2', []);
+
+      await service.focus('feat/y');
+
+      expect(herdr.state.focused).toBe('w2');
+    });
+
+    it('should throw when there is no such workspace', async () => {
+      await service.create('feat/x-2', '/ws', []);
+
+      await expect(service.focus('feat/x')).rejects.toThrow('herdr workspace not found: feat/x');
+      expect(herdr.state.focused).toBeUndefined();
+    });
+  });
+
+  describe('isInside', () => {
+    it('should report being inside herdr only when HERDR_ENV is 1', () => {
+      const env = (vars: Record<string, string>) => (name: string) => vars[name];
+
+      expect(service.isInside(env({ HERDR_ENV: '1' }))).toBe(true);
+      expect(service.isInside(env({}))).toBe(false);
+      expect(service.isInside(env({ HERDR_ENV: '0', TMUX: '/tmp/tmux-1000/default,1,0' }))).toBe(false);
     });
   });
 

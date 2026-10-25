@@ -211,6 +211,26 @@ describe('TmuxService', () => {
     });
   });
 
+  describe('focus', () => {
+    it('should switch the current client to the session', async () => {
+      shell.execFile.resolves({ stdout: '', stderr: '' });
+
+      await service.focus('feature-branch');
+
+      sinon.assert.calledOnceWithExactly(shell.execFile, 'tmux', ['switch-client', '-t', '=feature-branch']);
+    });
+  });
+
+  describe('isInside', () => {
+    it('should report being inside tmux only when TMUX is set', () => {
+      const env = (vars: Record<string, string>) => (name: string) => vars[name];
+
+      expect(service.isInside(env({ TMUX: '/tmp/tmux-1000/default,1234,0' }))).toBe(true);
+      expect(service.isInside(env({}))).toBe(false);
+      expect(service.isInside(env({ TMUX: '', HERDR_ENV: '1' }))).toBe(false);
+    });
+  });
+
   describe('session name matching', () => {
     /**
      * Fakes tmux's target resolution: a bare name matches exactly, then falls back
@@ -274,6 +294,12 @@ describe('TmuxService', () => {
       stubTmuxWithSessions(['feat-login']);
 
       await expect(service.addPanes('feat', [{ path: '/workspace/feat/repo1' }])).rejects.toThrow("can't find session");
+    });
+
+    it('should not switch to a session that only starts with the name', async () => {
+      stubTmuxWithSessions(['feat-login']);
+
+      await expect(service.focus('feat')).rejects.toThrow("can't find session");
     });
 
     it('should add panes to its own session alongside one that starts with its name', async () => {

@@ -38,6 +38,8 @@ export function createMockSessionManager(label = 'tmux'): sinon.SinonStubbedInst
     addPanes: sinon.stub().callsFake(succeedAll),
     close: sinon.stub().resolves(true),
     rename: sinon.stub().resolves(true),
+    focus: sinon.stub().resolves(),
+    isInside: sinon.stub().returns(true),
   } as any;
 }
 
@@ -59,6 +61,7 @@ export function createMockProcess(): sinon.SinonStubbedInstance<IProcess> {
   return {
     exit: sinon.stub() as any,
     cwd: sinon.stub(),
+    env: sinon.stub().returns(undefined) as any,
   };
 }
 

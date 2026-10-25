@@ -92,6 +92,10 @@ List all workspaces with their repo count, marking the active workspace (based o
 
 Pass `--status` to fetch all repos and show each repo's status: `clean`, `uncommitted`, `ahead`, or `mixed`. The status check uses git's patch-id comparison, which correctly handles squash-merged branches.
 
+### `flow switch [name]`
+
+Switch to a workspace's session (see [Sessions](#sessions-tmux--herdr)). Run it from inside tmux or herdr. With no name, pick the workspace from a list. If the workspace has no session yet, one is created first (without running post-checkout).
+
 ### `flow drop <name>`
 
 Drop a workspace and all its worktrees. Fetches latest, checks for uncommitted changes, and prompts for confirmation before removing. Committed changes are safe to drop since they're preserved in git history.
@@ -109,6 +113,20 @@ Fetch repos for a specific workspace (when branch name provided), or fetch all r
 ### `flow sessions`
 
 Pick workspaces that don't have a session yet and open one for each, using the configured `session-manager` (see [Sessions](#sessions-tmux--herdr)). Pass `--all` to open them all without prompting. Replaces the deprecated `flow tmux sync`.
+
+### `flow completion zsh`
+
+Print the zsh completion script, which completes command names and the workspace names for `flow switch`.
+
+```zsh
+# oh-my-zsh: install as a custom plugin, then add `flow` to plugins=(...) in ~/.zshrc
+mkdir -p $ZSH_CUSTOM/plugins/flow
+flow completion zsh > $ZSH_CUSTOM/plugins/flow/_flow
+
+# plain zsh: write _flow into any folder on $fpath, before compinit runs
+```
+
+If completions don't appear, clear the cache: `rm -f ~/.zcompdump*; exec zsh`.
 
 ### `flow group`
 
@@ -159,7 +177,7 @@ With a session manager, post-checkout commands run in each worktree's pane inste
 
 ### Sessions (tmux / herdr)
 
-With `session-manager` set, `create`, `checkout` and `attach` open a session for the workspace, named after its branch. `drop`/`prune` close it and `rename` renames it.
+With `session-manager` set, `create`, `checkout` and `attach` open a session for the workspace, named after its branch. `drop`/`prune` close it, `rename` renames it, and `switch` jumps to it.
 
 - **tmux**: one window with a pane at the workspace root plus one per worktree, tiled.
 - **herdr**: a workspace with a `root` tab split in half at the workspace root, and a `repos` tab with a pane per worktree in a grid. A herdr server is started in the background if none is running; respects `HERDR_SESSION`.

@@ -246,4 +246,17 @@ export class HerdrService implements SessionManager {
     await this.call(['workspace', 'rename', workspaceId, newName]);
     return true;
   }
+
+  async focus(name: string): Promise<void> {
+    const workspaceId = await this.findWorkspaceId(name);
+    if (!workspaceId) {
+      throw new Error(`herdr workspace not found: ${name}`);
+    }
+    await this.call(['workspace', 'focus', workspaceId]);
+  }
+
+  /** herdr sets HERDR_ENV=1 in every pane it starts. */
+  isInside(env: (name: string) => string | undefined): boolean {
+    return env('HERDR_ENV') === '1';
+  }
 }

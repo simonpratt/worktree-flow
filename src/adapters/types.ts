@@ -35,4 +35,5 @@ export interface IConsole {
 export interface IProcess {
   exit(code: number): never;
   cwd(): string;
+  env(name: string): string | undefined;
 }

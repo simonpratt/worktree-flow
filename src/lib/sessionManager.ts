@@ -28,6 +28,10 @@ export interface SessionManager {
   close(name: string): Promise<boolean>;
   /** Returns false if there was no session to rename. */
   rename(oldName: string, newName: string): Promise<boolean>;
+  /** Switches the current client to the session. Only works from inside the session manager. */
+  focus(name: string): Promise<void>;
+  /** Whether this process is running inside the session manager, judged from its environment. */
+  isInside(env: (name: string) => string | undefined): boolean;
 }
 
 export class SessionExistsError extends Error {

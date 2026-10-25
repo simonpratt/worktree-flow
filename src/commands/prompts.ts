@@ -26,6 +26,8 @@ export type MultiselectOptions = {
   options: Array<{ value: string; label: string }>;
 };
 
+export type PickOneOptions = MultiselectOptions;
+
 export type RepoPickerOptions = MultiselectOptions & { initialValues: string[] };
 
 function unlessCancelled<T>(clack: typeof import('@clack/prompts'), answer: T): Exclude<T, symbol> {
@@ -84,6 +86,26 @@ export async function pickRepos(
       message,
       options,
       initialValues,
+      placeholder: 'Type to search...',
+      maxItems: 20,
+      ...streams,
+    })
+  );
+}
+
+/**
+ * Searchable single-choice picker. Returns the chosen value.
+ */
+export async function pickOne(
+  { message, options }: PickOneOptions,
+  streams: PromptStreams = {}
+): Promise<string> {
+  const clack = await loadClack();
+  return unlessCancelled(
+    clack,
+    await clack.autocomplete({
+      message,
+      options,
       placeholder: 'Type to search...',
       maxItems: 20,
       ...streams,

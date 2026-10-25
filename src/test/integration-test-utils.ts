@@ -148,6 +148,7 @@ export function createIntegrationServices(sourcePath: string, destPath: string):
       throw new ProcessExitError(code);
     }) as any,
     cwd: sinon.stub().returns(process.cwd()) as any,
+    env: sinon.stub().returns(undefined) as any,
   };
 
   const gitService = new GitService(nodeShell);

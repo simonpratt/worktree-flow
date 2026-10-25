@@ -4,7 +4,7 @@ import { StatusService, type WorktreeStatus } from '../lib/status.js';
 import type { IConsole } from '../adapters/types.js';
 import type { Services } from '../lib/services.js';
 import { EmptyRepoGroupError, PromptCancelledError, RepoGroupNotFoundError, RepoNotFoundError } from '../lib/errors.js';
-import type { MultiselectOptions, RepoPickerOptions } from './prompts.js';
+import type { MultiselectOptions, PickOneOptions, RepoPickerOptions } from './prompts.js';
 import type { AddToWorkspaceResult } from '../usecases/addToWorkspace.js';
 import type { OpenWorkspaceSessionResult } from '../usecases/openWorkspaceSession.js';
 import type { SessionManagerKind } from '../lib/sessionManager.js';
@@ -110,6 +110,35 @@ export function buildRepoOptions(
     options: choices.map((choice) => ({ value: choice.value, label: choice.name })),
     initialValues: choices.filter((choice) => preSelected.includes(choice.name)).map((choice) => choice.value),
   };
+}
+
+/**
+ * Pick a workspace from those in dest-path, each labelled with its branch name and
+ * repo count, with the active workspace (from the current directory) marked `*`.
+ * Returns the chosen workspace's path.
+ * @throws Error when there are no workspaces
+ */
+export async function pickWorkspace(
+  message: string,
+  services: Pick<Services, 'config' | 'workspaceDir' | 'workspaceConfig' | 'process'>,
+  pickOne: (opts: PickOneOptions) => Promise<string>
+): Promise<string> {
+  const { destPath } = services.config.getRequired();
+  const workspaces = services.workspaceDir.listWorkspaces(destPath);
+  if (workspaces.length === 0) {
+    throw new Error('No workspaces found.');
+  }
+
+  const activePath = services.workspaceDir.detectWorkspace(services.process.cwd(), destPath);
+  return pickOne({
+    message,
+    options: workspaces.map((ws) => {
+      const name = services.workspaceConfig.getBranchName(ws.path) ?? ws.name;
+      const marker = ws.path === activePath ? chalk.green('* ') : '  ';
+      const repoCount = chalk.dim(`(${ws.repoCount} repo${ws.repoCount === 1 ? '' : 's'})`);
+      return { value: ws.path, label: `${marker}${name} ${repoCount}` };
+    }),
+  });
 }
 
 /**

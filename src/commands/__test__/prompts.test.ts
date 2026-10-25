@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { PassThrough } from 'node:stream';
-import { input, confirm, multiselect, pickRepos, type PromptStreams } from '../prompts.js';
+import { input, confirm, multiselect, pickOne, pickRepos, type PromptStreams } from '../prompts.js';
 import { PromptCancelledError } from '../../lib/errors.js';
 
 const ENTER = '\r';
@@ -127,5 +127,31 @@ describe('pickRepos', () => {
 
   it('throws PromptCancelledError when cancelled', async () => {
     await expect(run([ESC], ['/source/gamma'])).rejects.toThrow(PromptCancelledError);
+  });
+});
+
+describe('pickOne', () => {
+  const options = [
+    { value: '/dest/alpha', label: 'alpha' },
+    { value: '/dest/beta', label: 'beta' },
+    { value: '/dest/gamma', label: 'gamma' },
+  ];
+
+  const run = (keys: string[]) => drive((s) => pickOne({ message: 'Pick a workspace', options }, s), keys);
+
+  it('returns the first option when submitted untouched', async () => {
+    expect(await run([ENTER])).toBe('/dest/alpha');
+  });
+
+  it('returns the option moved to', async () => {
+    expect(await run([DOWN, DOWN, ENTER])).toBe('/dest/gamma');
+  });
+
+  it('filters the list by the typed search term', async () => {
+    expect(await run(['be', ENTER])).toBe('/dest/beta');
+  });
+
+  it('throws PromptCancelledError when cancelled', async () => {
+    await expect(run([ESC])).rejects.toThrow(PromptCancelledError);
   });
 });

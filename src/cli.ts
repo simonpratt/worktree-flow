@@ -7,6 +7,7 @@ import { registerAttachCommand } from './commands/attach.js';
 import { registerBranchCommand } from './commands/branch.js';
 import { registerCheckoutCommand } from './commands/checkout.js';
 import { registerListCommand } from './commands/list.js';
+import { registerSwitchCommand } from './commands/switch.js';
 import { registerPullCommand } from './commands/pull.js';
 import { registerPushCommand } from './commands/push.js';
 import { registerDropCommand } from './commands/drop.js';
@@ -16,6 +17,8 @@ import { registerPruneCommand } from './commands/prune.js';
 import { registerFetchCommand } from './commands/fetch.js';
 import { registerSessionsCommand } from './commands/sessions.js';
 import { registerQuickstartCommand } from './commands/quickstart.js';
+import { registerCompletionCommand } from './commands/completion.js';
+import { registerCompleteCommand } from './commands/complete.js';
 
 const program = new Command();
 
@@ -33,6 +36,7 @@ registerGroupCommand(program);
 registerCreateCommand(program);
 registerCheckoutCommand(program);
 registerListCommand(program);
+registerSwitchCommand(program);
 registerAttachCommand(program);
 registerRenameCommand(program);
 registerDropCommand(program);
@@ -46,6 +50,8 @@ registerFetchCommand(program);
 
 // Extras
 registerSessionsCommand(program);
+registerCompletionCommand(program);
+registerCompleteCommand(program);
 
 // Deprecated
 registerBranchCommand(program);

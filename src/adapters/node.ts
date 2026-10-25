@@ -95,4 +95,8 @@ export class NodeProcess implements IProcess {
   cwd(): string {
     return process.cwd();
   }
+
+  env(name: string): string | undefined {
+    return process.env[name];
+  }
 }
