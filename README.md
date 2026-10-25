@@ -13,8 +13,9 @@ Stop juggling branches across repos. `flow` creates isolated workspaces with git
 ~/repos/                              ~/workspaces/TICKET-123/
 ├── api-1/     (main)                 ├── api-1/     (TICKET-123 branch)
 ├── api-2/     (main)       flow      ├── client/    (TICKET-123 branch)
-├── client/    (main)     -------->   └── *.md       (copied from ~/repos)
-└── AGENTS.md
+├── client/    (main)     -------->   └── *.md, Makefile (copied from ~/repos)
+├── AGENTS.md
+└── Makefile
 ```
 
 ## Quick Start
@@ -185,9 +186,9 @@ Both fields are optional. Precedence (highest to lowest):
 
 After creating worktrees, flow prints the `copy-files` setting and warns if it doesn't include `.env`.
 
-## Markdown files (AGENTS.md etc.)
+## Markdown files and Makefile
 
-All `.md` files at the root of your source-path (e.g. `AGENTS.md`, `CLAUDE.md`) are copied into each workspace (subdirectories are not scanned). This is useful for providing AI coding agents with context about your multi-repo setup. When copying `AGENTS.md`, any line mentioning a repo not included in the workspace is removed.
+All `.md` files (e.g. `AGENTS.md`, `CLAUDE.md`) and any `Makefile` at the root of your source-path are copied into each workspace (subdirectories are not scanned). This is useful for providing AI coding agents with context about your multi-repo setup. When copying `AGENTS.md`, any line mentioning a repo not included in the workspace is removed.
 
 ## License
 

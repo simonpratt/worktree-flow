@@ -14,7 +14,7 @@ export type CreateWorkspaceResult = {
 };
 
 /**
- * Use case for creating a new workspace directory with initial config, root .md file copies and
+ * Use case for creating a new workspace directory with initial config, root .md file and Makefile copies and
  * .devcontainer copy.
  */
 export class CreateWorkspaceUseCase {
@@ -40,8 +40,8 @@ export class CreateWorkspaceUseCase {
       params.excludedFolderNames ?? []
     );
 
-    // 3b. Copy all other top-level .md files from source-path
-    this.workspaceDir.copyRootMarkdownFiles(params.sourcePath, workspacePath);
+    // 3b. Copy all other top-level .md files and Makefile from source-path
+    this.workspaceDir.copyRootFiles(params.sourcePath, workspacePath);
 
     // 4. Copy .devcontainer if it exists in source-path
     this.workspaceDir.copyDevcontainer(params.sourcePath, workspacePath);

@@ -74,7 +74,7 @@ export async function runCreate(
     ttlSeconds: config.fetchCacheTtlSeconds,
   });
 
-  // 1. Create workspace directory, placeholder config, AGENTS.md
+  // 1. Create workspace directory, placeholder config, root .md files and Makefile
   const selectedNames = new Set(selected.map((r) => path.basename(r)));
   const excludedFolderNames = repos
     .map((r) => path.basename(r))

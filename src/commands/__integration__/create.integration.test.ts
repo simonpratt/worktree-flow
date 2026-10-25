@@ -397,10 +397,11 @@ describe('create integration', () => {
     ).rejects.toThrow(WorkspaceAlreadyExistsError);
   });
 
-  it('should copy all top-level .md files from source path into the workspace', async () => {
+  it('should copy top-level .md files and Makefile from source path into the workspace', async () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
     fs.writeFileSync(path.join(sourcePath, 'AGENTS.md'), '# Agents');
     fs.writeFileSync(path.join(sourcePath, 'NOTES.md'), '# Notes');
+    fs.writeFileSync(path.join(sourcePath, 'Makefile'), 'test:\n\tnpm test\n');
     fs.writeFileSync(path.join(sourcePath, 'notes.txt'), 'not markdown');
 
     integration = createIntegrationServices(sourcePath, destPath);
@@ -415,6 +416,7 @@ describe('create integration', () => {
     const workspacePath = path.join(destPath, 'new-feature');
     expect(fs.readFileSync(path.join(workspacePath, 'AGENTS.md'), 'utf-8')).toBe('# Agents');
     expect(fs.readFileSync(path.join(workspacePath, 'NOTES.md'), 'utf-8')).toBe('# Notes');
+    expect(fs.readFileSync(path.join(workspacePath, 'Makefile'), 'utf-8')).toBe('test:\n\tnpm test\n');
     expect(fs.existsSync(path.join(workspacePath, 'notes.txt'))).toBe(false);
   });
 

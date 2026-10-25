@@ -10,6 +10,7 @@
 - `flow list --status` fetches and shows per-repo status, which `flow list` used to do by default
 - `flow rename --git-only` renames the branches (and session) but leaves the workspace folder where it is
 - All root-level `.md` files in `source-path` (e.g. `CLAUDE.md`) are now copied into the workspace, not just `AGENTS.md`
+- A root-level `Makefile` in `source-path` is now copied into the workspace on `create` and `checkout`
 - When `AGENTS.md` is copied, lines mentioning repos not included in the workspace are removed
 - `create`, `attach` and `checkout` print the `copy-files` setting and warn if it doesn't include `.env`
 - `dest-path` can now sit inside `source-path`, e.g. `~/dev/.workspaces`, and quickstart defaults to it. `dest-path` can't equal `source-path` or contain it, and `flow config set` and quickstart reject that.

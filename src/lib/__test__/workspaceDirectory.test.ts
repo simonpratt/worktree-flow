@@ -180,7 +180,7 @@ describe('WorkspaceDirectoryService', () => {
     });
   });
 
-  describe('copyRootMarkdownFiles', () => {
+  describe('copyRootFiles', () => {
     it('should copy all top-level .md files from source path', () => {
       const sourcePath = '/source';
       const workspacePath = '/workspaces/feature-123';
@@ -191,7 +191,7 @@ describe('WorkspaceDirectoryService', () => {
       });
       const service = new WorkspaceDirectoryService(fs);
 
-      service.copyRootMarkdownFiles(sourcePath, workspacePath);
+      service.copyRootFiles(sourcePath, workspacePath);
 
       expect(vol.readFileSync(path.join(workspacePath, 'README.md'), 'utf-8')).toBe('# Readme');
       expect(vol.readFileSync(path.join(workspacePath, 'CONTRIBUTING.md'), 'utf-8')).toBe(
@@ -209,13 +209,43 @@ describe('WorkspaceDirectoryService', () => {
       });
       const service = new WorkspaceDirectoryService(fs);
 
-      service.copyRootMarkdownFiles(sourcePath, workspacePath);
+      service.copyRootFiles(sourcePath, workspacePath);
 
       expect(vol.existsSync(path.join(workspacePath, 'AGENTS.md'))).toBe(false);
       expect(vol.existsSync(path.join(workspacePath, 'NOTES.md'))).toBe(true);
     });
 
-    it('should not copy non-markdown files or recurse into subdirectories', () => {
+    it('should copy a Makefile from source path', () => {
+      const sourcePath = '/source';
+      const workspacePath = '/workspaces/feature-123';
+      const { vol, fs } = createMemFs({
+        [path.join(sourcePath, 'Makefile')]: 'test:\n\tnpm test\n',
+        [path.join(workspacePath, '.gitkeep')]: '',
+      });
+      const service = new WorkspaceDirectoryService(fs);
+
+      service.copyRootFiles(sourcePath, workspacePath);
+
+      expect(vol.readFileSync(path.join(workspacePath, 'Makefile'), 'utf-8')).toBe('test:\n\tnpm test\n');
+    });
+
+    it('should copy lowercase makefile and GNUmakefile variants', () => {
+      const sourcePath = '/source';
+      const workspacePath = '/workspaces/feature-123';
+      const { vol, fs } = createMemFs({
+        [path.join(sourcePath, 'makefile')]: 'a',
+        [path.join(sourcePath, 'GNUmakefile')]: 'b',
+        [path.join(sourcePath, 'Makefile.local')]: 'c',
+        [path.join(workspacePath, '.gitkeep')]: '',
+      });
+      const service = new WorkspaceDirectoryService(fs);
+
+      service.copyRootFiles(sourcePath, workspacePath);
+
+      expect(vol.readdirSync(workspacePath).sort()).toEqual(['.gitkeep', 'GNUmakefile', 'makefile']);
+    });
+
+    it('should not copy other files or recurse into subdirectories', () => {
       const sourcePath = '/source';
       const workspacePath = '/workspaces/feature-123';
       const { vol, fs } = createMemFs({
@@ -227,12 +257,12 @@ describe('WorkspaceDirectoryService', () => {
       });
       const service = new WorkspaceDirectoryService(fs);
 
-      service.copyRootMarkdownFiles(sourcePath, workspacePath);
+      service.copyRootFiles(sourcePath, workspacePath);
 
       expect(vol.readdirSync(workspacePath).sort()).toEqual(['.gitkeep', 'NOTES.md']);
     });
 
-    it('should do nothing when no .md files exist in source path', () => {
+    it('should do nothing when no .md files or Makefile exist in source path', () => {
       const sourcePath = '/source';
       const workspacePath = '/workspaces/feature-123';
       const { vol, fs } = createMemFs({
@@ -241,7 +271,7 @@ describe('WorkspaceDirectoryService', () => {
       });
       const service = new WorkspaceDirectoryService(fs);
 
-      service.copyRootMarkdownFiles(sourcePath, workspacePath);
+      service.copyRootFiles(sourcePath, workspacePath);
 
       expect(vol.readdirSync(workspacePath)).toEqual(['.gitkeep']);
     });
@@ -253,7 +283,7 @@ describe('WorkspaceDirectoryService', () => {
       });
       const service = new WorkspaceDirectoryService(fs);
 
-      expect(() => service.copyRootMarkdownFiles('/missing', workspacePath)).not.toThrow();
+      expect(() => service.copyRootFiles('/missing', workspacePath)).not.toThrow();
     });
   });
 

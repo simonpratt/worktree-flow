@@ -192,6 +192,17 @@ describe('checkout integration', () => {
     );
   });
 
+  it('should copy Makefile to workspace root', async () => {
+    const repo1 = await initGitRepo(sourcePath, 'repo1');
+    await createRemoteBranchRef(repo1, 'feature');
+    fs.writeFileSync(path.join(sourcePath, 'Makefile'), 'test:\n\tnpm test\n');
+
+    integration = createIntegrationServices(sourcePath, destPath);
+    await runCheckout('feature', integration.useCases, integration.services, { confirm: confirmStub });
+
+    expect(fs.readFileSync(path.join(destPath, 'feature', 'Makefile'), 'utf-8')).toBe('test:\n\tnpm test\n');
+  });
+
   it('should copy .devcontainer folder to workspace root', async () => {
     const repo1 = await initGitRepo(sourcePath, 'repo1');
     await createRemoteBranchRef(repo1, 'feature');

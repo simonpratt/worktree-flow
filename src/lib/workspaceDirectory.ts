@@ -2,6 +2,9 @@ import path from 'node:path';
 import type { IFileSystem } from '../adapters/types.js';
 import { WorkspaceAlreadyExistsError } from './errors.js';
 
+/** File names GNU make looks for by default. */
+const MAKEFILE_NAMES = ['GNUmakefile', 'makefile', 'Makefile'];
+
 /**
  * Replaces characters that could cause filesystem issues with underscores.
  * e.g. "release/123" → "release_123"
@@ -50,16 +53,17 @@ export class WorkspaceDirectoryService {
   }
 
   /**
-   * Copies every top-level .md file in the source-path root into the workspace,
+   * Copies every top-level .md file and Makefile in the source-path root into the workspace,
    * except AGENTS.md (handled separately by copyAgentsMd). Does not recurse.
    */
-  copyRootMarkdownFiles(sourcePath: string, workspacePath: string): void {
+  copyRootFiles(sourcePath: string, workspacePath: string): void {
     if (!this.fs.existsSync(sourcePath)) {
       return;
     }
     const entries = this.fs.readdirSync(sourcePath, { withFileTypes: true });
     for (const entry of entries) {
-      if (!entry.isFile() || !entry.name.endsWith('.md') || entry.name === 'AGENTS.md') {
+      const isMarkdown = entry.name.endsWith('.md') && entry.name !== 'AGENTS.md';
+      if (!entry.isFile() || !(isMarkdown || MAKEFILE_NAMES.includes(entry.name))) {
         continue;
       }
       this.fs.copyFileSync(

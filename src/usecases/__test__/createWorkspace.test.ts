@@ -13,7 +13,7 @@ describe('CreateWorkspaceUseCase', () => {
     workspaceDir = {
       createWorkspaceDir: sinon.stub(),
       copyAgentsMd: sinon.stub(),
-      copyRootMarkdownFiles: sinon.stub(),
+      copyRootFiles: sinon.stub(),
       copyDevcontainer: sinon.stub(),
     } as any;
     workspaceConfig = {
@@ -82,7 +82,7 @@ describe('CreateWorkspaceUseCase', () => {
     );
   });
 
-  it('should copy other root markdown files from source path', async () => {
+  it('should copy other root markdown files and Makefile from source path', async () => {
     workspaceDir.createWorkspaceDir.returns('/dest/feature');
 
     await useCase.execute({
@@ -92,7 +92,7 @@ describe('CreateWorkspaceUseCase', () => {
     });
 
     sinon.assert.calledOnceWithExactly(
-      workspaceDir.copyRootMarkdownFiles,
+      workspaceDir.copyRootFiles,
       '/source',
       '/dest/feature'
     );

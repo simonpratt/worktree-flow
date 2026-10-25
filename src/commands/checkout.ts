@@ -84,7 +84,7 @@ export async function runCheckout(
       logHerdrIntegrationEnabled(services.console);
     }
 
-    // 6. Create workspace directory, placeholder config, AGENTS.md
+    // 6. Create workspace directory, placeholder config, root .md files and Makefile
     const matchingNames = new Set(discoverResult.matchingRepos.map((r) => path.basename(r)));
     const excludedFolderNames = discoverResult.allRepos
       .map((r) => path.basename(r))
