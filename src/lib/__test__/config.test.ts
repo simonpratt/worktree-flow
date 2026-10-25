@@ -472,6 +472,14 @@ describe('validateAndTransformConfigValue', () => {
     expect(() => validateAndTransformConfigValue('session-manager', 'screen')).toThrow();
   });
 
+  it('should name the allowed values when session-manager is invalid', () => {
+    expect(() => validateAndTransformConfigValue('session-manager', 'screen')).toThrow(
+      expect.objectContaining({
+        issues: [expect.objectContaining({ message: 'Invalid option: expected one of "none"|"tmux"|"herdr"' })],
+      })
+    );
+  });
+
   it('should accept valid string values', () => {
     expect(validateAndTransformConfigValue('copy-files', '.env')).toBe('.env');
     expect(validateAndTransformConfigValue('post-checkout', 'npm install')).toBe('npm install');

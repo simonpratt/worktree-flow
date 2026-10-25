@@ -1,11 +1,11 @@
 import path from 'node:path';
-import { z } from 'zod';
+import * as z from 'zod/mini';
 import type { IFileSystem } from '../adapters/types.js';
 
 // Schema for workspace config
 const WorkspaceConfigSchema = z.object({
   /** The workspace's real (unsanitized) branch name — the folder name is sanitized, so it can't be derived from that. Absent in workspaces created before it was persisted. */
-  branchName: z.string().optional(),
+  branchName: z.optional(z.string()),
   baseBranches: z.record(z.string(), z.string()),
 });
 

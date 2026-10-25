@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { z } from 'zod';
+import { $ZodError } from 'zod/v4/core';
 import {
   isValidKey,
   validateAndTransformConfigValue,
@@ -41,7 +41,7 @@ export function registerConfigCommand(program: Command): void {
 
         services.console.log(chalk.green(`Set ${key} = ${transformedValue}`));
       } catch (error) {
-        if (error instanceof z.ZodError) {
+        if (error instanceof $ZodError) {
           services.console.error(`Invalid value for ${key}: ${error.issues[0].message}`);
         } else {
           services.console.error(`Error setting config: ${error}`);

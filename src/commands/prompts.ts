@@ -1,11 +1,13 @@
 import type { Readable, Writable } from 'node:stream';
-import * as clack from '@clack/prompts';
 import { PromptCancelledError } from '../lib/errors.js';
 
 /**
  * Interactive prompts used by the commands. Each one throws PromptCancelledError
  * when the user cancels (Esc / Ctrl+C), so callers never see clack's cancel symbol.
  */
+
+/** clack (and the readline/tty modules it pulls in) loads on first prompt, keeping it off non-interactive startup. */
+const loadClack = () => import('@clack/prompts');
 
 /** Override stdin/stdout, used to drive the prompts in tests. */
 export type PromptStreams = { input?: Readable; output?: Writable };
@@ -26,7 +28,7 @@ export type MultiselectOptions = {
 
 export type RepoPickerOptions = MultiselectOptions & { initialValues: string[] };
 
-function unlessCancelled<T>(answer: T): Exclude<T, symbol> {
+function unlessCancelled<T>(clack: typeof import('@clack/prompts'), answer: T): Exclude<T, symbol> {
   if (clack.isCancel(answer)) {
     throw new PromptCancelledError();
   }
@@ -37,6 +39,7 @@ export async function input(
   { message, default: defaultValue, prefill }: InputOptions,
   streams: PromptStreams = {}
 ): Promise<string> {
+  const clack = await loadClack();
   const answer = await clack.text({
     message,
     ...(prefill === 'editable'
@@ -45,21 +48,24 @@ export async function input(
     ...streams,
   });
 
-  return unlessCancelled(answer) ?? '';
+  return unlessCancelled(clack, answer) ?? '';
 }
 
 export async function confirm(
   { message, default: initialValue }: ConfirmOptions,
   streams: PromptStreams = {}
 ): Promise<boolean> {
-  return unlessCancelled(await clack.confirm({ message, initialValue, ...streams }));
+  const clack = await loadClack();
+  return unlessCancelled(clack, await clack.confirm({ message, initialValue, ...streams }));
 }
 
 export async function multiselect(
   { message, options }: MultiselectOptions,
   streams: PromptStreams = {}
 ): Promise<string[]> {
+  const clack = await loadClack();
   return unlessCancelled(
+      clack,
     await clack.multiselect({ message, options, required: false, maxItems: 20, ...streams })
   );
 }
@@ -71,7 +77,9 @@ export async function pickRepos(
   { message, options, initialValues }: RepoPickerOptions,
   streams: PromptStreams = {}
 ): Promise<string[]> {
+  const clack = await loadClack();
   return unlessCancelled(
+      clack,
     await clack.autocompleteMultiselect({
       message,
       options,

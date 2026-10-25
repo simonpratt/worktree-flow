@@ -1,38 +1,42 @@
 import path from 'node:path';
 import os from 'node:os';
-import { z } from 'zod';
+import * as z from 'zod/mini';
+import en from 'zod/v4/locales/en.js';
 import type { IFileSystem } from '../adapters/types.js';
 import { ConfigNotSetError, InvalidWorkspacePathsError } from './errors.js';
 import { SESSION_MANAGER_KINDS } from './sessionManager.js';
 
+// zod/mini ships without error messages; load English so validation errors stay readable
+z.config(en());
+
 // Raw config schema (as stored in JSON)
 const RawConfigSchema = z.object({
-  'source-path': z.string().optional(),
-  'dest-path': z.string().optional(),
-  'copy-files': z.string().optional(),
-  'session-manager': z.enum(SESSION_MANAGER_KINDS).optional(),
+  'source-path': z.optional(z.string()),
+  'dest-path': z.optional(z.string()),
+  'copy-files': z.optional(z.string()),
+  'session-manager': z.optional(z.enum(SESSION_MANAGER_KINDS)),
   /** Legacy: superseded by session-manager. `true` is read as session-manager tmux. */
-  'tmux': z.enum(['true', 'false']).optional(),
-  'post-checkout': z.string().optional(),
-  'fetch-cache-ttl-seconds': z.string().optional(),
-  'per-repo-post-checkout': z.record(z.string(), z.string()).optional(),
+  'tmux': z.optional(z.enum(['true', 'false'])),
+  'post-checkout': z.optional(z.string()),
+  'fetch-cache-ttl-seconds': z.optional(z.string()),
+  'per-repo-post-checkout': z.optional(z.record(z.string(), z.string())),
   /** Named sets of repo names, used by `--group` and offered before the repo picker. */
-  'repo-groups': z.record(z.string(), z.array(z.string())).optional(),
+  'repo-groups': z.optional(z.record(z.string(), z.array(z.string()))),
   /** Set once the user has been offered the herdr integration, so they aren't asked again. */
-  'herdr-prompted': z.enum(['true', 'false']).optional(),
+  'herdr-prompted': z.optional(z.enum(['true', 'false'])),
 });
 
 // Parsed config schema (with proper types)
 const ParsedConfigSchema = z.object({
-  sourcePath: z.string().optional(),
-  destPath: z.string().optional(),
-  copyFiles: z.string().default('.env'),
-  sessionManager: z.enum(SESSION_MANAGER_KINDS).default('none'),
-  postCheckout: z.string().optional(),
-  fetchCacheTtlSeconds: z.number().default(300),
-  perRepoPostCheckout: z.record(z.string(), z.string()).default({}),
-  repoGroups: z.record(z.string(), z.array(z.string())).default({}),
-  herdrPrompted: z.boolean().default(false),
+  sourcePath: z.optional(z.string()),
+  destPath: z.optional(z.string()),
+  copyFiles: z._default(z.string(), '.env'),
+  sessionManager: z._default(z.enum(SESSION_MANAGER_KINDS), 'none'),
+  postCheckout: z.optional(z.string()),
+  fetchCacheTtlSeconds: z._default(z.number(), 300),
+  perRepoPostCheckout: z._default(z.record(z.string(), z.string()), {}),
+  repoGroups: z._default(z.record(z.string(), z.array(z.string())), {}),
+  herdrPrompted: z._default(z.boolean(), false),
 });
 
 // Required config schema (for getRequired)
@@ -43,17 +47,19 @@ const RequiredConfigSchema = z.object({
 
 // Schema for setting individual config values
 const ConfigValueSchemas = {
-  'source-path': z.string().transform((val) => path.resolve(val)),
-  'dest-path': z.string().transform((val) => path.resolve(val)),
+  'source-path': z.pipe(z.string(), z.transform((val) => path.resolve(val))),
+  'dest-path': z.pipe(z.string(), z.transform((val) => path.resolve(val))),
   'copy-files': z.string(),
   'session-manager': z.enum(SESSION_MANAGER_KINDS),
   'post-checkout': z.string(),
-  'fetch-cache-ttl-seconds': z.string().refine(
-    (val) => {
-      const num = parseInt(val, 10);
-      return !isNaN(num) && num >= 0;
-    },
-    { message: 'Must be a non-negative integer' }
+  'fetch-cache-ttl-seconds': z.string().check(
+    z.refine(
+      (val) => {
+        const num = parseInt(val, 10);
+        return !isNaN(num) && num >= 0;
+      },
+      { message: 'Must be a non-negative integer' }
+    )
   ),
 } as const;
 

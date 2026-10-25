@@ -22,6 +22,8 @@
 - `flow list` is now a fast offline listing of workspace names, repo counts and the active marker; status checks moved behind `--status`
 - `flow drop` and `flow prune` return almost immediately: the workspace is moved into `.flow-trash/` in the workspaces folder and deleted in the background. Anything left in `.flow-trash/` is a delete that failed and can be removed by hand.
 - With a session manager, `create`, `checkout` and `attach` open the session once all worktrees exist. Post-checkout then runs in each worktree's pane, or directly if the session can't be opened.
+- Faster startup: the CLI is now published as a single bundle with no runtime dependencies, and the prompt library only loads when a prompt is shown. Quick commands like `flow list` start ~40ms sooner, and `npm install -g` installs one package.
+- Requires Node 22 or later
 
 ### Removed
 

@@ -1,10 +1,10 @@
 import path from 'node:path';
-import { z } from 'zod';
+import * as z from 'zod/mini';
 import type { IFileSystem } from '../adapters/types.js';
 
 const RepoConfigSchema = z.object({
-  'copy-files': z.string().optional(),
-  'post-checkout': z.string().optional(),
+  'copy-files': z.optional(z.string()),
+  'post-checkout': z.optional(z.string()),
 });
 
 export type RepoConfig = {
