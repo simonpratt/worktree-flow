@@ -18,6 +18,7 @@ describe('attach integration', () => {
   let integration: IntegrationServices;
   let confirmStub: sinon.SinonStub;
   let inputStub: sinon.SinonStub;
+  let pickGroupsStub: sinon.SinonStub;
 
   beforeEach(async () => {
     tempDir = createTempDir();
@@ -27,6 +28,7 @@ describe('attach integration', () => {
     fs.mkdirSync(destPath, { recursive: true });
     confirmStub = sinon.stub().resolves(false);
     inputStub = sinon.stub().resolves('master');
+    pickGroupsStub = sinon.stub().resolves([]);
   });
 
   afterEach(() => {
@@ -45,6 +47,7 @@ describe('attach integration', () => {
         pickRepos: pickReposStub,
         input: inputStub,
         confirm: confirmStub,
+        pickGroups: pickGroupsStub,
       })
     ).rejects.toThrow(NotInWorkspaceError);
   });
@@ -59,6 +62,7 @@ describe('attach integration', () => {
         pickRepos: pickReposStub,
         input: inputStub,
         confirm: confirmStub,
+        pickGroups: pickGroupsStub,
       })
     ).rejects.toThrow(WorkspaceNotFoundError);
   });
@@ -77,6 +81,7 @@ describe('attach integration', () => {
       pickRepos: branchPickReposStub,
       input: inputStub,
       confirm: confirmStub,
+      pickGroups: pickGroupsStub,
     });
 
     // Verify only repo1 exists initially
@@ -92,6 +97,7 @@ describe('attach integration', () => {
       pickRepos: attachPickReposStub,
       input: inputStub,
       confirm: confirmStub,
+      pickGroups: pickGroupsStub,
     });
 
     // Verify all repos exist
@@ -119,6 +125,7 @@ describe('attach integration', () => {
       pickRepos: sinon.stub().resolves([repo1]),
       input: inputStub,
       confirm: confirmStub,
+      pickGroups: pickGroupsStub,
     });
 
     const workspacePath = path.join(destPath, 'feature_ABC-123');
@@ -128,6 +135,7 @@ describe('attach integration', () => {
       pickRepos: sinon.stub().resolves([repo2]),
       input: inputStub,
       confirm: confirmStub,
+      pickGroups: pickGroupsStub,
     });
 
     const { NodeShell } = await import('../../adapters/node.js');
@@ -149,6 +157,7 @@ describe('attach integration', () => {
       pickRepos: branchPickReposStub,
       input: inputStub,
       confirm: confirmStub,
+      pickGroups: pickGroupsStub,
     });
 
     // Attach repo2 using explicit branch name (cwd doesn't matter)
@@ -159,6 +168,7 @@ describe('attach integration', () => {
       pickRepos: attachPickReposStub,
       input: inputStub,
       confirm: confirmStub,
+      pickGroups: pickGroupsStub,
     });
 
     const workspacePath = path.join(destPath, 'feature');
@@ -178,6 +188,7 @@ describe('attach integration', () => {
       pickRepos: branchPickReposStub,
       input: inputStub,
       confirm: confirmStub,
+      pickGroups: pickGroupsStub,
     });
 
     // Run attach - picker should only show repo2
@@ -188,6 +199,7 @@ describe('attach integration', () => {
       pickRepos: attachPickReposStub,
       input: inputStub,
       confirm: confirmStub,
+      pickGroups: pickGroupsStub,
     });
 
     // Verify picker options only contained repo2
@@ -210,6 +222,7 @@ describe('attach integration', () => {
       pickRepos: branchPickReposStub,
       input: inputStub,
       confirm: confirmStub,
+      pickGroups: pickGroupsStub,
     });
 
     const attachPickReposStub = sinon.stub().resolves([]);
@@ -219,7 +232,7 @@ describe('attach integration', () => {
       undefined,
       integration.useCases,
       integration.services,
-      { pickRepos: attachPickReposStub, input: inputStub, confirm: confirmStub },
+      { pickRepos: attachPickReposStub, input: inputStub, confirm: confirmStub, pickGroups: pickGroupsStub },
       { repos: ['repo2'] }
     );
 
@@ -239,6 +252,7 @@ describe('attach integration', () => {
       pickRepos: branchPickReposStub,
       input: inputStub,
       confirm: confirmStub,
+      pickGroups: pickGroupsStub,
     });
 
     const attachPickReposStub = sinon.stub().resolves([repo2]);
@@ -249,7 +263,7 @@ describe('attach integration', () => {
       undefined,
       integration.useCases,
       integration.services,
-      { pickRepos: attachPickReposStub, input: inputStub, confirm: confirmStub },
+      { pickRepos: attachPickReposStub, input: inputStub, confirm: confirmStub, pickGroups: pickGroupsStub },
       { sourceBranch: 'master' }
     );
 
@@ -269,6 +283,7 @@ describe('attach integration', () => {
       pickRepos: branchPickReposStub,
       input: inputStub,
       confirm: confirmStub,
+      pickGroups: pickGroupsStub,
     });
 
     integration.services.config.load = sinon.stub().returns({
@@ -279,7 +294,7 @@ describe('attach integration', () => {
       postCheckout: 'echo "ran" > postcheckout.txt',
       perRepoPostCheckout: {},
       fetchCacheTtlSeconds: 300,
-      branchAutoSelectRepos: [],
+      repoGroups: {},
     });
 
     const attachPickReposStub = sinon.stub().resolves([repo2]);
@@ -289,7 +304,7 @@ describe('attach integration', () => {
       undefined,
       integration.useCases,
       integration.services,
-      { pickRepos: attachPickReposStub, input: inputStub, confirm: confirmStub },
+      { pickRepos: attachPickReposStub, input: inputStub, confirm: confirmStub, pickGroups: pickGroupsStub },
       { sourceBranch: 'master', postCheckout: false }
     );
 
@@ -310,6 +325,7 @@ describe('attach integration', () => {
       pickRepos: branchPickReposStub,
       input: inputStub,
       confirm: confirmStub,
+      pickGroups: pickGroupsStub,
     });
 
     const attachPickReposStub = sinon.stub().resolves([]);
@@ -320,7 +336,7 @@ describe('attach integration', () => {
         undefined,
         integration.useCases,
         integration.services,
-        { pickRepos: attachPickReposStub, input: inputStub, confirm: confirmStub },
+        { pickRepos: attachPickReposStub, input: inputStub, confirm: confirmStub, pickGroups: pickGroupsStub },
         { repos: ['repo1'] }
       )
     ).rejects.toThrow(RepoNotFoundError);
@@ -339,6 +355,7 @@ describe('attach integration', () => {
       pickRepos: branchPickReposStub,
       input: inputStub,
       confirm: confirmStub,
+      pickGroups: pickGroupsStub,
     });
 
     // Run attach but select nothing (repo2 is available but not selected)
@@ -349,6 +366,7 @@ describe('attach integration', () => {
       pickRepos: attachPickReposStub,
       input: inputStub,
       confirm: confirmStub,
+      pickGroups: pickGroupsStub,
     });
 
     const logCalls = (integration.stubs.console.log as sinon.SinonStub).args.map(
@@ -370,6 +388,7 @@ describe('attach integration', () => {
       pickRepos: branchPickReposStub,
       input: inputStub,
       confirm: confirmStub,
+      pickGroups: pickGroupsStub,
     });
 
     // Configure post-checkout for the attach
@@ -381,7 +400,7 @@ describe('attach integration', () => {
       postCheckout: 'echo "installed" > postcheckout.txt',
       perRepoPostCheckout: {},
       fetchCacheTtlSeconds: 300,
-      branchAutoSelectRepos: [],
+      repoGroups: {},
     });
 
     const attachPickReposStub = sinon.stub().resolves([repo2]);
@@ -392,6 +411,7 @@ describe('attach integration', () => {
       pickRepos: attachPickReposStub,
       input: inputStub,
       confirm: attachConfirmStub,
+      pickGroups: pickGroupsStub,
     });
 
     // Verify post-checkout ran in the new repo
@@ -411,6 +431,7 @@ describe('attach integration', () => {
         pickRepos: sinon.stub().resolves([repo1]),
         input: inputStub,
         confirm: confirmStub,
+        pickGroups: pickGroupsStub,
       });
 
       integration.services.config.load = sinon.stub().returns({
@@ -421,7 +442,7 @@ describe('attach integration', () => {
         postCheckout: 'npm ci',
         perRepoPostCheckout: {},
         fetchCacheTtlSeconds: 300,
-        branchAutoSelectRepos: [],
+        repoGroups: {},
       });
       const tmuxStub = integration.services.tmux as sinon.SinonStubbedInstance<any>;
       tmuxStub.exists.withArgs('feature').resolves(sessionExists);
@@ -431,6 +452,7 @@ describe('attach integration', () => {
         pickRepos: sinon.stub().resolves([repo2]),
         input: inputStub,
         confirm: sinon.stub().resolves(true),
+        pickGroups: pickGroupsStub,
       });
 
       return tmuxStub;
@@ -475,6 +497,7 @@ describe('attach integration', () => {
       pickRepos: branchPickReposStub,
       input: inputStub,
       confirm: confirmStub,
+      pickGroups: pickGroupsStub,
     });
 
     fs.writeFileSync(path.join(repo2, 'flow-config.json'), JSON.stringify({ 'copy-files': '.env.local', 'post-checkout': 'echo "repo2-config" > postcheckout.txt' }));
@@ -492,7 +515,7 @@ describe('attach integration', () => {
         repo4: 'echo "repo4-central" > postcheckout.txt',
       },
       fetchCacheTtlSeconds: 300,
-      branchAutoSelectRepos: [],
+      repoGroups: {},
     });
 
     const attachPickReposStub = sinon.stub().resolves([repo2, repo3, repo4]);
@@ -503,6 +526,7 @@ describe('attach integration', () => {
       pickRepos: attachPickReposStub,
       input: inputStub,
       confirm: attachConfirmStub,
+      pickGroups: pickGroupsStub,
     });
 
     const wt2 = path.join(destPath, 'feature', 'repo2');
@@ -520,5 +544,90 @@ describe('attach integration', () => {
 
     // repo4: central perRepoPostCheckout takes priority over flow-config.json post-checkout
     expect(fs.readFileSync(path.join(wt4, 'postcheckout.txt'), 'utf-8').trim()).toBe('repo4-central');
+  });
+
+  describe('repo groups', () => {
+    async function createWorkspaceWith(repoNames: string[]): Promise<string> {
+      const { runCreate } = await import('../create.js');
+      await runCreate(
+        'feature',
+        integration.useCases,
+        integration.services,
+        { pickRepos: sinon.stub(), input: inputStub, confirm: confirmStub, pickGroups: pickGroupsStub },
+        { repos: repoNames, sourceBranch: 'master' }
+      );
+      const workspacePath = path.join(destPath, 'feature');
+      (integration.stubs.process.cwd as sinon.SinonStub).returns(workspacePath);
+      return workspacePath;
+    }
+
+    function setRepoGroups(groups: Record<string, string[]>) {
+      const load = integration.services.config.load as sinon.SinonStub;
+      load.returns({ ...load(), repoGroups: groups });
+    }
+
+    it('should attach the members of --group that are not already in the workspace', async () => {
+      await initGitRepo(sourcePath, 'api-1');
+      await initGitRepo(sourcePath, 'api-2');
+      await initGitRepo(sourcePath, 'client');
+      integration = createIntegrationServices(sourcePath, destPath);
+      const workspacePath = await createWorkspaceWith(['api-1']);
+      setRepoGroups({ backend: ['api-1', 'api-2'] });
+      const pickReposStub = sinon.stub();
+
+      await runAttach(
+        undefined,
+        integration.useCases,
+        integration.services,
+        { pickRepos: pickReposStub, input: inputStub, confirm: confirmStub, pickGroups: pickGroupsStub },
+        { groups: ['backend'], sourceBranch: 'master' }
+      );
+
+      sinon.assert.notCalled(pickReposStub);
+      expect(fs.existsSync(path.join(workspacePath, 'api-2'))).toBe(true);
+      expect(fs.existsSync(path.join(workspacePath, 'client'))).toBe(false);
+    });
+
+    it('should report nothing to attach when every member of --group is already in the workspace', async () => {
+      await initGitRepo(sourcePath, 'api-1');
+      await initGitRepo(sourcePath, 'client');
+      integration = createIntegrationServices(sourcePath, destPath);
+      await createWorkspaceWith(['api-1']);
+      setRepoGroups({ backend: ['api-1'] });
+
+      await runAttach(
+        undefined,
+        integration.useCases,
+        integration.services,
+        { pickRepos: sinon.stub(), input: inputStub, confirm: confirmStub, pickGroups: pickGroupsStub },
+        { groups: ['backend'], sourceBranch: 'master' }
+      );
+
+      const logs = (integration.stubs.console.log as sinon.SinonStub).args.map((a: any[]) => a[0]);
+      expect(logs).toContain('Nothing to attach: the selected repos are already in this workspace.');
+      sinon.assert.notCalled(integration.stubs.process.exit);
+    });
+
+    it('should pre-select only the chosen group members not already in the workspace', async () => {
+      const api1 = await initGitRepo(sourcePath, 'api-1');
+      const api2 = await initGitRepo(sourcePath, 'api-2');
+      await initGitRepo(sourcePath, 'client');
+      integration = createIntegrationServices(sourcePath, destPath);
+      await createWorkspaceWith(['api-1']);
+      setRepoGroups({ backend: ['api-1', 'api-2'] });
+      pickGroupsStub.resolves(['backend']);
+      const pickReposStub = sinon.stub().resolves([api2]);
+
+      await runAttach(undefined, integration.useCases, integration.services, {
+        pickRepos: pickReposStub,
+        input: inputStub,
+        confirm: confirmStub,
+        pickGroups: pickGroupsStub,
+      });
+
+      const { options, initialValues } = pickReposStub.firstCall.args[0];
+      expect(options.map((o: { value: string }) => o.value)).not.toContain(api1);
+      expect(initialValues).toEqual([api2]);
+    });
   });
 });

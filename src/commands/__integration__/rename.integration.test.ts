@@ -303,7 +303,7 @@ describe('rename integration', () => {
       postCheckout: undefined,
       perRepoPostCheckout: {},
       fetchCacheTtlSeconds: 300,
-      branchAutoSelectRepos: [],
+      repoGroups: {},
       branchRepoUsage: {},
     });
 
@@ -340,7 +340,7 @@ describe('rename integration', () => {
       postCheckout: undefined,
       perRepoPostCheckout: {},
       fetchCacheTtlSeconds: 300,
-      branchAutoSelectRepos: [],
+      repoGroups: {},
       branchRepoUsage: {},
     });
     const tmuxStub = integration.services.tmux as sinon.SinonStubbedInstance<any>;

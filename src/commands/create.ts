@@ -6,19 +6,18 @@ import { createUseCases } from '../usecases/usecases.js';
 import type { Services } from '../lib/services.js';
 import type { UseCases } from '../usecases/usecases.js';
 import { NoReposFoundError } from '../lib/errors.js';
-import { buildRepoOptions, handleCommandError, resolveReposByName, logCopyFiles, logSession, logPostCheckout, logHerdrIntegrationEnabled } from './helpers.js';
-import { confirm, input, pickRepos, type InputOptions, type RepoPickerOptions } from './prompts.js';
+import { handleCommandError, selectRepos, logCopyFiles, logSession, logPostCheckout, logHerdrIntegrationEnabled, type RepoSelectionDeps } from './helpers.js';
+import { confirm, input, multiselect, pickRepos, type InputOptions } from './prompts.js';
 
 export async function runCreate(
   branchName: string,
   useCases: UseCases,
   services: Services,
-  deps: {
-    pickRepos: (opts: RepoPickerOptions) => Promise<string[]>;
+  deps: RepoSelectionDeps & {
     input: (opts: InputOptions) => Promise<string>;
     confirm: (opts: { message: string; default: boolean }) => Promise<boolean>;
   },
-  options: { repos?: string[]; sourceBranch?: string; postCheckout?: boolean } = {}
+  options: { repos?: string[]; groups?: string[]; sourceBranch?: string; postCheckout?: boolean } = {}
 ): Promise<void> {
   const { sourcePath, destPath } = services.config.getRequired();
   const config = services.config.load();
@@ -28,16 +27,19 @@ export async function runCreate(
     throw new NoReposFoundError(sourcePath);
   }
 
-  // User prompts, unless repos were provided explicitly via --repo
-  let selected: string[];
-  if (options.repos && options.repos.length > 0) {
-    selected = resolveReposByName(repos, options.repos);
-  } else {
-    selected = await deps.pickRepos({
+  // User prompts, unless repos were provided explicitly via --repo / --group
+  const selected = await selectRepos(
+    {
+      allRepos: repos,
+      candidates: repos,
+      repoGroups: config.repoGroups,
+      repoNames: options.repos ?? [],
+      groupNames: options.groups ?? [],
       message: `Select repos for branch "${branchName}":`,
-      ...buildRepoOptions(repos, services, config.branchAutoSelectRepos),
-    });
-  }
+    },
+    services,
+    deps
+  );
 
   if (selected.length === 0) {
     services.console.log('No repos selected.');
@@ -59,7 +61,7 @@ export async function runCreate(
 
   const { sessionManager, enabled: herdrEnabled } = await useCases.offerHerdrIntegration.execute({
     confirm: deps.confirm,
-    interactive: !(options.repos && options.repos.length > 0),
+    interactive: (options.repos ?? []).length === 0 && (options.groups ?? []).length === 0,
   });
   if (herdrEnabled) {
     logHerdrIntegrationEnabled(services.console);
@@ -162,10 +164,11 @@ export function registerCreateCommand(program: Command): void {
     .helpGroup('Workspaces')
     .description('Create branches and worktrees for selected repos')
     .option('-r, --repo <repo>', 'Repo to include (repeatable, skips the interactive picker)', (value: string, previous: string[]) => previous.concat([value]), [] as string[])
+    .option('-g, --group <group>', 'Repo group to include (repeatable, skips the interactive picker)', (value: string, previous: string[]) => previous.concat([value]), [] as string[])
     .option('-f, --from <branch>', 'Branch to create from, skips the interactive prompt')
     .option('--post-checkout', 'Run the post-checkout command without prompting')
     .option('--no-post-checkout', 'Skip the post-checkout command without prompting')
-    .action(async (branchName: string, cmdOptions: { repo: string[]; from?: string; postCheckout?: boolean }) => {
+    .action(async (branchName: string, cmdOptions: { repo: string[]; group: string[]; from?: string; postCheckout?: boolean }) => {
       const services = createServices();
       const useCases = createUseCases(services);
 
@@ -174,8 +177,8 @@ export function registerCreateCommand(program: Command): void {
           branchName,
           useCases,
           services,
-          { pickRepos, input, confirm },
-          { repos: cmdOptions.repo, sourceBranch: cmdOptions.from, postCheckout: cmdOptions.postCheckout }
+          { pickRepos, pickGroups: multiselect, input, confirm },
+          { repos: cmdOptions.repo, groups: cmdOptions.group, sourceBranch: cmdOptions.from, postCheckout: cmdOptions.postCheckout }
         );
       } catch (error: any) {
         handleCommandError(error, services);

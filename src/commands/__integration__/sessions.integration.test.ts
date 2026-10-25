@@ -31,7 +31,7 @@ describe('sessions integration', () => {
       postCheckout: undefined,
       perRepoPostCheckout: {},
       fetchCacheTtlSeconds: 300,
-      branchAutoSelectRepos: [],
+      repoGroups: {},
     });
     tmuxStub = integration.services.tmux as sinon.SinonStubbedInstance<any>;
     herdrStub = integration.services.herdr as sinon.SinonStubbedInstance<any>;

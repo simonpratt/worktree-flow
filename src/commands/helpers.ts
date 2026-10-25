@@ -3,8 +3,8 @@ import chalk from 'chalk';
 import { StatusService, type WorktreeStatus } from '../lib/status.js';
 import type { IConsole } from '../adapters/types.js';
 import type { Services } from '../lib/services.js';
-import { PromptCancelledError, RepoNotFoundError } from '../lib/errors.js';
-import type { RepoPickerOptions } from './prompts.js';
+import { EmptyRepoGroupError, PromptCancelledError, RepoGroupNotFoundError, RepoNotFoundError } from '../lib/errors.js';
+import type { MultiselectOptions, RepoPickerOptions } from './prompts.js';
 import type { AddToWorkspaceResult } from '../usecases/addToWorkspace.js';
 import type { OpenWorkspaceSessionResult } from '../usecases/openWorkspaceSession.js';
 import type { SessionManagerKind } from '../lib/sessionManager.js';
@@ -139,6 +139,114 @@ export function resolveReposByName(candidateRepoPaths: string[], repoNames: stri
     }
     return repoPath;
   });
+}
+
+
+export type MissingGroupRepo = { group: string; repo: string };
+
+/**
+ * Resolve the members of the named repo groups to repo paths, in group order and without
+ * duplicates. Members not among `repoPaths` (e.g. renamed or deleted repos) are returned as
+ * `missing` rather than failing. Throws RepoGroupNotFoundError if a group isn't defined.
+ * @example resolveRepoGroups({ backend: ['api', 'gone'] }, ['backend'], ['/src/api']) →
+ *   { repoPaths: ['/src/api'], missing: [{ group: 'backend', repo: 'gone' }] }
+ */
+export function resolveRepoGroups(
+  groups: Record<string, string[]>,
+  groupNames: string[],
+  repoPaths: string[]
+): { repoPaths: string[]; missing: MissingGroupRepo[] } {
+  const byName = new Map(repoPaths.map((repoPath) => [path.basename(repoPath), repoPath]));
+  const resolved = new Set<string>();
+  const missing: MissingGroupRepo[] = [];
+
+  for (const group of groupNames) {
+    const members = groups[group];
+    if (!members) {
+      throw new RepoGroupNotFoundError(group, Object.keys(groups).sort());
+    }
+    for (const repo of members) {
+      const repoPath = byName.get(repo);
+      if (repoPath) {
+        resolved.add(repoPath);
+      } else {
+        missing.push({ group, repo });
+      }
+    }
+  }
+
+  return { repoPaths: Array.from(resolved), missing };
+}
+
+function logMissingGroupRepos(missing: MissingGroupRepo[], console: IConsole): void {
+  for (const { group, repo } of missing) {
+    console.log(chalk.yellow(`Warning: repo "${repo}" in group "${group}" is not in the source-path, skipping.`));
+  }
+}
+
+export type RepoSelection = {
+  /** Every repo in the source-path, which group members are resolved against. */
+  allRepos: string[];
+  /** The repos that can be selected (e.g. excluding those already in the workspace). */
+  candidates: string[];
+  repoGroups: Record<string, string[]>;
+  /** From --repo; with groupNames, skips the prompts when either is non-empty. */
+  repoNames: string[];
+  /** From --group. */
+  groupNames: string[];
+  message: string;
+};
+
+export type RepoSelectionDeps = {
+  pickRepos: (opts: RepoPickerOptions) => Promise<string[]>;
+  pickGroups: (opts: MultiselectOptions) => Promise<string[]>;
+};
+
+/**
+ * Choose repos for a workspace, returning their paths. With --repo / --group this is the union
+ * of both, with no prompts. Otherwise any defined repo groups are offered first, and the chosen
+ * groups' members are pre-selected in the repo picker. Group members are only ever narrowed to
+ * the candidates, so a group may include repos that are already in the workspace.
+ * @throws RepoNotFoundError, RepoGroupNotFoundError, or EmptyRepoGroupError when no member of
+ *   the --group groups is in the source-path
+ */
+export async function selectRepos(
+  selection: RepoSelection,
+  services: Pick<Services, 'repos' | 'console'>,
+  deps: RepoSelectionDeps
+): Promise<string[]> {
+  const { allRepos, candidates, repoGroups, repoNames, groupNames, message } = selection;
+
+  if (repoNames.length > 0 || groupNames.length > 0) {
+    const fromRepos = resolveReposByName(candidates, repoNames);
+    let fromGroups: string[] = [];
+    if (groupNames.length > 0) {
+      const { repoPaths, missing } = resolveRepoGroups(repoGroups, groupNames, allRepos);
+      logMissingGroupRepos(missing, services.console);
+      if (repoPaths.length === 0) {
+        throw new EmptyRepoGroupError(groupNames);
+      }
+      fromGroups = repoPaths.filter((repoPath) => candidates.includes(repoPath));
+    }
+    return Array.from(new Set([...fromRepos, ...fromGroups]));
+  }
+
+  let preSelected: string[] = [];
+  const definedGroups = Object.keys(repoGroups).sort();
+  if (definedGroups.length > 0) {
+    const chosen = await deps.pickGroups({
+      message: 'Start from a repo group?',
+      options: definedGroups.map((name) => ({
+        value: name,
+        label: `${name}  ${chalk.dim(repoGroups[name].join(', '))}`,
+      })),
+    });
+    const { repoPaths, missing } = resolveRepoGroups(repoGroups, chosen, allRepos);
+    logMissingGroupRepos(missing, services.console);
+    preSelected = repoPaths.map((repoPath) => path.basename(repoPath));
+  }
+
+  return deps.pickRepos({ message, ...buildRepoOptions(candidates, services, preSelected) });
 }
 
 

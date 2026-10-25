@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import sinon from 'sinon';
 import { runCreate } from '../create.js';
-import { WorkspaceAlreadyExistsError, RepoNotFoundError } from '../../lib/errors.js';
+import { WorkspaceAlreadyExistsError, RepoNotFoundError, RepoGroupNotFoundError, EmptyRepoGroupError } from '../../lib/errors.js';
 import {
   createTempDir,
   initGitRepo,
@@ -18,6 +18,7 @@ describe('create integration', () => {
   let integration: IntegrationServices;
   let confirmStub: sinon.SinonStub;
   let inputStub: sinon.SinonStub;
+  let pickGroupsStub: sinon.SinonStub;
 
   beforeEach(async () => {
     tempDir = createTempDir();
@@ -27,6 +28,7 @@ describe('create integration', () => {
     fs.mkdirSync(destPath, { recursive: true });
     confirmStub = sinon.stub().resolves(false);
     inputStub = sinon.stub().resolves('master');
+    pickGroupsStub = sinon.stub().resolves([]);
   });
 
   afterEach(() => {
@@ -46,6 +48,7 @@ describe('create integration', () => {
       pickRepos: pickReposStub,
       input: inputStub,
       confirm: confirmStub,
+      pickGroups: pickGroupsStub,
     });
 
     // Verify worktree dirs exist
@@ -75,7 +78,7 @@ describe('create integration', () => {
       'new-feature',
       integration.useCases,
       integration.services,
-      { pickRepos: pickReposStub, input: inputStub, confirm: confirmStub },
+      { pickRepos: pickReposStub, input: inputStub, confirm: confirmStub, pickGroups: pickGroupsStub },
       { repos: ['repo1'] }
     );
 
@@ -95,7 +98,7 @@ describe('create integration', () => {
       'new-feature',
       integration.useCases,
       integration.services,
-      { pickRepos: pickReposStub, input: inputStub, confirm: confirmStub },
+      { pickRepos: pickReposStub, input: inputStub, confirm: confirmStub, pickGroups: pickGroupsStub },
       { repos: ['repo1'], sourceBranch: 'master' }
     );
 
@@ -116,7 +119,7 @@ describe('create integration', () => {
       postCheckout: 'echo "ran" > postcheckout.txt',
       perRepoPostCheckout: {},
       fetchCacheTtlSeconds: 300,
-      branchAutoSelectRepos: [],
+      repoGroups: {},
     });
 
     const pickReposStub = sinon.stub().resolves([repo1]);
@@ -125,7 +128,7 @@ describe('create integration', () => {
       'new-feature',
       integration.useCases,
       integration.services,
-      { pickRepos: pickReposStub, input: inputStub, confirm: confirmStub },
+      { pickRepos: pickReposStub, input: inputStub, confirm: confirmStub, pickGroups: pickGroupsStub },
       { repos: ['repo1'], sourceBranch: 'master', postCheckout: true }
     );
 
@@ -147,7 +150,7 @@ describe('create integration', () => {
       postCheckout: 'echo "ran" > postcheckout.txt',
       perRepoPostCheckout: {},
       fetchCacheTtlSeconds: 300,
-      branchAutoSelectRepos: [],
+      repoGroups: {},
     });
     const herdrStub = integration.services.herdr as sinon.SinonStubbedInstance<any>;
 
@@ -155,7 +158,7 @@ describe('create integration', () => {
       'feature/x',
       integration.useCases,
       integration.services,
-      { pickRepos: sinon.stub(), input: inputStub, confirm: confirmStub },
+      { pickRepos: sinon.stub(), input: inputStub, confirm: confirmStub, pickGroups: pickGroupsStub },
       { repos: ['repo1', 'repo2'], sourceBranch: 'master', postCheckout: true }
     );
 
@@ -190,7 +193,7 @@ describe('create integration', () => {
       postCheckout: 'echo "ran" > postcheckout.txt',
       perRepoPostCheckout: {},
       fetchCacheTtlSeconds: 300,
-      branchAutoSelectRepos: [],
+      repoGroups: {},
     });
     const tmuxStub = integration.services.tmux as sinon.SinonStubbedInstance<any>;
     tmuxStub.create.rejects(new Error('tmux: command not found'));
@@ -199,7 +202,7 @@ describe('create integration', () => {
       'new-feature',
       integration.useCases,
       integration.services,
-      { pickRepos: sinon.stub(), input: inputStub, confirm: confirmStub },
+      { pickRepos: sinon.stub(), input: inputStub, confirm: confirmStub, pickGroups: pickGroupsStub },
       { repos: ['repo1'], sourceBranch: 'master', postCheckout: true }
     );
 
@@ -228,12 +231,29 @@ describe('create integration', () => {
         'feature',
         integration.useCases,
         integration.services,
-        { pickRepos: sinon.stub(), input: inputStub, confirm: confirmStub },
+        { pickRepos: sinon.stub(), input: inputStub, confirm: confirmStub, pickGroups: pickGroupsStub },
         { repos: ['repo1'], sourceBranch: 'master' }
       );
 
       sinon.assert.neverCalledWith(confirmStub, herdrPrompt);
       sinon.assert.notCalled(integration.services.config.set as sinon.SinonStub);
+      expect(fs.existsSync(path.join(destPath, 'feature', 'repo1'))).toBe(true);
+    });
+
+    it('should not ask when repos are provided via --group', async () => {
+      await initGitRepo(sourcePath, 'repo1');
+      const load = integration.services.config.load as sinon.SinonStub;
+      load.returns({ ...load(), repoGroups: { backend: ['repo1'] } });
+
+      await runCreate(
+        'feature',
+        integration.useCases,
+        integration.services,
+        { pickRepos: sinon.stub(), input: inputStub, confirm: confirmStub, pickGroups: pickGroupsStub },
+        { groups: ['backend'], sourceBranch: 'master' }
+      );
+
+      sinon.assert.neverCalledWith(confirmStub, herdrPrompt);
       expect(fs.existsSync(path.join(destPath, 'feature', 'repo1'))).toBe(true);
     });
 
@@ -246,7 +266,7 @@ describe('create integration', () => {
         'feature',
         integration.useCases,
         integration.services,
-        { pickRepos: pickReposStub, input: inputStub, confirm: confirmStub },
+        { pickRepos: pickReposStub, input: inputStub, confirm: confirmStub, pickGroups: pickGroupsStub },
         { sourceBranch: 'master' }
       );
 
@@ -271,7 +291,7 @@ describe('create integration', () => {
         'feature',
         integration.useCases,
         integration.services,
-        { pickRepos: pickReposStub, input: inputStub, confirm: confirmStub },
+        { pickRepos: pickReposStub, input: inputStub, confirm: confirmStub, pickGroups: pickGroupsStub },
         { sourceBranch: 'master' }
       );
 
@@ -291,7 +311,7 @@ describe('create integration', () => {
         sessionManager: 'none',
         perRepoPostCheckout: {},
         fetchCacheTtlSeconds: 300,
-        branchAutoSelectRepos: [],
+        repoGroups: {},
         herdrPrompted: true,
       });
 
@@ -299,7 +319,7 @@ describe('create integration', () => {
         'feature',
         integration.useCases,
         integration.services,
-        { pickRepos: pickReposStub, input: inputStub, confirm: confirmStub },
+        { pickRepos: pickReposStub, input: inputStub, confirm: confirmStub, pickGroups: pickGroupsStub },
         { sourceBranch: 'master' }
       );
 
@@ -321,7 +341,7 @@ describe('create integration', () => {
       postCheckout: 'echo "ran" > postcheckout.txt',
       perRepoPostCheckout: {},
       fetchCacheTtlSeconds: 300,
-      branchAutoSelectRepos: [],
+      repoGroups: {},
     });
 
     const pickReposStub = sinon.stub().resolves([repo1]);
@@ -330,7 +350,7 @@ describe('create integration', () => {
       'new-feature',
       integration.useCases,
       integration.services,
-      { pickRepos: pickReposStub, input: inputStub, confirm: confirmStub },
+      { pickRepos: pickReposStub, input: inputStub, confirm: confirmStub, pickGroups: pickGroupsStub },
       { repos: ['repo1'], sourceBranch: 'master', postCheckout: false }
     );
 
@@ -351,7 +371,7 @@ describe('create integration', () => {
         'new-feature',
         integration.useCases,
         integration.services,
-        { pickRepos: pickReposStub, input: inputStub, confirm: confirmStub },
+        { pickRepos: pickReposStub, input: inputStub, confirm: confirmStub, pickGroups: pickGroupsStub },
         { repos: ['does-not-exist'] }
       )
     ).rejects.toThrow(RepoNotFoundError);
@@ -372,6 +392,7 @@ describe('create integration', () => {
         pickRepos: pickReposStub,
         input: inputStub,
         confirm: confirmStub,
+        pickGroups: pickGroupsStub,
       })
     ).rejects.toThrow(WorkspaceAlreadyExistsError);
   });
@@ -388,6 +409,7 @@ describe('create integration', () => {
       pickRepos: sinon.stub().resolves([repo1]),
       input: inputStub,
       confirm: confirmStub,
+      pickGroups: pickGroupsStub,
     });
 
     const workspacePath = path.join(destPath, 'new-feature');
@@ -407,6 +429,7 @@ describe('create integration', () => {
       pickRepos: sinon.stub().resolves([repoA, repoB]),
       input: inputStub,
       confirm: confirmStub,
+      pickGroups: pickGroupsStub,
     });
 
     expect(fs.readdirSync(path.join(nestedDest, 'feat-123')).filter((n) => !n.startsWith('.') && n !== 'flow-config.json').sort())
@@ -418,6 +441,7 @@ describe('create integration', () => {
       pickRepos: pickReposStub,
       input: inputStub,
       confirm: confirmStub,
+      pickGroups: pickGroupsStub,
     });
 
     const offered = pickReposStub.firstCall.args[0].options.map((o: { label: string }) => o.label);
@@ -441,6 +465,7 @@ describe('create integration', () => {
       pickRepos: sinon.stub().resolves([api1, client]),
       input: inputStub,
       confirm: confirmStub,
+      pickGroups: pickGroupsStub,
     });
 
     const workspacePath = path.join(destPath, 'new-feature');
@@ -451,32 +476,172 @@ describe('create integration', () => {
     expect(fs.readFileSync(path.join(workspacePath, 'NOTES.md'), 'utf-8')).toBe('api-2 notes\n');
   });
 
-  it('should pre-check repos configured in branch-repos', async () => {
-    const repo1 = await initGitRepo(sourcePath, 'repo1');
-    const repo2 = await initGitRepo(sourcePath, 'repo2');
+  describe('repo groups', () => {
+    function setRepoGroups(groups: Record<string, string[]>) {
+      const load = integration.services.config.load as sinon.SinonStub;
+      load.returns({ ...load(), repoGroups: groups });
+    }
 
-    integration = createIntegrationServices(sourcePath, destPath);
+    function logged(): string[] {
+      return (integration.stubs.console.log as sinon.SinonStub).args.map((a: any[]) => a[0]);
+    }
 
-    integration.services.config.load = sinon.stub().returns({
-      sourcePath,
-      destPath,
-      copyFiles: '.env',
-      sessionManager: 'none',
-      postCheckout: undefined,
-      perRepoPostCheckout: {},
-      fetchCacheTtlSeconds: 300,
-      branchAutoSelectRepos: ['repo1'],
+    it('should create worktrees for the members of --group, skipping both pickers', async () => {
+      await initGitRepo(sourcePath, 'api-1');
+      await initGitRepo(sourcePath, 'api-2');
+      await initGitRepo(sourcePath, 'client');
+      integration = createIntegrationServices(sourcePath, destPath);
+      setRepoGroups({ backend: ['api-1', 'api-2'] });
+      const pickReposStub = sinon.stub();
+
+      await runCreate(
+        'feature',
+        integration.useCases,
+        integration.services,
+        { pickRepos: pickReposStub, input: inputStub, confirm: confirmStub, pickGroups: pickGroupsStub },
+        { groups: ['backend'], sourceBranch: 'master' }
+      );
+
+      sinon.assert.notCalled(pickReposStub);
+      sinon.assert.notCalled(pickGroupsStub);
+      const workspacePath = path.join(destPath, 'feature');
+      expect(fs.existsSync(path.join(workspacePath, 'api-1'))).toBe(true);
+      expect(fs.existsSync(path.join(workspacePath, 'api-2'))).toBe(true);
+      expect(fs.existsSync(path.join(workspacePath, 'client'))).toBe(false);
     });
 
-    const pickReposStub = sinon.stub().resolves([repo1]);
+    it('should combine several --group and --repo flags into one set of repos', async () => {
+      await initGitRepo(sourcePath, 'api-1');
+      await initGitRepo(sourcePath, 'shared');
+      await initGitRepo(sourcePath, 'client');
+      await initGitRepo(sourcePath, 'infra');
+      integration = createIntegrationServices(sourcePath, destPath);
+      setRepoGroups({ backend: ['api-1', 'shared'], web: ['client', 'shared'] });
 
-    await runCreate('feature', integration.useCases, integration.services, {
-      pickRepos: pickReposStub,
-      input: inputStub,
-      confirm: confirmStub,
+      await runCreate(
+        'feature',
+        integration.useCases,
+        integration.services,
+        { pickRepos: sinon.stub(), input: inputStub, confirm: confirmStub, pickGroups: pickGroupsStub },
+        { groups: ['backend', 'web'], repos: ['shared'], sourceBranch: 'master' }
+      );
+
+      const workspacePath = path.join(destPath, 'feature');
+      expect(integration.services.workspaceDir.getWorktreeDirs(workspacePath).map((d) => path.basename(d)).sort())
+        .toEqual(['api-1', 'client', 'shared']);
     });
 
-    expect(pickReposStub.firstCall.args[0].initialValues).toEqual([repo1]);
+    it('should reject an unknown group before creating anything', async () => {
+      await initGitRepo(sourcePath, 'api-1');
+      integration = createIntegrationServices(sourcePath, destPath);
+      setRepoGroups({ backend: ['api-1'] });
+
+      await expect(
+        runCreate(
+          'feature',
+          integration.useCases,
+          integration.services,
+          { pickRepos: sinon.stub(), input: inputStub, confirm: confirmStub, pickGroups: pickGroupsStub },
+          { groups: ['mobile'], sourceBranch: 'master' }
+        )
+      ).rejects.toThrow(RepoGroupNotFoundError);
+
+      expect(fs.existsSync(path.join(destPath, 'feature'))).toBe(false);
+    });
+
+    it('should warn about and skip group members that are no longer in the source-path', async () => {
+      await initGitRepo(sourcePath, 'api-1');
+      integration = createIntegrationServices(sourcePath, destPath);
+      setRepoGroups({ backend: ['api-1', 'worker'] });
+
+      await runCreate(
+        'feature',
+        integration.useCases,
+        integration.services,
+        { pickRepos: sinon.stub(), input: inputStub, confirm: confirmStub, pickGroups: pickGroupsStub },
+        { groups: ['backend'], sourceBranch: 'master' }
+      );
+
+      expect(fs.existsSync(path.join(destPath, 'feature', 'api-1'))).toBe(true);
+      expect(logged().some((line) => line.includes('worker') && line.includes('backend'))).toBe(true);
+    });
+
+    it('should fail when none of the group members are in the source-path', async () => {
+      await initGitRepo(sourcePath, 'api-1');
+      integration = createIntegrationServices(sourcePath, destPath);
+      setRepoGroups({ backend: ['worker'] });
+
+      await expect(
+        runCreate(
+          'feature',
+          integration.useCases,
+          integration.services,
+          { pickRepos: sinon.stub(), input: inputStub, confirm: confirmStub, pickGroups: pickGroupsStub },
+          { groups: ['backend'], sourceBranch: 'master' }
+        )
+      ).rejects.toThrow(EmptyRepoGroupError);
+
+      expect(fs.existsSync(path.join(destPath, 'feature'))).toBe(false);
+    });
+
+    it('should offer the groups first, then open the picker with the chosen groups pre-selected', async () => {
+      const api1 = await initGitRepo(sourcePath, 'api-1');
+      const api2 = await initGitRepo(sourcePath, 'api-2');
+      const client = await initGitRepo(sourcePath, 'client');
+      integration = createIntegrationServices(sourcePath, destPath);
+      setRepoGroups({ web: ['client'], backend: ['api-1', 'api-2'] });
+      pickGroupsStub.resolves(['backend']);
+      const pickReposStub = sinon.stub().resolves([api1, client]);
+
+      await runCreate('feature', integration.useCases, integration.services, {
+        pickRepos: pickReposStub,
+        input: inputStub,
+        confirm: confirmStub,
+        pickGroups: pickGroupsStub,
+      });
+
+      const groupOptions = pickGroupsStub.firstCall.args[0].options;
+      expect(groupOptions.map((o: { value: string }) => o.value)).toEqual(['backend', 'web']);
+      expect(groupOptions[0].label).toContain('api-1, api-2');
+      expect(pickReposStub.firstCall.args[0].initialValues).toEqual([api1, api2]);
+      // The picker's ticks are what gets created, even when they differ from the group
+      const workspacePath = path.join(destPath, 'feature');
+      expect(fs.existsSync(path.join(workspacePath, 'client'))).toBe(true);
+      expect(fs.existsSync(path.join(workspacePath, 'api-2'))).toBe(false);
+    });
+
+    it('should open the picker with nothing pre-selected when no group is chosen', async () => {
+      const api1 = await initGitRepo(sourcePath, 'api-1');
+      integration = createIntegrationServices(sourcePath, destPath);
+      setRepoGroups({ backend: ['api-1'] });
+      const pickReposStub = sinon.stub().resolves([api1]);
+
+      await runCreate('feature', integration.useCases, integration.services, {
+        pickRepos: pickReposStub,
+        input: inputStub,
+        confirm: confirmStub,
+        pickGroups: pickGroupsStub,
+      });
+
+      sinon.assert.calledOnce(pickGroupsStub);
+      expect(pickReposStub.firstCall.args[0].initialValues).toEqual([]);
+    });
+
+    it('should go straight to the picker when no groups are defined', async () => {
+      const repo1 = await initGitRepo(sourcePath, 'repo1');
+      integration = createIntegrationServices(sourcePath, destPath);
+      const pickReposStub = sinon.stub().resolves([repo1]);
+
+      await runCreate('feature', integration.useCases, integration.services, {
+        pickRepos: pickReposStub,
+        input: inputStub,
+        confirm: confirmStub,
+        pickGroups: pickGroupsStub,
+      });
+
+      sinon.assert.notCalled(pickGroupsStub);
+      expect(pickReposStub.firstCall.args[0].initialValues).toEqual([]);
+    });
   });
 
   it('should list all repos alphabetically regardless of recent usage', async () => {
@@ -495,6 +660,7 @@ describe('create integration', () => {
       pickRepos: pickReposStub,
       input: inputStub,
       confirm: confirmStub,
+      pickGroups: pickGroupsStub,
     });
 
     expect(pickReposStub.firstCall.args[0].options).toEqual([
@@ -516,6 +682,7 @@ describe('create integration', () => {
       pickRepos: pickReposStub,
       input: inputStub,
       confirm: confirmStub,
+      pickGroups: pickGroupsStub,
     });
 
     const trackStub = integration.services.fetchCache.trackBranchUsage as sinon.SinonStub;
@@ -548,7 +715,7 @@ describe('create integration', () => {
         repo3: 'echo "repo3-central" > postcheckout.txt',
       },
       fetchCacheTtlSeconds: 300,
-      branchAutoSelectRepos: [],
+      repoGroups: {},
     });
 
     const pickReposStub = sinon.stub().resolves([repo1, repo2, repo3]);
@@ -558,6 +725,7 @@ describe('create integration', () => {
       pickRepos: pickReposStub,
       input: inputStub,
       confirm: confirmStub,
+      pickGroups: pickGroupsStub,
     });
 
     const wt1 = path.join(destPath, 'feature', 'repo1');
@@ -592,13 +760,14 @@ describe('create integration', () => {
       postCheckout: undefined,
       perRepoPostCheckout: {},
       fetchCacheTtlSeconds: 300,
-      branchAutoSelectRepos: [],
+      repoGroups: {},
     });
 
     await runCreate('feature', integration.useCases, integration.services, {
       pickRepos: sinon.stub().resolves([repo1]),
       input: inputStub,
       confirm: confirmStub,
+      pickGroups: pickGroupsStub,
     });
 
     const wt1 = path.join(destPath, 'feature', 'repo1');
@@ -623,13 +792,14 @@ describe('create integration', () => {
       postCheckout: undefined,
       perRepoPostCheckout: {},
       fetchCacheTtlSeconds: 300,
-      branchAutoSelectRepos: [],
+      repoGroups: {},
     });
 
     await runCreate('feature', integration.useCases, integration.services, {
       pickRepos: sinon.stub().resolves([repo1]),
       input: inputStub,
       confirm: confirmStub,
+      pickGroups: pickGroupsStub,
     });
 
     const wt1 = path.join(destPath, 'feature', 'repo1');
@@ -661,7 +831,7 @@ describe('create integration', () => {
         repo2: 'echo "repo2-custom" > postcheckout.txt',
       },
       fetchCacheTtlSeconds: 300,
-      branchAutoSelectRepos: [],
+      repoGroups: {},
     });
 
     const pickReposStub = sinon.stub().resolves([repo1, repo2, repo3]);
@@ -671,6 +841,7 @@ describe('create integration', () => {
       pickRepos: pickReposStub,
       input: inputStub,
       confirm: confirmStub,
+      pickGroups: pickGroupsStub,
     });
 
     // Verify post-checkout ran with per-repo overrides

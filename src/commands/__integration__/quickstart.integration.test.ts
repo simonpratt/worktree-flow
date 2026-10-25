@@ -209,7 +209,7 @@ describe('quickstart integration', () => {
       'source-path': '/existing/repos',
       'dest-path': '/existing/workspaces',
       'copy-files': '.env,.secrets',
-      'branch-auto-select-repos': 'repo1,repo2',
+      'repo-groups': { backend: ['repo1', 'repo2'] },
     });
 
     inputStub.onCall(0).resolves('/my/repos');
@@ -221,7 +221,7 @@ describe('quickstart integration', () => {
 
     const saved = (integration.services.config.saveRaw as sinon.SinonStub).firstCall.args[0];
     expect(saved['copy-files']).toBe('.env,.secrets');
-    expect(saved['branch-auto-select-repos']).toBe('repo1,repo2');
+    expect(saved['repo-groups']).toEqual({ backend: ['repo1', 'repo2'] });
   });
 
   describe('when no session manager is installed', () => {

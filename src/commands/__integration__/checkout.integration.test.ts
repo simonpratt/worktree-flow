@@ -71,7 +71,7 @@ describe('checkout integration', () => {
       postCheckout: undefined,
       perRepoPostCheckout: {},
       fetchCacheTtlSeconds: 300,
-      branchAutoSelectRepos: [],
+      repoGroups: {},
     });
     const tmuxStub = integration.services.tmux as sinon.SinonStubbedInstance<any>;
 

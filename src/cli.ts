@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
 import { registerConfigCommand } from './commands/config.js';
+import { registerGroupCommand } from './commands/group.js';
 import { registerCreateCommand } from './commands/create.js';
 import { registerAttachCommand } from './commands/attach.js';
 import { registerBranchCommand } from './commands/branch.js';
@@ -26,6 +27,7 @@ program
 // Getting Started
 registerQuickstartCommand(program);
 registerConfigCommand(program);
+registerGroupCommand(program);
 
 // Workspaces
 registerCreateCommand(program);

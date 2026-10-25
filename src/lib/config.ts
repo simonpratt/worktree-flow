@@ -16,7 +16,8 @@ const RawConfigSchema = z.object({
   'post-checkout': z.string().optional(),
   'fetch-cache-ttl-seconds': z.string().optional(),
   'per-repo-post-checkout': z.record(z.string(), z.string()).optional(),
-  'branch-auto-select-repos': z.string().optional(),
+  /** Named sets of repo names, used by `--group` and offered before the repo picker. */
+  'repo-groups': z.record(z.string(), z.array(z.string())).optional(),
   /** Set once the user has been offered the herdr integration, so they aren't asked again. */
   'herdr-prompted': z.enum(['true', 'false']).optional(),
 });
@@ -30,7 +31,7 @@ const ParsedConfigSchema = z.object({
   postCheckout: z.string().optional(),
   fetchCacheTtlSeconds: z.number().default(300),
   perRepoPostCheckout: z.record(z.string(), z.string()).default({}),
-  branchAutoSelectRepos: z.array(z.string()).default([]),
+  repoGroups: z.record(z.string(), z.array(z.string())).default({}),
   herdrPrompted: z.boolean().default(false),
 });
 
@@ -54,14 +55,13 @@ const ConfigValueSchemas = {
     },
     { message: 'Must be a non-negative integer' }
   ),
-  'branch-auto-select-repos': z.string(),
 } as const;
 
 export type RawConfig = z.infer<typeof RawConfigSchema>;
 export type ParsedConfig = z.infer<typeof ParsedConfigSchema>;
 export type RequiredConfig = z.infer<typeof RequiredConfigSchema>;
 
-export const CONFIG_KEYS = ['source-path', 'dest-path', 'copy-files', 'session-manager', 'post-checkout', 'fetch-cache-ttl-seconds', 'branch-auto-select-repos'] as const;
+export const CONFIG_KEYS = ['source-path', 'dest-path', 'copy-files', 'session-manager', 'post-checkout', 'fetch-cache-ttl-seconds'] as const;
 export type ConfigKey = (typeof CONFIG_KEYS)[number];
 
 /**
@@ -148,9 +148,7 @@ export class ConfigService {
         ? parseInt(raw['fetch-cache-ttl-seconds'], 10)
         : undefined,
       perRepoPostCheckout: raw['per-repo-post-checkout'],
-      branchAutoSelectRepos: raw['branch-auto-select-repos']
-        ? raw['branch-auto-select-repos'].split(',').map((s) => s.trim()).filter(Boolean)
-        : undefined,
+      repoGroups: raw['repo-groups'],
       herdrPrompted: raw['herdr-prompted'] === 'true',
     });
   }
@@ -208,10 +206,6 @@ export class ConfigService {
       'fetch-cache-ttl-seconds': {
         value: raw['fetch-cache-ttl-seconds'] ?? `${config.fetchCacheTtlSeconds} (default)`,
         isDefault: !raw['fetch-cache-ttl-seconds'],
-      },
-      'branch-auto-select-repos': {
-        value: raw['branch-auto-select-repos'] ?? '(not set)',
-        isDefault: !raw['branch-auto-select-repos'],
       },
       perRepoPostCheckout: config.perRepoPostCheckout,
     };

@@ -110,7 +110,7 @@ describe('ConfigService', () => {
         fetchCacheTtlSeconds: 300,
         postCheckout: undefined,
         perRepoPostCheckout: {},
-        branchAutoSelectRepos: [],
+        repoGroups: {},
         herdrPrompted: false,
       });
     });
@@ -134,7 +134,7 @@ describe('ConfigService', () => {
         fetchCacheTtlSeconds: 300,
         postCheckout: undefined,
         perRepoPostCheckout: {},
-        branchAutoSelectRepos: [],
+        repoGroups: {},
         herdrPrompted: false,
       });
     });
@@ -229,39 +229,35 @@ describe('ConfigService', () => {
       expect(config.perRepoPostCheckout).toEqual({});
     });
 
-    it('should parse branch-auto-select-repos as array from comma-separated string', () => {
+    it('should load repo groups', () => {
       const { fs } = createMemFs({
         [configPath]: JSON.stringify({
-          'branch-auto-select-repos': 'repo1,repo2,repo3',
+          'repo-groups': { backend: ['api-1', 'api-2'], web: ['client'] },
         }),
       });
       const service = new ConfigService(fs);
 
       const config = service.load();
 
-      expect(config.branchAutoSelectRepos).toEqual(['repo1', 'repo2', 'repo3']);
+      expect(config.repoGroups).toEqual({ backend: ['api-1', 'api-2'], web: ['client'] });
     });
 
-    it('should default to empty array for branch-auto-select-repos when not set', () => {
+    it('should default to no repo groups when not set', () => {
       const { fs } = createMemFs();
       const service = new ConfigService(fs);
 
       const config = service.load();
 
-      expect(config.branchAutoSelectRepos).toEqual([]);
+      expect(config.repoGroups).toEqual({});
     });
 
-    it('should trim whitespace from branch-auto-select-repos entries', () => {
+    it('should drop the removed branch-auto-select-repos setting', () => {
       const { fs } = createMemFs({
-        [configPath]: JSON.stringify({
-          'branch-auto-select-repos': 'repo1, repo2 , repo3',
-        }),
+        [configPath]: JSON.stringify({ 'branch-auto-select-repos': 'repo1,repo2' }),
       });
       const service = new ConfigService(fs);
 
-      const config = service.load();
-
-      expect(config.branchAutoSelectRepos).toEqual(['repo1', 'repo2', 'repo3']);
+      expect(service.loadRaw()).toEqual({});
     });
   });
 
@@ -455,34 +451,6 @@ describe('ConfigService', () => {
 
       expect(displayConfig.perRepoPostCheckout).toEqual({});
     });
-
-    it('should show branch-auto-select-repos value when set', () => {
-      const { fs } = createMemFs({
-        [configPath]: JSON.stringify({
-          'branch-auto-select-repos': 'repo1,repo2',
-        }),
-      });
-      const service = new ConfigService(fs);
-
-      const displayConfig = service.getDisplayConfig();
-
-      expect(displayConfig['branch-auto-select-repos']).toEqual({
-        value: 'repo1,repo2',
-        isDefault: false,
-      });
-    });
-
-    it('should show (not set) for branch-auto-select-repos when not configured', () => {
-      const { fs } = createMemFs();
-      const service = new ConfigService(fs);
-
-      const displayConfig = service.getDisplayConfig();
-
-      expect(displayConfig['branch-auto-select-repos']).toEqual({
-        value: '(not set)',
-        isDefault: true,
-      });
-    });
   });
 });
 
@@ -507,7 +475,6 @@ describe('validateAndTransformConfigValue', () => {
   it('should accept valid string values', () => {
     expect(validateAndTransformConfigValue('copy-files', '.env')).toBe('.env');
     expect(validateAndTransformConfigValue('post-checkout', 'npm install')).toBe('npm install');
-    expect(validateAndTransformConfigValue('branch-auto-select-repos', 'repo1,repo2')).toBe('repo1,repo2');
   });
 
   it('should validate fetch-cache-ttl-seconds as non-negative integer', () => {
@@ -526,13 +493,14 @@ describe('isValidKey', () => {
     expect(isValidKey('session-manager')).toBe(true);
     expect(isValidKey('post-checkout')).toBe(true);
     expect(isValidKey('fetch-cache-ttl-seconds')).toBe(true);
-    expect(isValidKey('branch-auto-select-repos')).toBe(true);
   });
 
   it('should return false for invalid keys', () => {
     expect(isValidKey('invalid-key')).toBe(false);
     // Superseded by session-manager; still read, but no longer settable
     expect(isValidKey('tmux')).toBe(false);
+    // Removed; repo groups replace it
+    expect(isValidKey('branch-auto-select-repos')).toBe(false);
     expect(isValidKey('random')).toBe(false);
     expect(isValidKey('')).toBe(false);
   });

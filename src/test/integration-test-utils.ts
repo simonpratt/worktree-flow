@@ -189,7 +189,7 @@ export function createIntegrationServices(sourcePath: string, destPath: string):
       postCheckout: undefined,
       perRepoPostCheckout: {},
       fetchCacheTtlSeconds: 300,
-      branchAutoSelectRepos: [],
+      repoGroups: {},
       branchRepoUsage: {},
     }),
     getRequired: sinon.stub().returns({ sourcePath, destPath }),

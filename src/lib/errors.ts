@@ -51,6 +51,24 @@ export class RepoNotFoundError extends Error {
   }
 }
 
+export class RepoGroupNotFoundError extends Error {
+  constructor(groupName: string, availableGroups: string[]) {
+    super(
+      availableGroups.length > 0
+        ? `Repo group "${groupName}" not found. Available groups: ${availableGroups.join(', ')}`
+        : `Repo group "${groupName}" not found. Create one with: flow group set <name> <repo...>`
+    );
+    this.name = 'RepoGroupNotFoundError';
+  }
+}
+
+export class EmptyRepoGroupError extends Error {
+  constructor(groupNames: string[]) {
+    super(`None of the repos in group(s) ${groupNames.join(', ')} are in the source-path.`);
+    this.name = 'EmptyRepoGroupError';
+  }
+}
+
 export class NotInWorkspaceError extends Error {
   constructor(destPath: string) {
     super(`Not inside a flow workspace.\nNavigate to a directory under ${destPath}/.`);

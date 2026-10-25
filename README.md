@@ -53,10 +53,13 @@ Working on features that span multiple repositories means manually creating bran
 Create a new branch across selected repos. Interactively select which repos to include (type to filter, Tab to toggle), then creates branches and worktrees in a new workspace directory. Every interactive prompt has a matching flag so the command can run fully non-interactively:
 
 - `--repo <name>` (repeatable) — repos to include, skips the interactive picker
+- `-g, --group <name>` (repeatable) — include every repo in a [repo group](#flow-group), skips the interactive picker. Combines with `--repo`
 - `-f, --from <branch>` — branch to create from, skips the source-branch prompt
 - `--post-checkout` / `--no-post-checkout` — run or skip the post-checkout command without prompting
 
 e.g. `flow create TICKET-123 --repo api --repo web --from master --post-checkout`.
+
+When repo groups are defined and neither flag is given, you're first asked which groups to start from; their repos are pre-selected in the picker, where you can adjust them.
 
 ### `flow checkout <name>`
 
@@ -64,7 +67,7 @@ Checkout an existing branch. Fetches all repos, detects which have the branch, a
 
 ### `flow attach [name]`
 
-Attach repos to an existing workspace. Discovers available repos not yet in the workspace, presents an interactive picker, creates worktrees with new branches, copies config files, and runs post-checkout commands. Auto-detects the workspace from the current directory, or specify a branch name explicitly. Supports the same `--repo <name>` (repeatable), `-f, --from <branch>`, and `--post-checkout` / `--no-post-checkout` flags as `flow create` to skip the interactive prompts.
+Attach repos to an existing workspace. Discovers available repos not yet in the workspace, presents an interactive picker, creates worktrees with new branches, copies config files, and runs post-checkout commands. Auto-detects the workspace from the current directory, or specify a branch name explicitly. Supports the same `--repo <name>` (repeatable), `-g, --group <name>` (repeatable, skips repos already in the workspace), `-f, --from <branch>`, and `--post-checkout` / `--no-post-checkout` flags as `flow create` to skip the interactive prompts.
 
 ### `flow rename <old-name> <new-name>` (or `flow rename <new-name>` from inside a workspace)
 
@@ -105,6 +108,18 @@ Fetch repos for a specific workspace (when branch name provided), or fetch all r
 ### `flow sessions`
 
 Pick workspaces that don't have a session yet and open one for each, using the configured `session-manager` (see [Sessions](#sessions-tmux--herdr)). Pass `--all` to open them all without prompting. Replaces the deprecated `flow tmux sync`.
+
+### `flow group`
+
+Save sets of repos you often work on together, then use them with `--group` on `create` and `attach`.
+
+```bash
+flow group set backend api-1 api-2 worker   # create or replace a group
+flow group list                             # groups and their repos, flagging any that no longer exist
+flow group rm backend
+```
+
+Repos that have since been renamed or deleted are skipped with a warning when the group is used.
 
 ### `flow config set <key> <value>`
 

@@ -239,7 +239,7 @@ describe('drop integration', () => {
       postCheckout: undefined,
       perRepoPostCheckout: {},
       fetchCacheTtlSeconds: 300,
-      branchAutoSelectRepos: [],
+      repoGroups: {},
       branchRepoUsage: {},
     });
     const tmuxStub = integration.services.tmux as sinon.SinonStubbedInstance<any>;
@@ -274,7 +274,7 @@ describe('drop integration', () => {
       postCheckout: undefined,
       perRepoPostCheckout: {},
       fetchCacheTtlSeconds: 300,
-      branchAutoSelectRepos: [],
+      repoGroups: {},
       branchRepoUsage: {},
     });
     const tmuxStub = integration.services.tmux as sinon.SinonStubbedInstance<any>;

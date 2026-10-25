@@ -13,6 +13,7 @@
 - When `AGENTS.md` is copied, lines mentioning repos not included in the workspace are removed
 - `create`, `attach` and `checkout` print the `copy-files` setting and warn if it doesn't include `.env`
 - `dest-path` can now sit inside `source-path`, e.g. `~/dev/.workspaces`, and quickstart defaults to it. `dest-path` can't equal `source-path` or contain it, and `flow config set` and quickstart reject that.
+- Repo groups: save sets of repos with `flow group set|list|rm`, then use them via `--group` on `create` and `attach`, or pick one to pre-select in the repo picker
 
 ### Changed
 
@@ -20,6 +21,10 @@
 - `flow list` is now a fast offline listing of workspace names, repo counts and the active marker; status checks moved behind `--status`
 - `flow drop` and `flow prune` return almost immediately: the workspace is moved into `.flow-trash/` in the workspaces folder and deleted in the background. Anything left in `.flow-trash/` is a delete that failed and can be removed by hand.
 - With a session manager, `create`, `checkout` and `attach` open the session once all worktrees exist. Post-checkout then runs in each worktree's pane, or directly if the session can't be opened.
+
+### Removed
+
+- The `branch-auto-select-repos` setting. Use a repo group instead.
 
 ### Fixed
 
