@@ -12,6 +12,7 @@
 - All root-level `.md` files in `source-path` (e.g. `CLAUDE.md`) are now copied into the workspace, not just `AGENTS.md`
 - When `AGENTS.md` is copied, lines mentioning repos not included in the workspace are removed
 - `create`, `attach` and `checkout` print the `copy-files` setting and warn if it doesn't include `.env`
+- `dest-path` can now sit inside `source-path`, e.g. `~/dev/.workspaces`, and quickstart defaults to it. `dest-path` can't equal `source-path` or contain it, and `flow config set` and quickstart reject that.
 
 ### Changed
 
@@ -30,6 +31,7 @@
 - `flow tmux sync` reports existing sessions as skipped instead of created
 - `flow drop` only reports "Killed tmux session" when a session actually existed
 - tmux sessions are matched by exact name. Previously, with a `feat-login` session but no `feat` session, `flow create feat` added its panes to `feat-login`, and `drop`/`rename` could act on the wrong session.
+- `flow checkout` now removes lines mentioning repos not in the workspace when copying `AGENTS.md`, as `flow create` already did
 
 ## [0.0.26] 2026-09-23
 
