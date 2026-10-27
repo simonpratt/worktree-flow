@@ -8,6 +8,8 @@ import type { UseCases } from '../usecases/usecases.js';
 import { resolveWorkspace } from '../lib/workspaceResolver.js';
 import { handleCommandError, pickWorkspace } from './helpers.js';
 import { pickOne, type PickOneOptions } from './prompts.js';
+import type { WorkspaceServer } from '../usecases/listWorkspaceServers.js';
+import type { SessionManager } from '../lib/sessionManager.js';
 
 /** How to reach a session from outside its session manager. */
 const OUTSIDE_HINTS: Record<string, (name: string) => string> = {
@@ -15,12 +17,57 @@ const OUTSIDE_HINTS: Record<string, (name: string) => string> = {
   herdr: () => 'Run this from inside herdr.',
 };
 
+const formatPorts = (server: WorkspaceServer) => server.ports.map((port) => `:${port}`).join(' ');
+
+/**
+ * Picks a server running in a workspace or source repo, as aligned columns of
+ * name, ports, command and the pane it runs in.
+ * @example label → 'feature/a  :3000 :9229  node  feature/a › repos'
+ */
+async function pickServer(
+  useCases: UseCases,
+  services: Services,
+  sessions: SessionManager,
+  pickOne: (opts: PickOneOptions) => Promise<string>
+): Promise<WorkspaceServer> {
+  const { sourcePath, destPath } = services.config.getRequired();
+  const servers = await useCases.listWorkspaceServers.execute({ sourcePath, destPath, sessions });
+  if (servers.length === 0) {
+    throw new Error('No servers are running in your workspaces or source repos.');
+  }
+
+  // Padded before colouring, since escape codes would throw the widths off
+  const width = (column: (server: WorkspaceServer) => string) => Math.max(...servers.map((s) => column(s).length));
+  const nameWidth = width((s) => s.name);
+  const portsWidth = width(formatPorts);
+  const commandWidth = width((s) => s.command);
+
+  const pid = await pickOne({
+    message: 'Switch to server:',
+    options: servers.map((server) => ({
+      value: String(server.pid),
+      label: [
+        chalk.cyan(server.name.padEnd(nameWidth)),
+        chalk.yellow(formatPorts(server).padEnd(portsWidth)),
+        server.command.padEnd(commandWidth),
+        chalk.dim(server.pane?.location ?? 'no pane'),
+      ].join('  '),
+    })),
+  });
+  return servers.find((server) => String(server.pid) === pid)!;
+}
+
 export async function runSwitch(
   name: string | undefined,
   useCases: UseCases,
   services: Services,
-  deps: { pickOne: (opts: PickOneOptions) => Promise<string> }
+  deps: { pickOne: (opts: PickOneOptions) => Promise<string> },
+  options: { servers?: boolean } = {}
 ): Promise<void> {
+  if (name && options.servers) {
+    throw new Error('Pass a workspace name or --servers, not both.');
+  }
+
   const { sessionManager } = services.config.load();
   const sessions = services.sessionManagers.get(sessionManager);
 
@@ -40,6 +87,20 @@ export async function runSwitch(
     throw new Error(
       `Not running inside ${sessions.label}. ${OUTSIDE_HINTS[sessionManager](workspace?.displayName ?? '<name>')}`
     );
+  }
+
+  if (options.servers) {
+    const server = await pickServer(useCases, services, sessions, deps.pickOne);
+    if (server.pane && sessions.focusPane) {
+      await sessions.focusPane(server.pane);
+      return;
+    }
+    if (!server.workspacePath) {
+      const reason = sessions.listRunningPanes ? `isn't running in a ${sessions.label} pane` : 'has no session to switch to';
+      services.console.log(`${server.command} (${formatPorts(server)}) runs in the source repo ${server.name}, but ${reason}.`);
+      return;
+    }
+    workspace = { workspacePath: server.workspacePath, displayName: server.name };
   }
 
   if (!workspace) {
@@ -67,12 +128,13 @@ export function registerSwitchCommand(program: Command): void {
     .command('switch [name]')
     .helpGroup('Workspaces')
     .description('Switch to a workspace\'s tmux/herdr session, creating it if needed (pick one if no name is given)')
-    .action(async (name: string | undefined) => {
+    .option('--servers', 'Pick from the servers running in your workspaces and source repos instead')
+    .action(async (name: string | undefined, options: { servers?: boolean }) => {
       const services = createServices();
       const useCases = createUseCases(services);
 
       try {
-        await runSwitch(name, useCases, services, { pickOne });
+        await runSwitch(name, useCases, services, { pickOne }, options);
       } catch (error: any) {
         handleCommandError(error, services);
       }

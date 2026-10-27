@@ -3,6 +3,7 @@ import {
   SessionExistsError,
   runPaneCommands,
   type PaneCommandResult,
+  type RunningPane,
   type SessionManager,
   type SessionPane,
 } from './sessionManager.js';
@@ -253,6 +254,45 @@ export class HerdrService implements SessionManager {
       throw new Error(`herdr workspace not found: ${name}`);
     }
     await this.call(['workspace', 'focus', workspaceId]);
+  }
+
+  async listRunningPanes(): Promise<RunningPane[]> {
+    let workspaces: any[];
+    try {
+      ({ workspaces } = await this.call(['workspace', 'list']));
+    } catch (error) {
+      if (error instanceof HerdrError && error.code === 'server_not_running') return [];
+      throw error;
+    }
+
+    const [{ panes }, tabLists] = await Promise.all([
+      this.call(['pane', 'list']),
+      Promise.all(workspaces.map((w) => this.call(['tab', 'list', '--workspace', w.workspace_id]))),
+    ]);
+    const workspaceLabels = new Map(workspaces.map((w) => [w.workspace_id, w.label]));
+    const tabLabels = new Map(tabLists.flatMap((list: any) => list.tabs).map((t: any) => [t.tab_id, t.label]));
+
+    return Promise.all(
+      panes.map(async (pane: any): Promise<RunningPane> => {
+        // A pane can close between listing it and reading its processes
+        const info = await this.call(['pane', 'process-info', '--pane', pane.pane_id])
+          .then((result) => result.process_info)
+          .catch(() => undefined);
+        return {
+          paneId: pane.pane_id,
+          tabId: pane.tab_id,
+          location: `${workspaceLabels.get(pane.workspace_id)} › ${tabLabels.get(pane.tab_id)}`,
+          ...(pane.foreground_cwd ? { foregroundCwd: pane.foreground_cwd } : {}),
+          ...(info?.foreground_process_group_id ? { foregroundProcessGroupId: info.foreground_process_group_id } : {}),
+          foregroundPids: (info?.foreground_processes ?? []).map((p: any) => p.pid),
+          ...(info?.shell_pid ? { shellPid: info.shell_pid } : {}),
+        };
+      })
+    );
+  }
+
+  async focusPane(pane: RunningPane): Promise<void> {
+    await this.call(['tab', 'focus', pane.tabId]);
   }
 
   /** herdr sets HERDR_ENV=1 in every pane it starts. */

@@ -18,6 +18,7 @@ import { StatusService } from '../lib/status.js';
 import { SessionManagers } from '../lib/sessionManager.js';
 import { createMockSessionManager } from './test-utils.js';
 import { TrashService } from '../lib/trash.js';
+import { ServerService } from '../lib/servers.js';
 import type { Services } from '../lib/services.js';
 import { createUseCases } from '../usecases/usecases.js';
 import type { UseCases } from '../usecases/usecases.js';
@@ -167,6 +168,7 @@ export function createIntegrationServices(sourcePath: string, destPath: string):
   const workspaceConfig = new WorkspaceConfigService(nodeFs);
   const worktree = new WorktreeService(nodeFs, gitService);
   const trash = new TrashService(nodeFs, nodeShell);
+  const servers = new ServerService(nodeShell);
 
   // Stub fetch to be a no-op (no remote to fetch from)
   const fetch = { fetchRepos: sinon.stub().resolves() } as any;
@@ -219,6 +221,7 @@ export function createIntegrationServices(sourcePath: string, destPath: string):
     herdr: herdrStub,
     sessionManagers: new SessionManagers({ tmux: tmuxStub, herdr: herdrStub }),
     trash,
+    servers,
     console: consoleStub,
     process: processStub,
   } as any;

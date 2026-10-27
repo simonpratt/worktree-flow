@@ -7,6 +7,20 @@ export type SessionPane = { path: string; command?: string };
 /** Outcome of sending a pane's command. Only panes with a command are reported. */
 export type PaneCommandResult = { path: string; success: boolean };
 
+/** A live terminal and what's running in its foreground, so a process can be traced to it. */
+export type RunningPane = {
+  paneId: string;
+  tabId: string;
+  /** Where the pane is, for display, e.g. "homelab › 1" */
+  location: string;
+  /** The cwd of the process in the foreground, if known */
+  foregroundCwd?: string;
+  foregroundProcessGroupId?: number;
+  foregroundPids: number[];
+  /** The pane's own shell, which is the parent of anything started in it with & */
+  shellPid?: number;
+};
+
 /**
  * A terminal multiplexer that holds one session per workspace, named after the
  * workspace's branch name.
@@ -32,6 +46,10 @@ export interface SessionManager {
   focus(name: string): Promise<void>;
   /** Whether this process is running inside the session manager, judged from its environment. */
   isInside(env: (name: string) => string | undefined): boolean;
+  /** Lists every pane in every session. Only session managers that can see pane processes implement it. */
+  listRunningPanes?(): Promise<RunningPane[]>;
+  /** Switches the current client to the pane's tab. Implemented alongside listRunningPanes. */
+  focusPane?(pane: RunningPane): Promise<void>;
 }
 
 export class SessionExistsError extends Error {

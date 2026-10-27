@@ -20,7 +20,10 @@ function fakeHerdr(shell: sinon.SinonStubbedInstance<any>) {
     rects: {} as Record<string, { width: number; height: number }>,
     runs: [] as Array<{ pane: string; command: string }>,
     focused: undefined as string | undefined,
+    focusedTab: undefined as string | undefined,
     failRunFor: new Set<string>(),
+    /** Canned `pane process-info` foregrounds, keyed by pane id; other panes fail the lookup */
+    foregrounds: {} as Record<string, { pgid: number; processes: Array<{ pid: number; name: string; cwd: string }> }>,
   };
   let nextWorkspace = 0;
   const nextIndex: Record<string, { tab: number; pane: number }> = {};
@@ -99,7 +102,41 @@ function fakeHerdr(shell: sinon.SinonStubbedInstance<any>) {
     }
     if (group === 'pane' && action === 'list') {
       const workspaceId = opt(args, '--workspace');
-      return ok({ type: 'pane_list', panes: state.panes.filter((p) => p.pane_id.startsWith(`${workspaceId}:`)) });
+      const panes = state.panes
+        .filter((p) => !workspaceId || p.pane_id.startsWith(`${workspaceId}:`))
+        .map((p) => {
+          const foreground = state.foregrounds[p.pane_id];
+          return {
+            ...p,
+            workspace_id: p.pane_id.split(':')[0],
+            ...(foreground ? { foreground_cwd: foreground.processes[0].cwd } : {}),
+          };
+        });
+      return ok({ type: 'pane_list', panes });
+    }
+    if (group === 'pane' && action === 'process-info') {
+      const paneId = opt(args, '--pane')!;
+      const foreground = state.foregrounds[paneId];
+      if (!foreground) fail('pane_not_found', `pane ${paneId} not found`);
+      return ok({
+        type: 'pane_process_info',
+        process_info: {
+          pane_id: paneId,
+          shell_pid: foreground!.processes[0].pid,
+          foreground_process_group_id: foreground!.pgid,
+          foreground_processes: foreground!.processes.map((p) => ({
+            ...p,
+            argv: [p.name],
+            argv0: p.name,
+            cmdline: p.name,
+          })),
+        },
+      });
+    }
+    if (group === 'tab' && action === 'focus') {
+      if (!state.tabs.some((t) => t.tab_id === rest[0])) fail('tab_not_found', `tab ${rest[0]} not found`);
+      state.focusedTab = rest[0];
+      return ok({ type: 'tab_info', tab: state.tabs.find((t) => t.tab_id === rest[0]) });
     }
     if (group === 'pane' && action === 'layout') {
       const tabId = state.panes.find((p) => p.pane_id === opt(args, '--pane'))!.tab_id;
@@ -381,6 +418,67 @@ describe('HerdrService', () => {
       shell.execFile.withArgs('which', ['herdr']).rejects(new Error('exit 1'));
 
       await expect(service.isInstalled()).resolves.toBe(false);
+    });
+  });
+
+  describe('listRunningPanes', () => {
+    it('should list every pane across workspaces, with where it is and what runs in its foreground', async () => {
+      await service.create('feat/x', '/ws', [{ path: '/ws/api' }]);
+      await service.create('homelab', '/dev/homelab', []);
+      herdr.state.foregrounds['w1:p3'] = {
+        pgid: 700,
+        processes: [
+          { pid: 700, name: 'npm', cwd: '/ws/api' },
+          { pid: 701, name: 'node', cwd: '/ws/api' },
+        ],
+      };
+      herdr.state.foregrounds['w2:p1'] = { pgid: 55570, processes: [{ pid: 55570, name: 'zsh', cwd: '/dev/homelab' }] };
+
+      const panes = await service.listRunningPanes();
+
+      expect(panes.find((p) => p.paneId === 'w1:p3')).toEqual({
+        paneId: 'w1:p3',
+        tabId: 'w1:t2',
+        location: 'feat/x › repos',
+        foregroundCwd: '/ws/api',
+        foregroundProcessGroupId: 700,
+        foregroundPids: [700, 701],
+        shellPid: 700,
+      });
+      expect(panes.find((p) => p.paneId === 'w2:p1')).toMatchObject({
+        location: 'homelab › root',
+        foregroundProcessGroupId: 55570,
+        foregroundPids: [55570],
+      });
+    });
+
+    it('should still list a pane whose processes cannot be read', async () => {
+      await service.create('feat/x', '/ws', []);
+
+      const panes = await service.listRunningPanes();
+
+      expect(panes.find((p) => p.paneId === 'w1:p1')).toEqual({
+        paneId: 'w1:p1',
+        tabId: 'w1:t1',
+        location: 'feat/x › root',
+        foregroundPids: [],
+      });
+    });
+
+    it('should list no panes when no herdr server is running', async () => {
+      herdr.state.running = false;
+
+      await expect(service.listRunningPanes()).resolves.toEqual([]);
+    });
+  });
+
+  describe('focusPane', () => {
+    it("should focus the pane's tab", async () => {
+      await service.create('feat/x', '/ws', [{ path: '/ws/api' }]);
+
+      await service.focusPane({ paneId: 'w1:p3', tabId: 'w1:t2', location: 'feat/x › repos', foregroundPids: [] });
+
+      expect(herdr.state.focusedTab).toBe('w1:t2');
     });
   });
 });

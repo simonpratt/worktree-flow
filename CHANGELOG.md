@@ -15,6 +15,7 @@
 - `create`, `attach` and `checkout` print the `copy-files` setting and warn if it doesn't include `.env`
 - `dest-path` can now sit inside `source-path`, e.g. `~/dev/.workspaces`, and quickstart defaults to it. `dest-path` can't equal `source-path` or contain it, and `flow config set` and quickstart reject that.
 - `flow switch [name]` jumps to a workspace's tmux/herdr session from inside tmux or herdr, creating the session if needed. With no name it shows a workspace picker.
+- `flow switch --servers` picks from the servers (processes listening on a TCP port, found with `lsof`) running inside your workspaces and source repos, and switches to the one chosen. With herdr, each server is traced to the pane it was started from and its tab is focused, including servers in source repos.
 - `flow completion zsh` prints a zsh completion script that completes commands and, for `flow switch`, workspace names
 - Repo groups: save sets of repos with `flow group set|list|rm`, then use them via `--group` on `create` and `attach`, or pick one to pre-select in the repo picker
 

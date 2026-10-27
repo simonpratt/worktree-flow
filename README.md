@@ -96,6 +96,8 @@ Pass `--status` to fetch all repos and show each repo's status: `clean`, `uncomm
 
 Switch to a workspace's session (see [Sessions](#sessions-tmux--herdr)). Run it from inside tmux or herdr. With no name, pick the workspace from a list. If the workspace has no session yet, one is created first (without running post-checkout).
 
+Pass `--servers` to pick from the servers (processes listening on a TCP port, found with `lsof`) running inside your workspaces and source repos instead, e.g. `feature/a  :3000  node  feature/a › repos`. Servers running anywhere else are left out. With herdr, each server is traced to the pane it was started from (by process group, else by the shell that started it in the background, else by the pane's foreground folder), and picking it focuses that pane's tab. A workspace server in no pane switches to its workspace's session; a source repo server in no pane just tells you where it runs.
+
 ### `flow drop <name>`
 
 Drop a workspace and all its worktrees. Fetches latest, checks for uncommitted changes, and prompts for confirmation before removing. Committed changes are safe to drop since they're preserved in git history.

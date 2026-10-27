@@ -140,6 +140,9 @@ export function createMockServices(): {
       moveToTrash: sinon.stub(),
       deleteInBackground: sinon.stub(),
     } as any,
+    servers: {
+      listListening: sinon.stub().resolves([]),
+    } as any,
     console: createMockConsole() as any,
     process: createMockProcess() as any,
     repoConfig: {

@@ -12,6 +12,7 @@ import { ListWorkspaceSessionsUseCase } from './listWorkspaceSessions.js';
 import { OpenSessionsUseCase } from './openSessions.js';
 import { OpenWorkspaceSessionUseCase } from './openWorkspaceSession.js';
 import { SwitchToWorkspaceUseCase } from './switchToWorkspace.js';
+import { ListWorkspaceServersUseCase } from './listWorkspaceServers.js';
 import { CreateWorkspaceUseCase } from './createWorkspace.js';
 import { CreateBranchUseCase } from './createBranch.js';
 import { AddToWorkspaceUseCase } from './addToWorkspace.js';
@@ -73,6 +74,11 @@ export function createUseCases(services: Services) {
     ),
     openSessions: new OpenSessionsUseCase(services.workspaceDir),
     switchToWorkspace: new SwitchToWorkspaceUseCase(services.workspaceDir),
+    listWorkspaceServers: new ListWorkspaceServersUseCase(
+      services.servers,
+      services.workspaceDir,
+      services.workspaceConfig
+    ),
     openWorkspaceSession: new OpenWorkspaceSessionUseCase(
       services.workspaceDir,
       services.postCheckout,

@@ -19,6 +19,7 @@ import { HerdrService } from './herdr.js';
 import { SessionManagers } from './sessionManager.js';
 import { RepoConfigService } from './repoConfig.js';
 import { TrashService } from './trash.js';
+import { ServerService } from './servers.js';
 
 export function createServices() {
   // Create adapters
@@ -41,6 +42,7 @@ export function createServices() {
   const postCheckout = new PostCheckoutService(shell);
   const repoConfig = new RepoConfigService(fs);
   const trash = new TrashService(fs, shell);
+  const servers = new ServerService(shell);
 
   // Focused workspace services
   const workspaceDir = new WorkspaceDirectoryService(fs);
@@ -64,6 +66,7 @@ export function createServices() {
     herdr,
     sessionManagers,
     trash,
+    servers,
     console,
     process,
   };
